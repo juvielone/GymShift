@@ -9,6 +9,7 @@ import { useCleanerHome, type CleanerHome as HomeData } from '@/hooks/useCleaner
 import { ShiftPass } from '@/components/home/ShiftPass'
 import { ExtensionRow, LocationRow } from '@/components/home/StatusRows'
 import { UpcomingShifts } from '@/components/home/UpcomingShifts'
+import { TeamSwaps } from '@/components/home/TeamSwaps'
 import { ExtensionSheet } from '@/components/home/ExtensionSheet'
 import { ClockOutConfirm } from '@/components/home/ClockOutConfirm'
 import { firstName, formatClock, formatDateLong, formatDuration, shiftLabel, siteShortName } from '@/lib/format'
@@ -122,7 +123,7 @@ function Home({ data, refresh }: { data: HomeData; refresh: () => Promise<void> 
   const next = upcoming[0]
 
   return (
-    <main className={cn('mx-auto min-h-svh max-w-[480px] px-4', showDock ? 'pb-[calc(env(safe-area-inset-bottom)+112px)]' : 'pb-10')}>
+    <main className={cn('mx-auto min-h-svh max-w-[480px] px-4', !showDock ? 'pb-10' : phase.kind === 'no_shift' ? 'pb-[calc(env(safe-area-inset-bottom)+160px)]' : 'pb-[calc(env(safe-area-inset-bottom)+112px)]')}>
       <header className="flex h-12 items-center justify-between px-1">
         {/* Text wordmark until the official World Gym logo arrives; the site sits beside it like a pass's issuer line. */}
         <p className="flex items-baseline gap-2">
@@ -153,6 +154,8 @@ function Home({ data, refresh }: { data: HomeData; refresh: () => Promise<void> 
       </div>
 
       <UpcomingShifts shifts={upcoming} />
+
+      <TeamSwaps user={user} settings={settings} now={now} />
 
       {showDock && (
         <div className="fixed inset-x-0 bottom-0 z-30 border-t border-border bg-background pt-3">

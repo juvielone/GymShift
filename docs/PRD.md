@@ -35,8 +35,8 @@ There are three roles, about 7 users in total (Carly, Gladys and roughly 5 clean
 | View own shifts and hours | Yes | Yes | Yes |
 | Clock in/out, upload photos, add shift notes | Yes | Yes | Yes |
 | Set availability, request swaps and extensions | Yes | Yes | Yes |
-| Create and publish roster | All staff | Own group | No |
-| Approve swaps and covers | Yes | Yes | No |
+| Create and publish roster | All staff | All staff (on Carly's behalf) | No |
+| Approve swaps and covers | All staff | All staff (on Carly's behalf) | No |
 | Approve extensions | Yes | No | No |
 | Review flags and correct attendance times | Yes | No | No |
 | View all photos, notes and hours | Yes | Own group | Own only |
@@ -213,7 +213,7 @@ Prices are approximate as of October 2026.
 
 - During the trial, app records replace the clock photos as the hours used for pay. This is based on Carly saying "let's trial using the app for clocking in and out."
 - There are about 5 cleaners at one site (Macquarie Park).
-- Gladys rosters and approves for his own group. Carly can do this for everyone.
+- Gladys rosters and approves swaps and covers for all cleaners, acting on Carly's behalf. She still sees records (photos, notes, hours) only for her own group. *(Changed 29 Oct 2026.)*
 - Every staff member uses their own smartphone with mobile data. Reception inside the gym is good.
 
 ### Open questions

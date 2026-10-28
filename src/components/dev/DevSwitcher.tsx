@@ -32,7 +32,7 @@ export function DevSwitcher({ onChange }: { onChange: () => void }) {
   useEffect(() => {
     void (async () => {
       const [all, me, settings] = await Promise.all([getUsers({ activeOnly: true }), getCurrentUser(), getSettings()])
-      setUsers(all.filter((u) => u.role !== 'manager'))
+      setUsers(all)
       setUserId(me.id)
       setDevLocationMode('gym', { lat: settings.gym_lat, lng: settings.gym_lng })
     })()

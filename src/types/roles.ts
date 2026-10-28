@@ -11,7 +11,8 @@ export interface Role {
   label: string
   /** Create and publish roster. `false` = cannot. */
   can_publish_roster: Exclude<Scope, 'own'> | false
-  can_approve_swaps: boolean
+  /** Approve swaps and covers. `false` = cannot. */
+  can_approve_swaps: Exclude<Scope, 'own'> | false
   /** Carly only (confirmed business rule). */
   can_approve_extensions: boolean
   /** Review flags and correct attendance times. */

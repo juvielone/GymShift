@@ -56,3 +56,26 @@ export const shiftLabel = (date: DateString, start: TimeString) => `${formatDate
 
 /** "World Gym Macquarie Park" → "Macquarie Park": the wordmark in the header already names the brand. */
 export const siteShortName = (siteName: string) => siteName.replace(/^World Gym\s+/i, '')
+
+/**
+ * Site-local date + time → timestamp with the site's UTC offset, e.g. ("2026-10-28", "07:05") →
+ * "2026-10-28T07:05:00+11:00". Used for attendance corrections Carly types in local time.
+ */
+export function zonedTimestamp(date: DateString, time: TimeString, timeZone: string): Timestamp {
+  const [y, mo, d] = date.split('-').map(Number)
+  const [h, mi] = time.split(':').map(Number)
+  const guess = Date.UTC(y, mo - 1, d, h, mi)
+  const offsetMin = (at: number) => {
+    const parts = new Intl.DateTimeFormat('en-US', { timeZone, timeZoneName: 'longOffset' }).formatToParts(new Date(at))
+    const m = /GMT([+-])(\d{2}):?(\d{2})?/.exec(parts.find((p) => p.type === 'timeZoneName')?.value ?? '')
+    return m ? (m[1] === '-' ? -1 : 1) * (Number(m[2]) * 60 + Number(m[3] ?? 0)) : 0
+  }
+  const offset = offsetMin(guess - offsetMin(guess) * 60_000)
+  const sign = offset < 0 ? '-' : '+'
+  const abs = Math.abs(offset)
+  const pad = (n: number) => String(n).padStart(2, '0')
+  return `${date}T${time}:00${sign}${pad(Math.floor(abs / 60))}:${pad(abs % 60)}`
+}
+
+/** Site-local calendar date of a timestamp, "YYYY-MM-DD". */
+export const localDay = (ts: Timestamp, timeZone: string): DateString => new Intl.DateTimeFormat('en-CA', { timeZone }).format(new Date(ts))

@@ -1,60 +1,443 @@
 {
   "schemaVersion": 2,
-  "generatedAt": "2026-10-29T00:00:00+11:00",
+  "generatedAt": "2026-10-29T12:00:00+11:00",
   "title": "Design System: GymShift",
   "extensions": {
     "colorMeta": {
-      "brand": { "role": "primary", "displayName": "Club Red", "canonical": "#d7192a", "interim": true, "swapWhenOfficialAssetsArrive": true, "tonalRamp": ["#3d0509", "#6b0a12", "#99101b", "#b5121f", "#d7192a", "#e8545f", "#f3a2a8", "#fbe3e5"] },
-      "brand-press": { "role": "primary", "displayName": "Pressed Red", "canonical": "#b5121f", "interim": true, "swapWhenOfficialAssetsArrive": true, "tonalRamp": ["#33040a", "#5c0910", "#850e18", "#b5121f", "#cc3540", "#e0787f", "#f0b8bc", "#fae6e7"] },
-      "brand-foreground": { "role": "primary", "displayName": "White on Red", "canonical": "#ffffff", "interim": true, "swapWhenOfficialAssetsArrive": true, "tonalRamp": ["#262626", "#404040", "#737373", "#a3a3a3", "#d4d4d4", "#e5e5e5", "#f5f5f5", "#ffffff"] },
-      "pass": { "role": "secondary", "displayName": "Pass Black", "canonical": "#111111", "interim": true, "swapWhenOfficialAssetsArrive": true, "tonalRamp": ["#000000", "#111111", "#262626", "#404040", "#5c5c5c", "#8a8a8a", "#c2c2c2", "#f0f0f0"] },
-      "pass-foreground": { "role": "secondary", "displayName": "Pass White", "canonical": "#ffffff", "interim": true, "swapWhenOfficialAssetsArrive": true, "tonalRamp": ["#262626", "#404040", "#737373", "#a3a3a3", "#d4d4d4", "#e5e5e5", "#f5f5f5", "#ffffff"] },
-      "pass-muted": { "role": "secondary", "displayName": "Pass Grey", "canonical": "#c4c4cc", "interim": true, "swapWhenOfficialAssetsArrive": true, "tonalRamp": ["#27272a", "#3f3f46", "#52525b", "#71717a", "#a1a1aa", "#c4c4cc", "#e4e4e7", "#f4f4f5"] },
-      "pass-line": { "role": "secondary", "displayName": "Pass Rule", "canonical": "#3f3f46", "interim": true, "swapWhenOfficialAssetsArrive": true, "tonalRamp": ["#18181b", "#27272a", "#3f3f46", "#52525b", "#71717a", "#a1a1aa", "#d4d4d8", "#f4f4f5"] },
-      "pass-zone": { "role": "secondary", "displayName": "Zone Dash", "canonical": "#71717a", "note": "Hardcoded inline in ShiftPass.tsx, not yet a brand-layer custom property.", "tonalRamp": ["#18181b", "#27272a", "#3f3f46", "#52525b", "#71717a", "#a1a1aa", "#d4d4d8", "#f4f4f5"] },
-      "warn": { "role": "tertiary", "displayName": "Check Amber (ink)", "canonical": "#92400e", "tonalRamp": ["#451a03", "#78350f", "#92400e", "#b45309", "#d97706", "#f59e0b", "#fde68a", "#fffbeb"] },
-      "warn-soft": { "role": "tertiary", "displayName": "Check Amber (tint)", "canonical": "#fef3c7", "tonalRamp": ["#78350f", "#b45309", "#d97706", "#f59e0b", "#fcd34d", "#fde68a", "#fef3c7", "#fffbeb"] },
-      "ok": { "role": "tertiary", "displayName": "Saved Green (ink)", "canonical": "#15803d", "tonalRamp": ["#052e16", "#14532d", "#166534", "#15803d", "#16a34a", "#4ade80", "#bbf7d0", "#f0fdf4"] },
-      "ok-soft": { "role": "tertiary", "displayName": "Saved Green (tint)", "canonical": "#dcfce7", "tonalRamp": ["#14532d", "#15803d", "#16a34a", "#22c55e", "#86efac", "#bbf7d0", "#dcfce7", "#f0fdf4"] },
-      "background": { "role": "neutral", "displayName": "Paper White", "canonical": "oklch(1 0 0)", "tonalRamp": ["oklch(0.2 0 0)", "oklch(0.32 0 0)", "oklch(0.45 0 0)", "oklch(0.58 0 0)", "oklch(0.7 0 0)", "oklch(0.82 0 0)", "oklch(0.93 0 0)", "oklch(1 0 0)"] },
-      "foreground": { "role": "neutral", "displayName": "Ink", "canonical": "oklch(0.18 0 0)", "tonalRamp": ["oklch(0.15 0 0)", "oklch(0.18 0 0)", "oklch(0.3 0 0)", "oklch(0.45 0 0)", "oklch(0.6 0 0)", "oklch(0.75 0 0)", "oklch(0.88 0 0)", "oklch(0.96 0 0)"] },
-      "muted": { "role": "neutral", "displayName": "Soft Grey", "canonical": "oklch(0.97 0 0)", "tonalRamp": ["oklch(0.2 0 0)", "oklch(0.35 0 0)", "oklch(0.5 0 0)", "oklch(0.65 0 0)", "oklch(0.8 0 0)", "oklch(0.9 0 0)", "oklch(0.97 0 0)", "oklch(0.99 0 0)"] },
-      "muted-foreground": { "role": "neutral", "displayName": "Quiet Grey", "canonical": "oklch(0.45 0 0)", "tonalRamp": ["oklch(0.15 0 0)", "oklch(0.25 0 0)", "oklch(0.35 0 0)", "oklch(0.45 0 0)", "oklch(0.6 0 0)", "oklch(0.75 0 0)", "oklch(0.88 0 0)", "oklch(0.96 0 0)"] },
-      "border": { "role": "neutral", "displayName": "Hairline", "canonical": "oklch(0.922 0 0)", "tonalRamp": ["oklch(0.2 0 0)", "oklch(0.35 0 0)", "oklch(0.5 0 0)", "oklch(0.65 0 0)", "oklch(0.8 0 0)", "oklch(0.922 0 0)", "oklch(0.96 0 0)", "oklch(0.99 0 0)"] }
+      "brand": {
+        "role": "primary",
+        "displayName": "Club Red",
+        "canonical": "#d7192a",
+        "interim": true,
+        "swapWhenOfficialAssetsArrive": true,
+        "tonalRamp": [
+          "#3d0509",
+          "#6b0a12",
+          "#99101b",
+          "#b5121f",
+          "#d7192a",
+          "#e8545f",
+          "#f3a2a8",
+          "#fbe3e5"
+        ]
+      },
+      "brand-press": {
+        "role": "primary",
+        "displayName": "Pressed Red",
+        "canonical": "#b5121f",
+        "interim": true,
+        "swapWhenOfficialAssetsArrive": true,
+        "tonalRamp": [
+          "#33040a",
+          "#5c0910",
+          "#850e18",
+          "#b5121f",
+          "#cc3540",
+          "#e0787f",
+          "#f0b8bc",
+          "#fae6e7"
+        ]
+      },
+      "brand-foreground": {
+        "role": "primary",
+        "displayName": "White on Red",
+        "canonical": "#ffffff",
+        "interim": true,
+        "swapWhenOfficialAssetsArrive": true,
+        "tonalRamp": [
+          "#262626",
+          "#404040",
+          "#737373",
+          "#a3a3a3",
+          "#d4d4d4",
+          "#e5e5e5",
+          "#f5f5f5",
+          "#ffffff"
+        ]
+      },
+      "pass": {
+        "role": "secondary",
+        "displayName": "Pass Black",
+        "canonical": "#111111",
+        "interim": true,
+        "swapWhenOfficialAssetsArrive": true,
+        "tonalRamp": [
+          "#000000",
+          "#111111",
+          "#262626",
+          "#404040",
+          "#5c5c5c",
+          "#8a8a8a",
+          "#c2c2c2",
+          "#f0f0f0"
+        ]
+      },
+      "pass-foreground": {
+        "role": "secondary",
+        "displayName": "Pass White",
+        "canonical": "#ffffff",
+        "interim": true,
+        "swapWhenOfficialAssetsArrive": true,
+        "tonalRamp": [
+          "#262626",
+          "#404040",
+          "#737373",
+          "#a3a3a3",
+          "#d4d4d4",
+          "#e5e5e5",
+          "#f5f5f5",
+          "#ffffff"
+        ]
+      },
+      "pass-muted": {
+        "role": "secondary",
+        "displayName": "Pass Grey",
+        "canonical": "#c4c4cc",
+        "interim": true,
+        "swapWhenOfficialAssetsArrive": true,
+        "tonalRamp": [
+          "#27272a",
+          "#3f3f46",
+          "#52525b",
+          "#71717a",
+          "#a1a1aa",
+          "#c4c4cc",
+          "#e4e4e7",
+          "#f4f4f5"
+        ]
+      },
+      "pass-line": {
+        "role": "secondary",
+        "displayName": "Pass Rule",
+        "canonical": "#3f3f46",
+        "interim": true,
+        "swapWhenOfficialAssetsArrive": true,
+        "tonalRamp": [
+          "#18181b",
+          "#27272a",
+          "#3f3f46",
+          "#52525b",
+          "#71717a",
+          "#a1a1aa",
+          "#d4d4d8",
+          "#f4f4f5"
+        ]
+      },
+      "pass-zone": {
+        "role": "secondary",
+        "displayName": "Zone Dash",
+        "canonical": "#71717a",
+        "tonalRamp": [
+          "#18181b",
+          "#27272a",
+          "#3f3f46",
+          "#52525b",
+          "#71717a",
+          "#a1a1aa",
+          "#d4d4d8",
+          "#f4f4f5"
+        ],
+        "interim": true,
+        "swapWhenOfficialAssetsArrive": true
+      },
+      "warn": {
+        "role": "tertiary",
+        "displayName": "Check Amber (ink)",
+        "canonical": "#92400e",
+        "tonalRamp": [
+          "#451a03",
+          "#78350f",
+          "#92400e",
+          "#b45309",
+          "#d97706",
+          "#f59e0b",
+          "#fde68a",
+          "#fffbeb"
+        ]
+      },
+      "warn-soft": {
+        "role": "tertiary",
+        "displayName": "Check Amber (tint)",
+        "canonical": "#fef3c7",
+        "tonalRamp": [
+          "#78350f",
+          "#b45309",
+          "#d97706",
+          "#f59e0b",
+          "#fcd34d",
+          "#fde68a",
+          "#fef3c7",
+          "#fffbeb"
+        ]
+      },
+      "ok": {
+        "role": "tertiary",
+        "displayName": "Saved Green (ink)",
+        "canonical": "#15803d",
+        "tonalRamp": [
+          "#052e16",
+          "#14532d",
+          "#166534",
+          "#15803d",
+          "#16a34a",
+          "#4ade80",
+          "#bbf7d0",
+          "#f0fdf4"
+        ]
+      },
+      "ok-soft": {
+        "role": "tertiary",
+        "displayName": "Saved Green (tint)",
+        "canonical": "#dcfce7",
+        "tonalRamp": [
+          "#14532d",
+          "#15803d",
+          "#16a34a",
+          "#22c55e",
+          "#86efac",
+          "#bbf7d0",
+          "#dcfce7",
+          "#f0fdf4"
+        ]
+      },
+      "background": {
+        "role": "neutral",
+        "displayName": "Paper White",
+        "canonical": "oklch(1 0 0)",
+        "tonalRamp": [
+          "oklch(0.2 0 0)",
+          "oklch(0.32 0 0)",
+          "oklch(0.45 0 0)",
+          "oklch(0.58 0 0)",
+          "oklch(0.7 0 0)",
+          "oklch(0.82 0 0)",
+          "oklch(0.93 0 0)",
+          "oklch(1 0 0)"
+        ]
+      },
+      "foreground": {
+        "role": "neutral",
+        "displayName": "Ink",
+        "canonical": "oklch(0.18 0 0)",
+        "tonalRamp": [
+          "oklch(0.15 0 0)",
+          "oklch(0.18 0 0)",
+          "oklch(0.3 0 0)",
+          "oklch(0.45 0 0)",
+          "oklch(0.6 0 0)",
+          "oklch(0.75 0 0)",
+          "oklch(0.88 0 0)",
+          "oklch(0.96 0 0)"
+        ]
+      },
+      "muted": {
+        "role": "neutral",
+        "displayName": "Soft Grey",
+        "canonical": "oklch(0.97 0 0)",
+        "tonalRamp": [
+          "oklch(0.2 0 0)",
+          "oklch(0.35 0 0)",
+          "oklch(0.5 0 0)",
+          "oklch(0.65 0 0)",
+          "oklch(0.8 0 0)",
+          "oklch(0.9 0 0)",
+          "oklch(0.97 0 0)",
+          "oklch(0.99 0 0)"
+        ]
+      },
+      "muted-foreground": {
+        "role": "neutral",
+        "displayName": "Quiet Grey",
+        "canonical": "oklch(0.45 0 0)",
+        "tonalRamp": [
+          "oklch(0.15 0 0)",
+          "oklch(0.25 0 0)",
+          "oklch(0.35 0 0)",
+          "oklch(0.45 0 0)",
+          "oklch(0.6 0 0)",
+          "oklch(0.75 0 0)",
+          "oklch(0.88 0 0)",
+          "oklch(0.96 0 0)"
+        ]
+      },
+      "border": {
+        "role": "neutral",
+        "displayName": "Hairline",
+        "canonical": "oklch(0.922 0 0)",
+        "tonalRamp": [
+          "oklch(0.2 0 0)",
+          "oklch(0.35 0 0)",
+          "oklch(0.5 0 0)",
+          "oklch(0.65 0 0)",
+          "oklch(0.8 0 0)",
+          "oklch(0.922 0 0)",
+          "oklch(0.96 0 0)",
+          "oklch(0.99 0 0)"
+        ]
+      }
     },
     "typographyMeta": {
-      "display": { "displayName": "Display", "purpose": "The shift time range on the pass. One per screen." },
-      "headline": { "displayName": "Headline", "purpose": "The greeting (\"Hi Maria\")." },
-      "title": { "displayName": "Title", "purpose": "Sheet titles and the Worked / Left numbers on the pass." },
-      "action": { "displayName": "Action", "purpose": "Full-width button labels." },
-      "body": { "displayName": "Body", "purpose": "Row titles, upcoming dates, chips, receipt titles." },
-      "body-secondary": { "displayName": "Body secondary", "purpose": "Dates, pass notes, receipt detail, sheet descriptions." },
-      "detail": { "displayName": "Detail", "purpose": "Row details and helper text." },
-      "label": { "displayName": "Label", "purpose": "Pass legend, stat labels, status chip." },
-      "wordmark": { "displayName": "Wordmark", "purpose": "Interim uppercase \"World Gym\" text wordmark only. Replace with the official logo when supplied." }
+      "display": {
+        "displayName": "Display",
+        "purpose": "The shift time range on the Shift Pass. At most one per screen."
+      },
+      "headline": {
+        "displayName": "Headline",
+        "purpose": "The greeting (\"Hi Maria\", \"Hi Carly\")."
+      },
+      "title": {
+        "displayName": "Title",
+        "purpose": "Sheet titles and the Worked / Left numbers on the pass."
+      },
+      "action": {
+        "displayName": "Action",
+        "purpose": "Full-width button labels."
+      },
+      "section": {
+        "displayName": "Section",
+        "purpose": "Section headings (Requests, Flags to check, Supplies, Fortnight hours, Next shifts)."
+      },
+      "body": {
+        "displayName": "Body",
+        "purpose": "Row titles, upcoming dates, chips, receipt titles, Today pass names."
+      },
+      "body-secondary": {
+        "displayName": "Body secondary",
+        "purpose": "Dates, pass notes, receipt detail, sheet descriptions."
+      },
+      "action-inline": {
+        "displayName": "Action inline",
+        "purpose": "Labels of 44px inline row buttons (Approve, Decline, Done, Undo, Export CSV)."
+      },
+      "detail": {
+        "displayName": "Detail",
+        "purpose": "Row details and helper text."
+      },
+      "label": {
+        "displayName": "Label",
+        "purpose": "Pass legend, stat labels, status chip."
+      },
+      "count": {
+        "displayName": "Count",
+        "purpose": "Numeral in the ink count badge after a section heading."
+      },
+      "wordmark": {
+        "displayName": "Wordmark",
+        "purpose": "Interim uppercase \"World Gym\" text wordmark only. Replace with the official logo when supplied."
+      }
     },
     "brandLayer": {
       "status": "interim",
       "source": "src/index.css, second :root block",
-      "swapTokens": ["--brand", "--brand-press", "--brand-foreground", "--pass", "--pass-foreground", "--pass-muted", "--pass-line"],
-      "swapAssets": ["Text wordmark \"World Gym\" in the top bar -> official logo file"]
+      "swapTokens": [
+        "--brand",
+        "--brand-press",
+        "--brand-foreground",
+        "--pass",
+        "--pass-foreground",
+        "--pass-muted",
+        "--pass-line",
+        "--pass-zone"
+      ],
+      "swapAssets": [
+        "Text wordmark \"World Gym\" in the top bar -> official logo file"
+      ]
     },
     "shadows": [
-      { "name": "pass-lift", "value": "0 8px 24px -12px rgb(0 0 0 / 0.45)", "purpose": "The Shift Pass only, so it reads as an object on the page." },
-      { "name": "card-lift", "value": "0 2px 6px -2px rgb(0 0 0 / 0.08)", "purpose": "Each upcoming-shift card, so the tucked stack reads as layered passes." }
+      {
+        "name": "pass-lift",
+        "value": "0 8px 24px -12px rgb(0 0 0 / 0.45)",
+        "purpose": "The black pass only (Shift Pass, Today pass), so it reads as an object on the page."
+      },
+      {
+        "name": "card-lift",
+        "value": "0 2px 6px -2px rgb(0 0 0 / 0.08)",
+        "purpose": "Each upcoming-shift card, so the tucked stack reads as layered passes."
+      }
     ],
     "motion": [
-      { "name": "tick-draw", "value": "450ms cubic-bezier(0.16, 1, 0.3, 1) 120ms", "purpose": "Confirmation tick draws once on the button and receipt. Static under reduced motion." },
-      { "name": "pass-crossfade", "value": "500ms fade-in", "purpose": "Pass state content and status chip. motion-safe only." },
-      { "name": "receipt-enter", "value": "300ms fade-in + slide from -8px", "purpose": "Receipt banner. motion-safe only." },
-      { "name": "progress-ease", "value": "700ms ease-out", "purpose": "Progress fill width and finish-mark position on minute ticks. None under reduced motion." },
-      { "name": "stack-fan", "value": "300ms ease-out", "purpose": "Upcoming stack tuck/fan (transform, margin, gap). None under reduced motion." },
-      { "name": "press", "value": "150ms; scale(0.99)", "purpose": "Primary button press." },
-      { "name": "saved-hold", "value": "1400ms", "purpose": "How long the button shows \"Saved\" before settling." },
-      { "name": "receipt-dismiss", "value": "12000ms", "purpose": "Receipt banner auto-dismiss." }
+      {
+        "name": "tick-draw",
+        "value": "450ms cubic-bezier(0.16, 1, 0.3, 1) 120ms",
+        "purpose": "Confirmation tick draws once on the button and receipt. Static under reduced motion."
+      },
+      {
+        "name": "pass-crossfade",
+        "value": "500ms fade-in",
+        "purpose": "Pass state content and status chip. motion-safe only."
+      },
+      {
+        "name": "receipt-enter",
+        "value": "300ms fade-in + slide from -8px",
+        "purpose": "Receipt banner. motion-safe only."
+      },
+      {
+        "name": "progress-ease",
+        "value": "700ms ease-out",
+        "purpose": "Progress fill width and finish-mark position on minute ticks. None under reduced motion."
+      },
+      {
+        "name": "stack-fan",
+        "value": "300ms ease-out",
+        "purpose": "Upcoming stack tuck/fan (transform, margin, gap). None under reduced motion."
+      },
+      {
+        "name": "press",
+        "value": "150ms; scale(0.99)",
+        "purpose": "Primary button press."
+      },
+      {
+        "name": "saved-hold",
+        "value": "1400ms",
+        "purpose": "How long the button shows \"Saved\" before settling."
+      },
+      {
+        "name": "receipt-dismiss",
+        "value": "12000ms",
+        "purpose": "Receipt banner auto-dismiss."
+      },
+      {
+        "name": "undo-drain",
+        "value": "5000ms linear; width 100% -> 0",
+        "purpose": "2px ink hairline draining along a decided row during the Undo window. None under reduced motion."
+      },
+      {
+        "name": "settle-hold",
+        "value": "600ms",
+        "purpose": "How long a saved decision row holds (approved disc turns Saved Green) before folding."
+      },
+      {
+        "name": "settle-fold",
+        "value": "450ms cubic-bezier(0.16, 1, 0.3, 1); grid-template-rows 1fr -> 0fr, opacity 1 -> 0",
+        "purpose": "Saved decision row folds closed. Removed instantly under reduced motion."
+      },
+      {
+        "name": "sheet-slide",
+        "value": "vaul drawer default",
+        "purpose": "Bottom sheets slide up."
+      }
     ],
     "breakpoints": [
-      { "name": "column-max", "value": "480px" }
+      {
+        "name": "column-max",
+        "value": "480px",
+        "purpose": "Phone column and every sheet, at all widths."
+      },
+      {
+        "name": "lg",
+        "value": "1024px",
+        "purpose": "Dashboard switches to two columns."
+      },
+      {
+        "name": "container-wide",
+        "value": "1152px",
+        "purpose": "Dashboard max width at lg (max-w-6xl), 40px gutters."
+      },
+      {
+        "name": "right-column",
+        "value": "360px",
+        "purpose": "Dashboard right column (Supplies, Today, Fortnight hours); left column is minmax(0,1fr), 48px gap."
+      }
     ]
   },
   "components": [
@@ -80,13 +463,13 @@
       "refersTo": "shift-pass",
       "description": "Signature: the black pass with status chip, time range, progress line (finish mark + dotted extra zone), legend and stats.",
       "html": "<section class=\"ds-pass\"><div class=\"ds-pass-head\"><span class=\"ds-pass-type\"><svg viewBox=\"0 0 24 24\" width=\"16\" height=\"16\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z\"/></svg>Night shift</span><span class=\"ds-chip-status\"><span class=\"ds-live\"></span>On shift</span></div><p class=\"ds-pass-time\">7:00 – 10:00 pm</p><div class=\"ds-line\"><div class=\"ds-line-zone\"></div><div class=\"ds-line-fill\"></div><div class=\"ds-line-mark\"></div></div><div class=\"ds-legend\"><span>In 6:57 pm</span><span>Finish 9:57 pm</span></div><dl class=\"ds-stats\"><div><dt>Worked</dt><dd>43 min</dd></div><div><dt>Left</dt><dd>2h 17m</dd></div></dl></section>",
-      "css": ".ds-pass { max-width: 420px; border-radius: 18px; padding: 18px; background: var(--pass, #111); color: var(--pass-foreground, #fff); box-shadow: 0 8px 24px -12px rgb(0 0 0 / 0.45); font-family: 'Geist Variable', sans-serif; font-variant-numeric: tabular-nums; } .ds-pass-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; } .ds-pass-type { display: flex; align-items: center; gap: 8px; font-size: 15px; font-weight: 500; color: var(--pass-muted, #c4c4cc); } .ds-chip-status { display: flex; align-items: center; gap: 6px; padding: 6px 10px; border-radius: 9999px; background: var(--pass-foreground, #fff); color: var(--pass, #111); font-size: 13px; line-height: 1; font-weight: 600; } .ds-live { width: 7px; height: 7px; border-radius: 9999px; background: var(--brand, #d7192a); } .ds-pass-time { margin: 12px 0 0; font-size: 34px; line-height: 1.1; font-weight: 600; letter-spacing: -0.02em; } .ds-line { position: relative; margin-top: 16px; height: 6px; border-radius: 9999px; background: var(--pass-line, #3f3f46); } .ds-line-zone { position: absolute; top: 0; bottom: 0; left: 85.7%; right: 0; border-radius: 0 9999px 9999px 0; background: repeating-linear-gradient(90deg, #71717a 0 3px, transparent 3px 6px); } .ds-line-fill { position: absolute; top: 0; bottom: 0; left: 0; width: 20.5%; border-radius: 9999px; background: var(--pass-foreground, #fff); transition: width 700ms ease-out; } .ds-line-mark { position: absolute; top: -5px; left: 85.7%; width: 2px; height: 16px; transform: translateX(-50%); border-radius: 9999px; background: var(--pass-foreground, #fff); transition: left 700ms ease-out; } @media (prefers-reduced-motion: reduce) { .ds-line-fill, .ds-line-mark { transition: none; } } .ds-legend { display: flex; justify-content: space-between; margin-top: 8px; font-size: 13px; font-weight: 500; color: var(--pass-muted, #c4c4cc); } .ds-stats { display: flex; gap: 32px; margin: 14px 0 0; padding-top: 12px; border-top: 1px solid var(--pass-line, #3f3f46); } .ds-stats dt { font-size: 13px; color: var(--pass-muted, #c4c4cc); } .ds-stats dd { margin: 0; font-size: 20px; font-weight: 600; }"
+      "css": ".ds-pass { max-width: 420px; border-radius: 18px; padding: 18px; background: var(--pass, #111); color: var(--pass-foreground, #fff); box-shadow: 0 8px 24px -12px rgb(0 0 0 / 0.45); font-family: 'Geist Variable', sans-serif; font-variant-numeric: tabular-nums; } .ds-pass-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; } .ds-pass-type { display: flex; align-items: center; gap: 8px; font-size: 15px; font-weight: 500; color: var(--pass-muted, #c4c4cc); } .ds-chip-status { display: flex; align-items: center; gap: 6px; padding: 6px 10px; border-radius: 9999px; background: var(--pass-foreground, #fff); color: var(--pass, #111); font-size: 13px; line-height: 1; font-weight: 600; } .ds-live { width: 7px; height: 7px; border-radius: 9999px; background: var(--brand, #d7192a); } .ds-pass-time { margin: 12px 0 0; font-size: 34px; line-height: 1.1; font-weight: 600; letter-spacing: -0.02em; } .ds-line { position: relative; margin-top: 16px; height: 6px; border-radius: 9999px; background: var(--pass-line, #3f3f46); } .ds-line-zone { position: absolute; top: 0; bottom: 0; left: 85.7%; right: 0; border-radius: 0 9999px 9999px 0; background: repeating-linear-gradient(90deg, var(--pass-zone, #71717a) 0 3px, transparent 3px 6px); } .ds-line-fill { position: absolute; top: 0; bottom: 0; left: 0; width: 20.5%; border-radius: 9999px; background: var(--pass-foreground, #fff); transition: width 700ms ease-out; } .ds-line-mark { position: absolute; top: -5px; left: 85.7%; width: 2px; height: 16px; transform: translateX(-50%); border-radius: 9999px; background: var(--pass-foreground, #fff); transition: left 700ms ease-out; } @media (prefers-reduced-motion: reduce) { .ds-line-fill, .ds-line-mark { transition: none; } } .ds-legend { display: flex; justify-content: space-between; margin-top: 8px; font-size: 13px; font-weight: 500; color: var(--pass-muted, #c4c4cc); } .ds-stats { display: flex; gap: 32px; margin: 14px 0 0; padding-top: 12px; border-top: 1px solid var(--pass-line, #3f3f46); } .ds-stats dt { font-size: 13px; color: var(--pass-muted, #c4c4cc); } .ds-stats dd { margin: 0; font-size: 20px; font-weight: 600; }"
     },
     {
       "name": "Status Row",
       "kind": "custom",
       "refersTo": "status-row",
-      "description": "Hairline row under the pass with a tinted icon disc; amber rows read as notes for Carly.",
+      "description": "Hairline row with a tinted icon disc; shared by the cleaner home status rows and the dashboard's request, flag and supply rows.",
       "html": "<div><div class=\"ds-row\"><span class=\"ds-disc ds-disc-ok\"><svg viewBox=\"0 0 24 24\" width=\"18\" height=\"18\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"3\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M20 6 9 17l-5-5\"/></svg></span><span class=\"ds-row-text\"><span class=\"ds-row-title\">At the gym</span><span class=\"ds-row-detail\">Saved when you clocked in</span></span></div><button class=\"ds-row ds-row-btn\" type=\"button\"><span class=\"ds-disc ds-disc-warn\"><svg viewBox=\"0 0 24 24\" width=\"18\" height=\"18\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M5 22h14M5 2h14M17 22v-4.17a2 2 0 0 0-.59-1.42L12 12l-4.41 4.41A2 2 0 0 0 7 17.83V22M7 2v4.17a2 2 0 0 0 .59 1.42L12 12l4.41-4.41A2 2 0 0 0 17 6.17V2\"/></svg></span><span class=\"ds-row-text\"><span class=\"ds-row-title\">Extra 20 min asked</span><span class=\"ds-row-detail\">Waiting for Carly</span></span></button></div>",
       "css": ".ds-row { display: flex; width: 100%; align-items: center; gap: 12px; padding: 12px 4px; border: none; border-bottom: 1px solid var(--border, oklch(0.922 0 0)); background: transparent; text-align: left; font-family: 'Geist Variable', sans-serif; color: var(--foreground, oklch(0.18 0 0)); } .ds-row-btn { min-height: 56px; cursor: pointer; transition: background-color 150ms; } .ds-row-btn:active { background: var(--muted, oklch(0.97 0 0)); } .ds-row-btn:focus-visible { outline: 2px solid var(--ring, oklch(0.18 0 0)); outline-offset: 2px; } .ds-disc { display: flex; width: 36px; height: 36px; flex-shrink: 0; align-items: center; justify-content: center; border-radius: 9999px; } .ds-disc-ok { background: var(--ok-soft, #dcfce7); color: var(--ok, #15803d); } .ds-disc-warn { background: var(--warn-soft, #fef3c7); color: var(--warn, #92400e); } .ds-row-text { min-width: 0; flex: 1; } .ds-row-title { display: block; font-size: 16px; line-height: 1.375; font-weight: 500; } .ds-row-detail { display: block; font-size: 14px; line-height: 1.375; color: var(--muted-foreground, oklch(0.45 0 0)); }"
     },
@@ -121,35 +504,106 @@
       "description": "Interim text wordmark plus site name as the issuer line, initial avatar right. Wordmark is replaced by the official logo when supplied.",
       "html": "<header class=\"ds-top\"><p class=\"ds-top-brand\"><span class=\"ds-wordmark\">World Gym</span><span class=\"ds-site\">Macquarie Park</span></p><span class=\"ds-avatar\">M</span></header>",
       "css": ".ds-top { display: flex; height: 48px; max-width: 448px; align-items: center; justify-content: space-between; padding: 0 4px; font-family: 'Geist Variable', sans-serif; color: var(--foreground, oklch(0.18 0 0)); } .ds-top-brand { display: flex; align-items: baseline; gap: 8px; margin: 0; } .ds-wordmark { font-size: 15px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; } .ds-site { font-size: 15px; color: var(--muted-foreground, oklch(0.45 0 0)); } .ds-avatar { display: flex; width: 36px; height: 36px; align-items: center; justify-content: center; border-radius: 9999px; background: var(--muted, oklch(0.97 0 0)); font-size: 15px; font-weight: 600; }"
+    },
+    {
+      "name": "Inline Row Buttons",
+      "kind": "button",
+      "refersTo": "button-inline-ink",
+      "description": "44px inline buttons for the many small decisions: ink for Approve and Export, outline for Decline, Done, Undo; plus the cover picker select.",
+      "html": "<div class=\"ds-inline\"><select class=\"ds-select\"><option>Who covers?</option><option>Ana Kovac</option></select><div class=\"ds-inline-row\"><button class=\"ds-btn-sm ds-btn-sm-outline\" type=\"button\">Decline</button><button class=\"ds-btn-sm ds-btn-sm-ink\" type=\"button\">Approve 20 min</button><button class=\"ds-btn-sm ds-btn-sm-ink\" type=\"button\" disabled>Approve</button></div></div>",
+      "css": ".ds-inline { display: grid; gap: 10px; max-width: 420px; font-family: 'Geist Variable', sans-serif; } .ds-inline-row { display: flex; gap: 8px; } .ds-btn-sm { display: inline-flex; height: 44px; align-items: center; justify-content: center; padding: 0 16px; border-radius: 14px; font: 600 15px/1.2 'Geist Variable', sans-serif; cursor: pointer; transition: background-color 150ms, color 150ms; } .ds-btn-sm-ink { border: none; background: var(--foreground, oklch(0.18 0 0)); color: var(--background, #fff); } .ds-btn-sm-ink:active { background: color-mix(in oklch, var(--foreground, oklch(0.18 0 0)) 85%, transparent); } .ds-btn-sm-ink:disabled { background: var(--muted, oklch(0.97 0 0)); color: var(--muted-foreground, oklch(0.45 0 0)); cursor: default; } .ds-btn-sm-outline { border: 1px solid var(--border, oklch(0.922 0 0)); background: var(--background, #fff); color: var(--foreground, oklch(0.18 0 0)); } .ds-btn-sm-outline:active { background: var(--muted, oklch(0.97 0 0)); } .ds-btn-sm:focus-visible, .ds-select:focus-visible { outline: 2px solid var(--ring, oklch(0.18 0 0)); outline-offset: 2px; } .ds-select { height: 44px; width: 100%; padding: 0 12px; border: 1px solid var(--border, oklch(0.922 0 0)); border-radius: 14px; background: var(--background, #fff); color: var(--foreground, oklch(0.18 0 0)); font: 400 15px 'Geist Variable', sans-serif; }"
+    },
+    {
+      "name": "Section With Count",
+      "kind": "custom",
+      "refersTo": "count-badge",
+      "description": "Dashboard section: 16px heading with an ink count badge, hairline rows with tinted discs (amber flag row with chevron); empty sections stay as one line.",
+      "html": "<div class=\"ds-sec-wrap\"><section class=\"ds-sec\"><h2 class=\"ds-sec-h\">Flags to check<span class=\"ds-count\">4</span></h2><button class=\"ds-srow ds-srow-btn\" type=\"button\"><span class=\"ds-sdisc ds-sdisc-warn\"><svg viewBox=\"0 0 24 24\" width=\"18\" height=\"18\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M20 10c0 4.99-5.54 10.19-7.4 11.8a1 1 0 0 1-1.2 0C9.54 20.19 4 14.99 4 10a8 8 0 0 1 16 0\"/><circle cx=\"12\" cy=\"10\" r=\"3\"/></svg></span><span class=\"ds-stext\"><span class=\"ds-stitle\">Priya · away from the gym</span><span class=\"ds-sdetail\">Tue 27 Oct, 7:03 am · Clock-in 420 m from gym (±25 m)</span></span><svg class=\"ds-chev\" viewBox=\"0 0 24 24\" width=\"20\" height=\"20\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"m9 18 6-6-6-6\"/></svg></button></section><section class=\"ds-sec\"><h2 class=\"ds-sec-h\">Requests</h2><p class=\"ds-empty\">No requests to decide.</p></section></div>",
+      "css": ".ds-sec-wrap { max-width: 480px; font-family: 'Geist Variable', sans-serif; color: var(--foreground, oklch(0.18 0 0)); } .ds-sec { margin-top: 24px; } .ds-sec-h { display: flex; align-items: center; gap: 8px; margin: 0; padding: 0 4px 6px; font-size: 16px; font-weight: 600; } .ds-count { min-width: 22px; padding: 0 6px; border-radius: 9999px; background: var(--foreground, oklch(0.18 0 0)); color: var(--background, #fff); text-align: center; font-size: 13px; line-height: 22px; font-weight: 600; box-sizing: border-box; } .ds-srow { display: flex; width: 100%; align-items: center; gap: 12px; padding: 12px 4px; border: none; border-bottom: 1px solid var(--border, oklch(0.922 0 0)); background: transparent; text-align: left; font-family: inherit; color: inherit; } .ds-srow-btn { min-height: 56px; cursor: pointer; transition: background-color 150ms; } .ds-srow-btn:active { background: var(--muted, oklch(0.97 0 0)); } .ds-srow-btn:focus-visible { outline: 2px solid var(--ring, oklch(0.18 0 0)); outline-offset: 2px; } .ds-sdisc { display: flex; width: 36px; height: 36px; flex-shrink: 0; align-items: center; justify-content: center; border-radius: 9999px; } .ds-sdisc-warn { background: var(--warn-soft, #fef3c7); color: var(--warn, #92400e); } .ds-stext { min-width: 0; flex: 1; } .ds-stitle { display: block; font-size: 16px; line-height: 1.375; font-weight: 500; } .ds-sdetail { display: block; font-size: 14px; line-height: 1.375; color: var(--muted-foreground, oklch(0.45 0 0)); } .ds-chev { flex-shrink: 0; color: var(--muted-foreground, oklch(0.45 0 0)); } .ds-empty { margin: 0; padding: 12px 4px; border-bottom: 1px solid var(--border, oklch(0.922 0 0)); font-size: 15px; color: var(--muted-foreground, oklch(0.45 0 0)); }"
+    },
+    {
+      "name": "Undo Row",
+      "kind": "custom",
+      "refersTo": "undo-row",
+      "description": "Signature (dashboard): a decision settles in place with a 5-second draining ink hairline and Undo, then turns green and folds away.",
+      "html": "<ul class=\"ds-undo-list\"><li class=\"ds-undo-li\"><div class=\"ds-undo\"><div class=\"ds-undo-row\" role=\"status\"><span class=\"ds-udisc\"><svg viewBox=\"0 0 24 24\" width=\"18\" height=\"18\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"3\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M20 6 9 17l-5-5\"/></svg></span><p class=\"ds-undo-text\">Approved <span>· Maria · extra 20 min</span></p><button class=\"ds-undo-btn\" type=\"button\">Undo</button></div><span class=\"ds-drain\" aria-hidden=\"true\"></span></div></li><li class=\"ds-undo-li ds-settled\"><div class=\"ds-undo\"><div class=\"ds-undo-row\" role=\"status\"><span class=\"ds-udisc ds-udisc-ok\"><svg viewBox=\"0 0 24 24\" width=\"18\" height=\"18\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"3\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M20 6 9 17l-5-5\"/></svg></span><p class=\"ds-undo-text\">Approved <span>· Tomas ↔ Priya · swap</span></p></div></div></li></ul>",
+      "css": ".ds-undo-list { max-width: 480px; margin: 0; padding: 0; list-style: none; font-family: 'Geist Variable', sans-serif; color: var(--foreground, oklch(0.18 0 0)); } .ds-undo-li { display: grid; grid-template-rows: 1fr; } .ds-undo { position: relative; min-height: 0; overflow: hidden; border-bottom: 1px solid var(--border, oklch(0.922 0 0)); } .ds-undo-row { display: flex; align-items: center; gap: 12px; padding: 12px 4px; } .ds-udisc { display: flex; width: 36px; height: 36px; flex-shrink: 0; align-items: center; justify-content: center; border-radius: 9999px; background: var(--muted, oklch(0.97 0 0)); color: var(--foreground, oklch(0.18 0 0)); } .ds-udisc-ok { background: var(--ok-soft, #dcfce7); color: var(--ok, #15803d); } .ds-undo-text { min-width: 0; flex: 1; margin: 0; font-size: 16px; font-weight: 500; } .ds-undo-text span { font-weight: 400; color: var(--muted-foreground, oklch(0.45 0 0)); } .ds-undo-btn { height: 44px; padding: 0 16px; border: 1px solid var(--border, oklch(0.922 0 0)); border-radius: 14px; background: var(--background, #fff); color: inherit; font: 600 15px 'Geist Variable', sans-serif; cursor: pointer; } .ds-undo-btn:active { background: var(--muted, oklch(0.97 0 0)); } .ds-undo-btn:focus-visible { outline: 2px solid var(--ring, oklch(0.18 0 0)); outline-offset: 2px; } .ds-drain { position: absolute; bottom: 0; left: 0; height: 2px; width: 100%; background: var(--foreground, oklch(0.18 0 0)); animation: ds-drain 5000ms linear forwards; } @keyframes ds-drain { from { width: 100%; } to { width: 0%; } } .ds-settled { animation: ds-fold 450ms cubic-bezier(0.16, 1, 0.3, 1) 600ms forwards; } @keyframes ds-fold { from { grid-template-rows: 1fr; opacity: 1; } to { grid-template-rows: 0fr; opacity: 0; } } @media (prefers-reduced-motion: reduce) { .ds-drain { animation: none; width: 0; } .ds-settled { animation: none; display: none; } }"
+    },
+    {
+      "name": "Today Pass",
+      "kind": "card",
+      "refersTo": "shift-pass",
+      "description": "The dashboard's one black pass: today's roster with live, done, quiet and amber \"Not in yet\" chips.",
+      "html": "<section class=\"ds-today\"><h2 class=\"ds-today-h\">Today</h2><ul class=\"ds-today-list\"><li><div><p class=\"ds-tname\">Ana <span>· Morning</span></p><p class=\"ds-tline\">In 7:00 am · Out 9:58 am</p></div><span class=\"ds-tchip ds-tchip-quiet\"><svg viewBox=\"0 0 24 24\" width=\"14\" height=\"14\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"3\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M20 6 9 17l-5-5\"/></svg>Done</span></li><li><div><p class=\"ds-tname\">Maria <span>· Night</span></p><p class=\"ds-tline\">In 6:57 pm · 43 min</p></div><span class=\"ds-tchip ds-tchip-live\"><span class=\"ds-tdot\"></span>On shift</span></li><li><div><p class=\"ds-tname\">Tomas <span>· Night</span></p><p class=\"ds-tline\">Was due 7:00 pm</p></div><span class=\"ds-tchip ds-tchip-warn\">Not in yet</span></li></ul></section>",
+      "css": ".ds-today { max-width: 360px; padding: 18px; border-radius: 18px; background: var(--pass, #111); color: var(--pass-foreground, #fff); box-shadow: 0 8px 24px -12px rgb(0 0 0 / 0.45); font-family: 'Geist Variable', sans-serif; font-variant-numeric: tabular-nums; } .ds-today-h { margin: 0; font-size: 15px; font-weight: 500; color: var(--pass-muted, #c4c4cc); } .ds-today-list { margin: 4px 0 0; padding: 0; list-style: none; } .ds-today-list li { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 12px 0; } .ds-today-list li + li { border-top: 1px solid var(--pass-line, #3f3f46); } .ds-tname { margin: 0; font-size: 16px; font-weight: 500; } .ds-tname span { font-weight: 400; color: var(--pass-muted, #c4c4cc); } .ds-tline { margin: 0; font-size: 14px; color: var(--pass-muted, #c4c4cc); } .ds-tchip { display: flex; flex-shrink: 0; align-items: center; gap: 6px; padding: 6px 10px; border-radius: 9999px; font-size: 13px; line-height: 1; font-weight: 600; } .ds-tchip-live { background: var(--pass-foreground, #fff); color: var(--pass, #111); } .ds-tchip-quiet { background: var(--pass-line, #3f3f46); color: var(--pass-foreground, #fff); } .ds-tchip-warn { background: var(--warn-soft, #fef3c7); color: var(--warn, #92400e); } .ds-tdot { width: 7px; height: 7px; border-radius: 9999px; background: var(--brand, #d7192a); }"
     }
   ],
   "narrative": {
     "northStar": "The Shift Pass",
-    "overview": "Today's shift is a pass you carry. One near-black card holds everything about the shift (what it is, where it is up to, where the finish line sits, how long you have worked), and one red button docked in thumb reach does the one job. Everything else sits quietly on a white ground in hairline rows and plain words. The world borrows its calm from wallet passes and banking confirmations, and its colour from the club itself: black iron, red frames, white floor.\n\nThe system is light, single-column and phone-first. Density is low on purpose: big tabular numerals, 15 to 16px text, 48px+ touch targets, one idea per row. The brand appears only in small deliberate places (the red action, the red live dot, the uppercase text wordmark). Problems are never red and never blocks; they are amber notes that \"Carly will check\", and the record is always reassured as saved.\n\nThe brand layer is **interim**. It approximates World Gym's black/red/white until official assets arrive and is isolated in one block of custom properties so it can be swapped (or neutralised for the portfolio version) without touching components.",
+    "overview": "Today's shift is a pass you carry. One near-black card holds everything about the shift (what it is, where it is up to, where the finish line sits, how long you have worked), and one red button docked in thumb reach does the one job. Everything else sits quietly on a white ground in hairline rows and plain words. The world borrows its calm from wallet passes and banking confirmations, and its colour from the club itself: black iron, red frames, white floor.\n\nThe system is light and phone-first. Density is low on purpose: big tabular numerals, 15 to 16px text, 44px+ touch targets, one idea per row. The brand appears only in small deliberate places (the red action, the red live dot, the uppercase text wordmark). Problems are never red and never blocks; they are amber notes for a person to check, and the record is always reassured as saved. The same world carries two surfaces: the cleaner's home (one pass, one docked red action) and the manager's dashboard, a calm to-do list of grouped hairline sections where many small decisions are ink, today's roster is the one black pass, and red waits inside a sheet.\n\nThe brand layer is **interim**. It approximates World Gym's black/red/white until official assets arrive and is isolated in one block of custom properties so it can be swapped (or neutralised for the portfolio version) without touching components.",
     "keyCharacteristics": [
-      "One black pass per screen, carrying the signature progress line.",
-      "One red primary action per view, docked or in the sheet footer.",
-      "Hairline rows with soft tinted icon discs for status; no card soup.",
+      "One black pass per screen: the Shift Pass with its progress line on the cleaner home, the Today pass on the dashboard.",
+      "At most one red action per view or sheet; repeated decisions in a list are ink.",
+      "Hairline rows with soft tinted icon discs for status; grouped sections with ink count badges, no card soup.",
       "Geist with tabular numerals everywhere; times and durations are the heroes.",
       "Amber means \"a person will look at this\"; green means \"saved and fine\"; red means \"do it\" or \"live\".",
       "Motion confirms, never decorates; every movement has a reduced-motion fallback."
     ],
     "rules": [
-      { "name": "The Red Means Go Rule", "body": "Red appears only on the one primary action of a view and on the live \"On shift\" dot. It is never a problem, error, warning or decoration colour. The shadcn `destructive` token is not part of this system.", "section": "colors" },
-      { "name": "The Note For Carly Rule", "body": "Every flag, location problem or failure is amber, phrased as \"Carly will check it\", and paired with reassurance that time is saved. Amber never blocks an action.", "section": "colors" },
-      { "name": "The Swappable Brand Rule", "body": "Brand colour lives only in the brand layer (`--brand`, `--brand-press`, `--brand-foreground`, `--pass`, `--pass-foreground`, `--pass-muted`, `--pass-line`). These are the tokens to replace when official World Gym assets arrive; the wordmark text is the asset to replace with the official logo. No component hardcodes a brand hex.", "section": "colors" },
-      { "name": "The Numbers Lead Rule", "body": "Times and durations are the largest thing in any block and always tabular. Durations read \"43 min\", \"2h 17m\", \"3h\"; times read \"7:00 pm\" with one am/pm per range.", "section": "typography" },
-      { "name": "The Uppercase Is The Wordmark Rule", "body": "Uppercase tracking is reserved for the interim text wordmark. No other label is set in caps.", "section": "typography" },
-      { "name": "The Only Objects Cast Rule", "body": "Only pass-like objects (the Shift Pass and upcoming cards) cast shadows. Everything else is flat.", "section": "elevation" },
-      { "name": "The Never Cut Rule", "body": "The progress line never clips, caps or rounds worked time. Past the mark it keeps filling, the stat reads \"Over\", and the note says Carly will check it and all time is saved.", "section": "components" },
-      { "name": "The One Pass Rule", "body": "One black pass per screen. Other information goes in rows or white cards, never a second black card.", "section": "components" }
+      {
+        "name": "The Red Means Go Rule",
+        "body": "Red appears only on the one primary action of a view or sheet and on the live \"On shift\" dot. Where a list holds many approvals (requests on the dashboard, team swaps on a lead's home), Approve is ink, so red stays one per view and one per sheet. Red is never a problem, error, warning, decline or decoration colour. The shadcn `destructive` token is not part of this system.",
+        "section": "colors"
+      },
+      {
+        "name": "The Note For Carly Rule",
+        "body": "Every flag, location problem or failure is amber and never blocks an action. Cleaners read it as \"Carly will check it\" with reassurance that time is saved; Carly reads the same flag as a neutral fact to check (\"Priya · away from the gym\"), never an accusation.",
+        "section": "colors"
+      },
+      {
+        "name": "The Swappable Brand Rule",
+        "body": "Brand colour lives only in the brand layer (`--brand`, `--brand-press`, `--brand-foreground`, `--pass`, `--pass-foreground`, `--pass-muted`, `--pass-line`, `--pass-zone`). These are the tokens to replace when official World Gym assets arrive; the wordmark text is the asset to replace with the official logo. No component hardcodes a brand hex.",
+        "section": "colors"
+      },
+      {
+        "name": "The Numbers Lead Rule",
+        "body": "Times and durations are the largest thing in any block and always tabular. Durations read \"43 min\", \"2h 17m\", \"3h\"; times read \"7:00 pm\" with one am/pm per range.",
+        "section": "typography"
+      },
+      {
+        "name": "The Uppercase Is The Wordmark Rule",
+        "body": "Uppercase tracking is reserved for the interim text wordmark. No other label is set in caps.",
+        "section": "typography"
+      },
+      {
+        "name": "The Only Objects Cast Rule",
+        "body": "Only pass-like objects (the black pass and upcoming cards) cast shadows. Everything else is flat.",
+        "section": "elevation"
+      },
+      {
+        "name": "The Never Cut Rule",
+        "body": "Nothing on screen or in an export clips, caps or rounds worked time down. Past the mark the progress line keeps filling and the stat reads \"Over\"; hours totals and the CSV use exact corrected minutes, with H:MM and decimal hours derived from them and decimals rounded up.",
+        "section": "components"
+      },
+      {
+        "name": "The One Pass Rule",
+        "body": "One black pass per screen. Other information goes in rows, sections or white cards, never a second black card.",
+        "section": "components"
+      },
+      {
+        "name": "The Settle In Place Rule",
+        "body": "A decision in a list is made in the row, waits 5 seconds with Undo, then settles and folds away. It is never re-offered and never sent to another screen to confirm.",
+        "section": "components"
+      }
     ],
     "dos": [
-      "**Do** keep Club Red to the single primary action of a view and the 7px live dot.",
-      "**Do** use Check Amber with \"Carly will check it\" for every flag, and always say the time is saved.",
-      "**Do** put today's shift in the Shift Pass with the progress line, finish mark and dotted extra zone.",
+      "**Do** keep Club Red to the single primary action of a view or sheet and the 7px live dot.",
+      "**Do** make Approve ink wherever a list holds more than one decision.",
+      "**Do** use Check Amber for every flag; tell cleaners \"Carly will check it\" and that the time is saved, and show Carly a neutral fact.",
+      "**Do** put today's shift in the Shift Pass with the progress line, finish mark and dotted extra zone, and today's roster on the dashboard in the Today pass.",
       "**Do** dock the primary button at 58px, full width, at the bottom in thumb reach, with the step written on the button while it works.",
-      "**Do** confirm actions with a receipt banner that uses the first name and a drawn tick.",
+      "**Do** confirm actions with a receipt banner that uses the first name and a drawn tick, and list decisions with the 5-second Undo row.",
+      "**Do** head grouped sections with an ink count badge, and keep empty sections as one plain line.",
       "**Do** use tabular numerals and the duration format \"2h 17m\" everywhere.",
       "**Do** keep touch targets at 44px or more, rows at 56px when tappable, chips at 48px.",
       "**Do** guard every movement with `motion-safe` or a `motion-reduce` fallback.",
@@ -157,10 +611,11 @@
     ],
     "donts": [
       "**Don't** use red, or the shadcn `destructive` token, for errors, flags, warnings or declined states.",
+      "**Don't** put a red button on every row of a list.",
       "**Don't** block or disable an action because of location, roster or time problems; flag it instead.",
-      "**Don't** draw the progress line, stats or copy in a way that cuts, caps or rounds worked time.",
-      "**Don't** use a round timer button or a dashboard of many cards.",
-      "**Don't** add a second black pass or put shadows on rows, banners or the dock.",
+      "**Don't** draw the progress line, stats, totals, exports or copy in a way that cuts, caps or rounds worked time down.",
+      "**Don't** use a round timer button, KPI tiles or a dashboard of many cards.",
+      "**Don't** add a second black pass or put shadows on rows, sections, banners or the dock.",
       "**Don't** recreate, trace or approximate the World Gym logo; use the text wordmark until the official file arrives.",
       "**Don't** set labels in uppercase other than the wordmark, and don't add small caps labels above headings.",
       "**Don't** use idioms, slang or blame words in any copy."

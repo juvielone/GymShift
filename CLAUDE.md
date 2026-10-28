@@ -40,7 +40,7 @@ Mobile-first roster and attendance web app for the World Gym Macquarie Park clea
 5. **Server time is authoritative.** Never send or trust the phone's clock. In mocks use `serverNow()`; in Supabase use the DB's `now()`. Location is captured only at the moment of clocking in or out, never continuously.
 6. **Permissions follow the PRD role table.**
    - Manager (Carly): everything.
-   - Team lead (Gladys): rosters and approves swaps for their own group.
+   - Team lead (Gladys): rosters and approves swaps for all cleaners, on Carly's behalf. Records (photos, notes, hours) for their own group only.
    - Cleaner: own records only.
    - Only the manager approves extensions, corrects attendance, resolves flags and exports hours.
    - The checks in `src/data` mirror the planned RLS policies. UI checks are a convenience only.

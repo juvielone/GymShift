@@ -1,4 +1,4 @@
-// Swaps and covers. Manager approves any; team lead approves for their own group.
+// Swaps and covers. Approval scope comes from the role (manager and team lead: all staff).
 // Approval reassigns the shift via updateShift, which logs the change to shift_changes.
 import type { RequestStatus, Swap, SwapKind, Uuid } from '@/types'
 import { updateShift } from './shifts'
@@ -52,7 +52,7 @@ export async function decideSwap(input: { swapId: Uuid; decidedBy: Uuid; approve
   const swap = db.swaps.find((s) => s.id === input.swapId)
   if (!swap) throw new Error(`Unknown swap ${input.swapId}`)
   if (swap.status !== 'pending') throw new Error('Swap already decided')
-  const scope = roleOf(actor).can_approve_swaps ? (actor.role === 'manager' ? 'all' : 'own_group') : false
+  const scope = roleOf(actor).can_approve_swaps
   if (actor.id === swap.requested_by || !canActOn(actor, swap.requested_by, scope)) {
     throw new Error('Not allowed to decide this swap')
   }

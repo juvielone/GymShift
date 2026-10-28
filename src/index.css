@@ -188,3 +188,27 @@
 @media (prefers-reduced-motion: reduce) {
     .tick-draw path { animation: none; stroke-dashoffset: 0; }
 }
+/* Decision Undo window: a hairline drains across the settled row, then it folds away. */
+.undo-drain {
+    width: 100%;
+    animation: undo-drain linear forwards;
+}
+@keyframes undo-drain {
+    from { width: 100%; }
+    to { width: 0%; }
+}
+@media (prefers-reduced-motion: reduce) {
+    .undo-drain { animation: none; width: 0; }
+}
+
+/* A saved decision folds its row closed (the list reload then drops it). Instant under reduced motion. */
+.settle-fold {
+    animation: settle-fold 450ms cubic-bezier(0.16, 1, 0.3, 1) 600ms forwards;
+}
+@keyframes settle-fold {
+    from { grid-template-rows: 1fr; opacity: 1; }
+    to { grid-template-rows: 0fr; opacity: 0; }
+}
+@media (prefers-reduced-motion: reduce) {
+    .settle-fold { animation: none; display: none; }
+}

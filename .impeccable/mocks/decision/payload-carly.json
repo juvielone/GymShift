@@ -1,0 +1,49 @@
+{
+  "title": "Carly's dashboard: choose the layout",
+  "question": "Same GymShift style as the cleaner home. Three ways to put 'what needs me' first. Pick one, steer, or re-roll.",
+  "options": [
+    {
+      "id": "carly-queue",
+      "kind": "assigned",
+      "label": "Review Queue",
+      "kicker": "THE ROLL",
+      "lineage": "One-at-a-time review, like a banking app's 'approve payment' screen",
+      "thesis": "Carly works through what needs her one item at a time: one card, its facts, two clear buttons, then the next.",
+      "palette": ["#FFFFFF", "#111111", "#D7192A", "#FEF3C7", "#DCFCE7"],
+      "materials": ["focus card", "progress count", "hairline rows"],
+      "viewport": "Top bar; 'Needs you · 1 of 7'; one large card (Maria Santos, extra 20 min, reason, tonight's shift, Approve / Decline); a 'next up' peek; Today's shifts as a compact pass below. On desktop the queue sits left, Today right.",
+      "risk": "Fast for approvals, slower to scan everything at once; needs a 'see all' list too.",
+      "html": ".impeccable/mocks/decision/carly-queue.html",
+      "htmlFrame": "390x844"
+    },
+    {
+      "id": "carly-filters",
+      "kind": "dealt",
+      "label": "One List, Filters",
+      "lineage": "Mail inbox with filter chips",
+      "thesis": "Everything that needs Carly in one list, oldest first; chips with counts filter by Requests, Flags or Supplies.",
+      "palette": ["#FFFFFF", "#111111", "#D7192A", "#FEF3C7", "#DCFCE7"],
+      "materials": ["filter chips", "hairline rows", "inline buttons"],
+      "viewport": "Top bar; 'Needs you'; chips All 7 · Requests 2 · Flags 4 · Supplies 1; rows with an icon disc, who, what, when, and inline Approve/Decline on requests; Today's shifts and Export hours below. On desktop the list widens with a detail pane.",
+      "risk": "A long mixed list can feel like email; it relies on clear icons and wording per type.",
+      "html": ".impeccable/mocks/decision/carly-filters.html",
+      "htmlFrame": "390x844"
+    },
+    {
+      "id": "carly-sections",
+      "kind": "dealt",
+      "label": "Grouped Sections",
+      "lineage": "Settings-style grouped lists",
+      "thesis": "Three short sections in a fixed order: Requests to decide, Flags to check, Supplies to buy. Each says how many and stays scannable.",
+      "palette": ["#FFFFFF", "#111111", "#D7192A", "#FEF3C7", "#DCFCE7"],
+      "materials": ["section headers with counts", "hairline rows"],
+      "viewport": "Top bar; 'Hi Carly · 7 things need you'; Requests (2) with inline Approve/Decline; Flags (4) as rows that open the detail; Supplies (1) with Done; Today and Export hours at the bottom. On desktop sections become columns.",
+      "risk": "The most familiar of the three; sections with zero items must collapse cleanly.",
+      "html": ".impeccable/mocks/decision/carly-sections.html",
+      "htmlFrame": "390x844"
+    }
+  ],
+  "reroll": true,
+  "buildPath": { "value": "code" },
+  "steer": true
+}

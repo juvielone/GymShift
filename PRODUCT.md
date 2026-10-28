@@ -11,7 +11,7 @@ web
 About 7 people at one site, the World Gym Macquarie Park cleaning team. Each person uses their own smartphone on mobile data.
 
 - **Cleaners (about 5).** They work 3-hour morning (around 7:00 am) or night (around 7:00 pm) shifts. On a phone, often mid-task, they clock in and out, upload up to 10 work photos, leave shift notes, set availability, and request swaps, covers and extensions. **Several read English as a second language.**
-- **Team lead (Gladys).** Does everything a cleaner does, and also rosters and approves swaps and covers for their own group.
+- **Team lead (Gladys).** Does everything a cleaner does, and also rosters and approves swaps and covers for all cleaners, acting on Carly's behalf. Sees records (photos, notes, hours) for their own group only.
 - **Manager (Carly).** Builds and publishes the roster for all staff, approves extensions, reviews flags, corrects attendance times, resolves supply notes, and exports fortnightly hours for pay.
 
 ## Product Purpose

@@ -28,7 +28,7 @@ const timeOverrides: Record<string, [string, string]> = {
 function makeShift(date: string, type: ShiftType, userId: string): Shift {
   const id = shiftId(date, type)
   const [start_time, end_time] = timeOverrides[id] ?? (type === 'morning' ? ['07:00', '10:00'] : ['19:00', '22:00'])
-  // Gladys rosters her own group; Carly rosters everyone else.
+  // Authorship only: Gladys drafted her group's shifts, Carly the rest (both may roster anyone).
   const author = gladysGroup.has(userId) ? GLADYS : CARLY
   return {
     id,
