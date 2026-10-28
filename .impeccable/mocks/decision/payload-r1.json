@@ -1,0 +1,102 @@
+{
+  "title": "Choose the visual world for GymShift",
+  "question": "Safer hand, now in the club's black, red and white (from the listing photos). Pick one, steer, or re-roll.",
+  "followup": false,
+  "options": [
+    {
+      "id": "staff-pass",
+      "kind": "grounded",
+      "label": "Staff Pass",
+      "lineage": "Gym membership and staff ID cards: black card, white name, the one thing you show at the door",
+      "thesis": "Today's shift is your pass: a black card with your name and shift, and the button that swipes you in or out.",
+      "palette": [
+        "#111111",
+        "#FFFFFF",
+        "#F2F1EE",
+        "#D7192A",
+        "#1E8E4E"
+      ],
+      "materials": [
+        "matte black card",
+        "white print",
+        "tinted page"
+      ],
+      "viewport": "Light page; a black pass card holding the night shift, live status and time worked; a full-width club-red Clock out button; location and extension rows; upcoming shifts list.",
+      "risk": "Familiar and safe. Its character rests entirely on the black card, so it needs crisp type to avoid looking generic.",
+      "html": ".impeccable/mocks/decision/staff-pass.html",
+      "htmlFrame": "390x844"
+    },
+    {
+      "id": "class-timetable",
+      "kind": "grounded",
+      "label": "Class Timetable",
+      "lineage": "The gym's printed class timetable: day columns, coloured class blocks, times in bold",
+      "thesis": "Shifts are coded like gym classes: night is a solid black block, morning is a red-outlined block, so you can tell them apart without reading.",
+      "palette": [
+        "#FFFFFF",
+        "#111111",
+        "#D7192A",
+        "#F0F0F0"
+      ],
+      "materials": [
+        "printed timetable",
+        "colour-coded blocks"
+      ],
+      "viewport": "White page; today's shift as a solid black night block with times in bold; a big Clock out button; status rows; upcoming shifts as coloured blocks by type.",
+      "risk": "The black/red coding only works if every screen uses it the same way, forever.",
+      "html": ".impeccable/mocks/decision/class-timetable.html",
+      "htmlFrame": "390x844"
+    },
+    {
+      "id": "timecard",
+      "kind": "grounded",
+      "label": "Timecard",
+      "lineage": "The paper timecard and stamp clock it replaces: IN / OUT columns, a stamped time",
+      "thesis": "Every clock-in lands as a red stamped time in IN / OUT columns, the same record people trusted on paper.",
+      "palette": [
+        "#FFFFFF",
+        "#111111",
+        "#D7192A",
+        "#F0F0F0"
+      ],
+      "materials": [
+        "printed card stock",
+        "stamp ink"
+      ],
+      "viewport": "White page; today's shift as a card with IN 6:57 pm stamped in red and OUT empty; a big black Clock out button; status rows; upcoming shifts in a clean table.",
+      "risk": "It can tip into nostalgia; red stamp ink must mean 'recorded', never 'problem'.",
+      "html": ".impeccable/mocks/decision/timecard.html",
+      "htmlFrame": "390x844"
+    }
+  ],
+  "reroll": {
+    "registers": [
+      "safer",
+      "bolder"
+    ]
+  },
+  "buildPath": {
+    "value": "code"
+  },
+  "canon": true,
+  "canonCard": {
+    "kind": "canon",
+    "label": "The category standard",
+    "thesis": "Deputy, Connecteam and Homebase, at their best: white cards and a big clock button with a timer.",
+    "palette": [
+      "#FFFFFF",
+      "#111111",
+      "#D7192A",
+      "#F3F4F6"
+    ],
+    "materials": [
+      "clean cards",
+      "round primary button"
+    ],
+    "viewport": "Greeting, a shift card, a large circular Clock out button with a timer ring, then an upcoming list.",
+    "risk": "Indistinguishable from every rostering app, and nothing ties it to World Gym.",
+    "html": ".impeccable/mocks/decision/canon.html",
+    "htmlFrame": "390x844"
+  },
+  "steer": true
+}

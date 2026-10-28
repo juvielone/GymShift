@@ -1,0 +1,54 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=390">
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{width:390px;height:844px;overflow:hidden}
+body{background:#F2F1EE;color:#0E0E0E;font-family:Archivo,sans-serif;font-size:16px}
+.top{display:flex;justify-content:space-between;align-items:center;padding:18px 20px 0}
+.top b{font:800 14px/1 Archivo;letter-spacing:.08em;text-transform:uppercase}
+.top span{font:500 15px/1 Archivo;color:#3d3d3a}
+.hi{padding:18px 20px 0;font:700 26px/1.15 Archivo}
+.pass{margin:16px 16px 0;background:#0E0E0E;color:#fff;border-radius:14px;padding:18px 18px 20px}
+.ph{display:flex;justify-content:space-between;align-items:center}
+.ph small{font:600 12px/1 Archivo;letter-spacing:.14em;text-transform:uppercase;color:#cfcfcf}
+.live{display:flex;align-items:center;gap:7px;font:700 14px/1 Archivo;background:#1E8E4E;padding:6px 10px;border-radius:999px}
+.live i{width:8px;height:8px;border-radius:50%;background:#fff}
+.pass h1{font:800 36px/1.05 Archivo;margin-top:16px;letter-spacing:-.01em}
+.pass p{font:500 17px/1.3 Archivo;color:#e6e6e6;margin-top:6px}
+.stats{display:grid;grid-template-columns:1fr 1fr;border-top:1px solid #333;margin-top:16px;padding-top:14px}
+.stats div{font:500 14px/1.3 Archivo;color:#cfcfcf}
+.stats b{display:block;font:700 22px/1.1 Archivo;color:#fff;margin-top:2px}
+.cta{margin:14px 16px 0;height:72px;background:#D7192A;color:#fff;border-radius:14px;display:flex;align-items:center;justify-content:center;font:700 24px/1 Archivo}
+.rows{margin:14px 16px 0;background:#fff;border-radius:14px}
+.r{display:flex;align-items:center;gap:14px;padding:15px 16px;border-bottom:1px solid #ecebe7}
+.r:last-child{border-bottom:0}
+.ic{width:32px;height:32px;border-radius:50%;display:flex;align-items:center;justify-content:center;font:700 16px/1 Archivo;flex:none}
+.ok{background:#e3f2ea;color:#1E8E4E}
+.wait{background:#f8ebdc;color:#8a4808}
+.r p{font:600 16px/1.2 Archivo}
+.r em{font-style:normal;font:400 15px/1.3 Archivo;color:#4a4a46}
+h2{margin:22px 20px 8px;font:700 14px/1 Archivo;letter-spacing:.1em;text-transform:uppercase;color:#3d3d3a}
+.list{margin:0 16px;background:#fff;border-radius:14px}
+.li{display:flex;justify-content:space-between;padding:14px 16px;border-bottom:1px solid #ecebe7;font:600 16px/1 Archivo}
+.li i{font-style:normal;font-weight:400;color:#4a4a46}
+</style></head><body>
+<div class="top"><b>World Gym</b><span>Wed 28 Oct</span></div>
+<p class="hi">Hi Maria 👋</p>
+<section class="pass">
+  <div class="ph"><small>Macquarie Park · Night shift</small><span class="live"><i></i>Clocked in</span></div>
+  <h1>7:00 – 10:00 pm</h1>
+  <p>You clocked in at 6:57 pm.</p>
+  <div class="stats"><div>Worked<b>43 min</b></div><div>Finish<b>10:00 pm</b></div></div>
+</section>
+<div class="cta">Clock out</div>
+<div class="rows">
+  <div class="r"><span class="ic ok">✓</span><div><p>At the gym</p><em>Location saved when you clocked in</em></div></div>
+  <div class="r"><span class="ic wait">+</span><div><p>Extra 20 minutes</p><em>Asked · waiting for Carly</em></div></div>
+</div>
+<h2>Next shifts</h2>
+<div class="list">
+  <div class="li">Sat 31 Oct<i>Morning · 7:00 am</i></div>
+  <div class="li">Mon 2 Nov<i>Night · 7:00 pm</i></div>
+</div>
+</body></html>

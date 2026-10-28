@@ -1,0 +1,78 @@
+// Pure business rules from docs/PRD.md. No data access, no side effects — reusable by the
+// mock data layer now and by Supabase functions/RLS helpers later.
+// Every threshold comes from SiteSettings; never hardcode 150 m, 3h, 3.5h, etc.
+import type { Extension, SiteSettings, Timestamp } from '@/types'
+
+/** Whole minutes between two timestamps. Never clamps or rounds down to the rostered length. */
+export function minutesBetween(start: Timestamp, end: Timestamp): number {
+  return Math.round((Date.parse(end) - Date.parse(start)) / 60_000)
+}
+
+/** 200 → "3h 20m" */
+export function formatMinutes(min: number): string {
+  const h = Math.floor(min / 60)
+  return `${h}h ${min - h * 60}m`
+}
+
+/** Great-circle distance in metres (haversine). */
+export function distanceMetres(lat1: number, lng1: number, lat2: number, lng2: number): number {
+  const R = 6_371_000
+  const toRad = (d: number) => (d * Math.PI) / 180
+  const dLat = toRad(lat2 - lat1)
+  const dLng = toRad(lng2 - lng1)
+  const a = Math.sin(dLat / 2) ** 2 + Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLng / 2) ** 2
+  return 2 * R * Math.asin(Math.sqrt(a))
+}
+
+/**
+ * Off-site rule: flagged when distance minus GPS accuracy exceeds the radius.
+ * Poor accuracy alone never flags. A missing location is a separate 'no_location' flag, not off-site.
+ */
+export function isOffSite(distanceM: number | null, accuracyM: number | null, settings: SiteSettings): boolean {
+  if (distanceM === null) return false
+  return distanceM - (accuracyM ?? 0) > settings.radius_m
+}
+
+/** Sum of approved extension minutes for one shift. */
+export function approvedExtensionMinutes(extensions: Extension[]): number {
+  return extensions.filter((e) => e.status === 'approved').reduce((sum, e) => sum + e.minutes, 0)
+}
+
+/** Longest shift that is covered by approvals: standard + approved extensions, capped at the maximum. */
+export function approvedShiftMinutes(extensions: Extension[], settings: SiteSettings): number {
+  return Math.min(settings.standard_shift_min + approvedExtensionMinutes(extensions), settings.max_shift_min)
+}
+
+/**
+ * True when worked time exceeds what has been approved. This only FLAGS for review —
+ * worked minutes are never reduced; hours actually worked are paid.
+ */
+export function isOverWithoutExtension(workedMin: number, extensions: Extension[], settings: SiteSettings): boolean {
+  return workedMin > approvedShiftMinutes(extensions, settings)
+}
+
+/** Whether approving `requestMin` more minutes keeps the shift within the maximum (3.5h). */
+export function canApproveExtension(requestMin: number, extensions: Extension[], settings: SiteSettings): boolean {
+  if (requestMin < 1 || requestMin > settings.max_extension_request_min) return false
+  return settings.standard_shift_min + approvedExtensionMinutes(extensions) + requestMin <= settings.max_shift_min
+}
+
+/** Add days to a "YYYY-MM-DD" date. */
+export function addDays(date: string, days: number): string {
+  const d = new Date(`${date}T00:00:00Z`)
+  d.setUTCDate(d.getUTCDate() + days)
+  return d.toISOString().slice(0, 10)
+}
+
+/** Local calendar date ("YYYY-MM-DD") of a timestamp in the site's timezone. */
+export function localDate(ts: Timestamp, settings: SiteSettings): string {
+  return new Intl.DateTimeFormat('en-CA', { timeZone: settings.timezone }).format(new Date(ts))
+}
+
+/**
+ * Order two timestamps by instant, not by text. Seeded rows carry "+11:00" offsets while the
+ * server clock writes UTC ("…Z"), so string comparison would put a new event before an older one.
+ */
+export function compareTs(a: Timestamp, b: Timestamp): number {
+  return Date.parse(a) - Date.parse(b)
+}

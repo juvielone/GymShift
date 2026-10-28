@@ -1,0 +1,53 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=390">
+<link href="https://fonts.googleapis.com/css2?family=Overpass:wght@400;600;700;800&display=swap" rel="stylesheet">
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{width:390px;height:844px;overflow:hidden}
+body{background:#FFFFFF;color:#141414;font-family:Overpass,sans-serif;font-size:16px}
+.top{display:flex;justify-content:space-between;align-items:center;padding:16px 20px;border-bottom:2px solid #141414}
+.top b{font:800 16px/1 Overpass;letter-spacing:.02em}
+.top span{font:600 15px/1 Overpass}
+.hi{padding:20px 20px 0;font:700 26px/1.15 Overpass}
+.board{margin:18px 20px 0;background:#141414;color:#fff;padding:16px 18px 18px}
+.board .lbl{display:flex;justify-content:space-between;align-items:center;font:700 13px/1 Overpass;letter-spacing:.12em;text-transform:uppercase;color:#F08A1C}
+.board .status{background:#1F7A4D;color:#fff;padding:5px 9px 4px;letter-spacing:.06em}
+.board h1{font:800 40px/1 Overpass;margin-top:12px;letter-spacing:-.01em}
+.board p{font:600 17px/1.3 Overpass;margin-top:6px;color:#EDEDEA}
+.bar{height:8px;background:#3a3a3a;margin-top:16px;position:relative}
+.bar i{position:absolute;left:0;top:0;bottom:0;width:24%;background:#F08A1C}
+.cta{margin:18px 20px 0;height:80px;background:#F08A1C;color:#141414;display:flex;align-items:center;justify-content:center;gap:14px;font:800 28px/1 Overpass}
+.arrow{width:34px;height:34px;border-radius:50%;background:#141414;color:#F08A1C;display:flex;align-items:center;justify-content:center;font-size:20px}
+.info{margin:16px 20px 0;display:grid;gap:0}
+.i{display:flex;gap:14px;align-items:center;padding:12px 0;border-bottom:1px solid #D8D8D4}
+.pic{width:36px;height:36px;background:#141414;color:#fff;display:flex;align-items:center;justify-content:center;font:800 18px/1 Overpass;flex:none}
+.i p{font:600 17px/1.2 Overpass}
+.i em{font-style:normal;font-size:15px;color:#555}
+h2{margin:24px 20px 6px;font:800 14px/1 Overpass;letter-spacing:.12em;text-transform:uppercase}
+.tt{margin:0 20px}
+.r{display:grid;grid-template-columns:96px 1fr auto;padding:12px 0;border-top:1px solid #D8D8D4;align-items:center}
+.r .d{font:700 17px/1 Overpass}
+.r .s{font:600 16px/1 Overpass;color:#555}
+.r .t{font:800 18px/1 Overpass}
+</style></head><body>
+<div class="top"><b>WORLD GYM · MACQUARIE PARK</b><span>Wed 28 Oct</span></div>
+<p class="hi">Hi Maria. You're clocked in.</p>
+<section class="board">
+  <div class="lbl"><span>Now · Night shift</span><span class="status">On time</span></div>
+  <h1>7:00 – 10:00 pm</h1>
+  <p>In at 6:57 pm · 43 min worked</p>
+  <div class="bar"><i></i></div>
+</section>
+<div class="cta"><span class="arrow">→</span>Clock out</div>
+<div class="info">
+  <div class="i"><span class="pic">◎</span><div><p>At the gym</p><em>Clocked in 30 m away</em></div></div>
+  <div class="i"><span class="pic">+</span><div><p>Extra 20 min asked</p><em>Waiting for Carly</em></div></div>
+</div>
+<h2>Next shifts</h2>
+<div class="tt">
+  <div class="r"><span class="d">Sat 31 Oct</span><span class="s">Morning</span><span class="t">7:00 am</span></div>
+  <div class="r"><span class="d">Mon 2 Nov</span><span class="s">Night</span><span class="t">7:00 pm</span></div>
+  <div class="r"><span class="d">Thu 5 Nov</span><span class="s">Morning</span><span class="t">7:00 am</span></div>
+  <div class="r"><span class="d">Sat 7 Nov</span><span class="s">Night</span><span class="t">7:00 pm</span></div>
+</div>
+</body></html>

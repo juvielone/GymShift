@@ -1,0 +1,49 @@
+{
+  "title": "Cleaner home: choose the layout",
+  "question": "Same calm black, white and club-red style; three different ways to arrange the home screen. Pick one, steer, or re-roll.",
+  "options": [
+    {
+      "id": "pass-stack",
+      "kind": "assigned",
+      "label": "Shift Pass",
+      "kicker": "THE ROLL",
+      "lineage": "Apple Wallet pass stack",
+      "thesis": "Today's shift is a pass at the top; upcoming shifts tuck beneath it like stacked cards.",
+      "palette": ["#FFFFFF", "#111111", "#D7192A", "#F4F4F5", "#B45309"],
+      "materials": ["pass card", "stacked card edges"],
+      "viewport": "Greeting; a black pass card for tonight's shift with big times, status chip, progress line and time worked; location and extra-time rows; upcoming shifts as stacked card edges; red Clock out button pinned at the bottom.",
+      "risk": "Stacked edges show less detail per upcoming shift, so you tap to see more.",
+      "html": ".impeccable/mocks/decision/pass-stack.html",
+      "htmlFrame": "390x844"
+    },
+    {
+      "id": "today-tabs",
+      "kind": "dealt",
+      "label": "Today / Upcoming",
+      "lineage": "Segmented tabs, as in banking apps",
+      "thesis": "Two tabs: Today holds only the shift and the button, so nothing competes; Upcoming lives one tap away.",
+      "palette": ["#FFFFFF", "#111111", "#D7192A", "#F4F4F5", "#B45309"],
+      "materials": ["segmented control", "plain sections"],
+      "viewport": "Greeting; Today | Upcoming switch; on Today: shift title and times, a large time-worked number, progress line, location and extra-time rows, red Clock out button at the bottom.",
+      "risk": "Upcoming shifts are hidden behind a tab, so staff must tap to see the week.",
+      "html": ".impeccable/mocks/decision/today-tabs.html",
+      "htmlFrame": "390x844"
+    },
+    {
+      "id": "big-number",
+      "kind": "dealt",
+      "label": "Big Number",
+      "lineage": "Apple Health summary with a bottom sheet",
+      "thesis": "Time worked is the hero number, Health-style; everything else sits in a sheet below.",
+      "palette": ["#FFFFFF", "#111111", "#D7192A", "#F4F4F5", "#B45309"],
+      "materials": ["large numerals", "bottom sheet"],
+      "viewport": "Top: 'On shift' label and a huge 0:43 worked, with the progress line and finish time; a white sheet below with the red Clock out button, location, extra time and the next shifts.",
+      "risk": "A huge timer can feel like a stopwatch watching you; the copy has to stay warm.",
+      "html": ".impeccable/mocks/decision/big-number.html",
+      "htmlFrame": "390x844"
+    }
+  ],
+  "reroll": true,
+  "buildPath": { "value": "code" },
+  "steer": true
+}
