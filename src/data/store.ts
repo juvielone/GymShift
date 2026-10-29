@@ -26,7 +26,7 @@ export const copy = <T>(value: T): T => structuredClone(value)
 export const newId = (prefix: string): Uuid => `${prefix}-${crypto.randomUUID()}`
 
 // Mock server clock: starts at MOCK_NOW and advances in real time, so the seeded scenario
-// (28 Oct, Maria's night shift in progress) stays stable whatever day the app is run.
+// (28 Oct, Josh's night shift in progress) stays stable whatever day the app is run.
 // Supabase will use the database's now(); the phone's clock is never trusted.
 let clockBase = Date.parse(seed.MOCK_NOW)
 let clockStartedAt = Date.now()

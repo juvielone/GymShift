@@ -5,6 +5,7 @@ import { CalendarX, ChevronRight, LogOut, MapPin, MapPinOff, Package, Timer, Use
 import { markNoteDone } from '@/data'
 import type { FlagKind } from '@/types'
 import { useManagerDashboard } from '@/hooks/useManagerDashboard'
+import { AccountButton } from '@/components/common/AccountButton'
 import { Disc, Section } from '@/components/common/ListParts'
 import { rowClass, smallButton } from '@/components/common/listStyles'
 import { RequestList } from '@/components/requests/RequestList'
@@ -24,7 +25,7 @@ const FLAG_ICON: Record<FlagKind, ReactNode> = {
   over_without_extension: <Timer />,
 }
 
-export function ManagerDashboard() {
+export function ManagerDashboard({ onSignOut }: { onSignOut: () => void }) {
   const { data, error, refresh } = useManagerDashboard()
   const [openFlag, setOpenFlag] = useState<FlagView | null>(null)
   const [doneErr, setDoneErr] = useState<string | null>(null)
@@ -69,9 +70,7 @@ export function ManagerDashboard() {
           <span className="text-[15px] font-bold tracking-[0.08em] uppercase">World Gym</span>
           <span className="text-[15px] text-muted-foreground">{siteShortName(settings.site_name)}</span>
         </p>
-        <span aria-label={me.full_name} className="flex size-9 items-center justify-center rounded-full bg-muted text-[15px] font-semibold">
-          {me.full_name[0]}
-        </span>
+        <AccountButton name={me.full_name} onSignOut={onSignOut} />
       </header>
 
       <div className="px-1 pt-1">

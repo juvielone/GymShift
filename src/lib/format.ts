@@ -48,7 +48,7 @@ export function formatDuration(min: number): string {
   return m === 0 ? `${h}h` : `${h}h ${m}m`
 }
 
-/** "Maria Santos" → "Maria" */
+/** "Josh Lagos" → "Josh" */
 export const firstName = (fullName: string) => fullName.split(' ')[0]
 
 /** "2026-10-31", "07:00" → "Sat 31 Oct, 7:00 am" */

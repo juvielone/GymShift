@@ -1,26 +1,26 @@
 import type { Shift, ShiftChange, ShiftType } from '@/types'
-import { ANA, CARLY, FORTNIGHT_START, GLADYS, LINH, MARIA, PRIYA, TOMAS, shiftId } from './ids'
+import { ANA, CARLY, FORTNIGHT_START, GLADYS, LINH, JOSH, PRIYA, TOMAS, shiftId } from './ids'
 
 // Published fortnight Mon 26 Oct – Sun 8 Nov 2026: [date, morning cleaner, night cleaner].
 // Respects availability (Priya 31 Oct & 1 Nov, Tomas 4 Nov, Ana 7 Nov).
 const roster: [string, string, string][] = [
-  ['2026-10-26', MARIA, TOMAS],
+  ['2026-10-26', JOSH, TOMAS],
   ['2026-10-27', PRIYA, LINH], // night: Ana released for cover, Linh picked it up (swap-01)
-  ['2026-10-28', ANA, MARIA],
+  ['2026-10-28', ANA, JOSH],
   ['2026-10-29', TOMAS, PRIYA],
   ['2026-10-30', LINH, ANA],
-  ['2026-10-31', MARIA, TOMAS],
+  ['2026-10-31', JOSH, TOMAS],
   ['2026-11-01', ANA, LINH],
-  ['2026-11-02', PRIYA, MARIA],
+  ['2026-11-02', PRIYA, JOSH],
   ['2026-11-03', TOMAS, ANA],
   ['2026-11-04', LINH, PRIYA],
-  ['2026-11-05', MARIA, ANA], // night moved to 19:30 (shift-change-02/03)
+  ['2026-11-05', JOSH, ANA], // night moved to 19:30 (shift-change-02/03)
   ['2026-11-06', PRIYA, TOMAS],
-  ['2026-11-07', LINH, MARIA],
+  ['2026-11-07', LINH, JOSH],
   ['2026-11-08', TOMAS, PRIYA],
 ]
 
-const gladysGroup = new Set([MARIA, PRIYA, TOMAS])
+const gladysGroup = new Set([JOSH, PRIYA, TOMAS])
 const timeOverrides: Record<string, [string, string]> = {
   [shiftId('2026-11-05', 'night')]: ['19:30', '22:30'],
 }
@@ -54,7 +54,7 @@ export const shifts: Shift[] = [
     type: 'morning',
     start_time: '07:00',
     end_time: '10:00',
-    assigned_user_id: MARIA,
+    assigned_user_id: JOSH,
     status: 'draft',
     fortnight_start: '2026-11-09',
     created_by: GLADYS,

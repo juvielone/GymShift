@@ -1,5 +1,5 @@
 import type { Swap } from '@/types'
-import { ANA, CARLY, GLADYS, LINH, MARIA, PRIYA, TOMAS, shiftId } from './ids'
+import { ANA, CARLY, GLADYS, LINH, JOSH, PRIYA, TOMAS, shiftId } from './ids'
 
 export const swaps: Swap[] = [
   // Approved cover → shift-change-01 reassigned the shift to Linh.
@@ -10,7 +10,7 @@ export const swaps: Swap[] = [
   },
   // Declined swap within Gladys's group.
   {
-    id: 'swap-02', shift_id: shiftId('2026-10-31', 'morning'), kind: 'swap', requested_by: MARIA,
+    id: 'swap-02', shift_id: shiftId('2026-10-31', 'morning'), kind: 'swap', requested_by: JOSH,
     target_user_id: PRIYA, covered_by: null, reason: 'Kids sport on Saturday morning', status: 'declined',
     created_at: '2026-10-24T09:00:00+11:00', decided_by: GLADYS, decided_at: '2026-10-24T12:10:00+11:00',
   },

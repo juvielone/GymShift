@@ -1,21 +1,21 @@
 import type { Flag } from '@/types'
-import { ANA, CARLY, MARIA, PRIYA, TOMAS, shiftId } from './ids'
+import { ANA, CARLY, JOSH, PRIYA, TOMAS, shiftId } from './ids'
 
 // One of every flag kind. Flags created at event time from the raw record; resolving never edits the record.
 export const flags: Flag[] = [
-  // Maria 26 Oct morning — all three resolved together when Carly logged correction-01.
+  // Josh 26 Oct morning — all three resolved together when Carly logged correction-01.
   {
-    id: 'flag-01', kind: 'missing_clock_out', user_id: MARIA, shift_id: shiftId('2026-10-26', 'morning'), clock_event_id: null,
+    id: 'flag-01', kind: 'missing_clock_out', user_id: JOSH, shift_id: shiftId('2026-10-26', 'morning'), clock_event_id: null,
     detail: 'No clock-out by 10:30 am', created_at: '2026-10-26T10:30:00+11:00',
     resolved_at: '2026-10-26T14:05:00+11:00', resolved_by: CARLY,
   },
   {
-    id: 'flag-02', kind: 'off_site', user_id: MARIA, shift_id: shiftId('2026-10-26', 'morning'), clock_event_id: 'ce-02',
+    id: 'flag-02', kind: 'off_site', user_id: JOSH, shift_id: shiftId('2026-10-26', 'morning'), clock_event_id: 'ce-02',
     detail: 'Clock-out 6.2 km from gym (±18 m)', created_at: '2026-10-26T13:40:00+11:00',
     resolved_at: '2026-10-26T14:05:00+11:00', resolved_by: CARLY,
   },
   {
-    id: 'flag-03', kind: 'over_without_extension', user_id: MARIA, shift_id: shiftId('2026-10-26', 'morning'), clock_event_id: 'ce-02',
+    id: 'flag-03', kind: 'over_without_extension', user_id: JOSH, shift_id: shiftId('2026-10-26', 'morning'), clock_event_id: 'ce-02',
     detail: 'Recorded 6h 40m with no approved extension (standard 3h)', created_at: '2026-10-26T13:40:00+11:00',
     resolved_at: '2026-10-26T14:05:00+11:00', resolved_by: CARLY,
   },

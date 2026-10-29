@@ -12,6 +12,7 @@ import { UpcomingShifts } from '@/components/home/UpcomingShifts'
 import { TeamSwaps } from '@/components/home/TeamSwaps'
 import { ExtensionSheet } from '@/components/home/ExtensionSheet'
 import { ClockOutConfirm } from '@/components/home/ClockOutConfirm'
+import { AccountButton } from '@/components/common/AccountButton'
 import { firstName, formatClock, formatDateLong, formatDuration, shiftLabel, siteShortName } from '@/lib/format'
 import { getClockLocation } from '@/lib/geolocation'
 import { localDate, minutesBetween } from '@/lib/rules'
@@ -34,7 +35,7 @@ function receiptFor(kind: 'in' | 'out', result: ClockResult, name: string, worke
   return { tone: notes.length ? 'warn' : 'ok', title, detail: detail ?? (kind === 'in' ? 'Have a good shift.' : 'See you next shift.') }
 }
 
-export function CleanerHome() {
+export function CleanerHome({ onSignOut }: { onSignOut: () => void }) {
   const { data, error, refresh } = useCleanerHome()
 
   if (error && !data) {
@@ -59,14 +60,14 @@ export function CleanerHome() {
       </Shell>
     )
   }
-  return <Home data={data} refresh={refresh} />
+  return <Home data={data} refresh={refresh} onSignOut={onSignOut} />
 }
 
 function Shell({ children }: { children: React.ReactNode }) {
   return <main className="mx-auto min-h-svh max-w-[480px] px-4">{children}</main>
 }
 
-function Home({ data, refresh }: { data: HomeData; refresh: () => Promise<void> }) {
+function Home({ data, refresh, onSignOut }: { data: HomeData; refresh: () => Promise<void>; onSignOut: () => void }) {
   const { user, settings, now, phase, upcoming } = data
   const name = firstName(user.full_name)
   const tz = settings.timezone
@@ -130,9 +131,7 @@ function Home({ data, refresh }: { data: HomeData; refresh: () => Promise<void> 
           <span className="text-[15px] font-bold tracking-[0.08em] uppercase">World Gym</span>
           <span className="text-[15px] text-muted-foreground">{siteShortName(settings.site_name)}</span>
         </p>
-        <span aria-label={user.full_name} className="flex size-9 items-center justify-center rounded-full bg-muted text-[15px] font-semibold">
-          {name[0]}
-        </span>
+        <AccountButton name={user.full_name} onSignOut={onSignOut} />
       </header>
 
       <div className="px-1 pt-1">

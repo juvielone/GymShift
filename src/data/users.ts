@@ -1,16 +1,21 @@
 import type { Role, RoleId, User, Uuid } from '@/types'
-import { MARIA } from '@/mocks'
+import { CARLY, GLADYS, JOSH } from '@/mocks'
 import { copy, db, requireUser, roleOf } from './store'
 
 // Mock session. Replaced by Supabase auth (magic link / password) later.
-// Starts as Maria so the seeded scenario (her night shift in progress) opens on the cleaner home.
-let currentUserId: Uuid = MARIA
+// Starts as Josh so the seeded scenario (his night shift in progress) opens on the cleaner home.
+let currentUserId: Uuid = JOSH
 
 export async function getCurrentUser(): Promise<User> {
   return copy(requireUser(currentUserId))
 }
 
-/** Dev helper: sign in as another mock user to see the app from their role. */
+/** Demo login: one account per role (manager, team lead, cleaner). Removed when real auth arrives. */
+export async function getDemoAccounts(): Promise<User[]> {
+  return copy([CARLY, GLADYS, JOSH].map(requireUser))
+}
+
+/** Mock sign-in, used by the demo login and the dev switcher to see the app from a user's role. */
 export async function setMockCurrentUser(id: Uuid): Promise<void> {
   requireUser(id)
   currentUserId = id

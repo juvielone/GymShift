@@ -1,5 +1,5 @@
 import type { Extension } from '@/types'
-import { CARLY, LINH, MARIA, PRIYA, shiftId } from './ids'
+import { CARLY, LINH, JOSH, PRIYA, shiftId } from './ids'
 
 export const extensions: Extension[] = [
   {
@@ -13,7 +13,7 @@ export const extensions: Extension[] = [
     created_at: '2026-10-27T09:30:00+11:00', decided_by: CARLY, decided_at: '2026-10-27T09:41:00+11:00',
   },
   {
-    id: 'ext-03', shift_id: shiftId('2026-10-28', 'night'), requested_by: MARIA, minutes: 20,
+    id: 'ext-03', shift_id: shiftId('2026-10-28', 'night'), requested_by: JOSH, minutes: 20,
     reason: 'Cleaning supplies delivery arrived — need to unpack and store it.', status: 'pending',
     created_at: '2026-10-28T19:35:00+11:00', decided_by: null, decided_at: null,
   },
