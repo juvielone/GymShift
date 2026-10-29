@@ -17,7 +17,7 @@ export function TodayPanel({ rows, settings, now }: { rows: TodayRow[]; settings
   return (
     <section aria-labelledby="today-title" className="rounded-[18px] bg-pass p-[18px] text-pass-foreground shadow-[0_8px_24px_-12px_rgb(0_0_0/0.45)]">
       <h2 id="today-title" className="text-[15px] font-medium text-pass-muted">
-        Today
+        Today{rows.length > 0 && ` · ${rows.length} ${rows.length === 1 ? 'shift' : 'shifts'}`}
       </h2>
       {rows.length === 0 ? (
         <p className="mt-2 text-base">No shifts today.</p>

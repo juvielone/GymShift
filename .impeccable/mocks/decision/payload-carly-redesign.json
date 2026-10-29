@@ -1,0 +1,88 @@
+{
+  "title": "Carly's dashboard: re-choose the layout",
+  "question": "Three new compact layouts built to cut scrolling, plus the earlier three (Grouped Sections is today's build). Pick one, steer, or re-roll.",
+  "options": [
+    {
+      "id": "carly-r-doors",
+      "kind": "assigned",
+      "label": "Three Doors",
+      "kicker": "THE ROLL",
+      "lineage": "Banking app home: one line per account, tap to open",
+      "thesis": "The whole screen fits without scrolling: one line each for Needs you, Today and Hours; each opens its own sheet.",
+      "palette": ["#FFFFFF", "#111111", "#D7192A", "#FEF3C7", "#DCFCE7"],
+      "materials": ["summary rows", "sheets"],
+      "viewport": "Greeting; black Today pass (2 rows, compact); 'Needs you · 7' summary with the oldest 3 items as one-liners and 'See all 7'; 'Fortnight hours · 16h 44m · Export' as one row. Everything fits one phone screen.",
+      "risk": "One extra tap to reach the full list; the summary must pick the right 3 items.",
+      "html": ".impeccable/mocks/decision/carly-r-doors.html",
+      "htmlFrame": "390x844"
+    },
+    {
+      "id": "carly-r-urgency",
+      "kind": "dealt",
+      "label": "Now / Later",
+      "lineage": "Triage list split by urgency",
+      "thesis": "Only what matters tonight is open; everything older or later sits folded in one 'Later' line.",
+      "palette": ["#FFFFFF", "#111111", "#D7192A", "#FEF3C7", "#DCFCE7"],
+      "materials": ["compact rows", "folded group"],
+      "viewport": "Greeting; Today strip (one line per person); 'Now' with tonight's extra-time request and today's flag as compact rows; 'Later · 5' folded (swap next week, older flags, supplies); Hours as one link row.",
+      "risk": "Carly must trust the sort; old flags can sit in 'Later' too long.",
+      "html": ".impeccable/mocks/decision/carly-r-urgency.html",
+      "htmlFrame": "390x844"
+    },
+    {
+      "id": "carly-r-strip",
+      "kind": "dealt",
+      "label": "Today Strip + Compact List",
+      "lineage": "Wallet cards carousel above a dense inbox",
+      "thesis": "Today's shifts slide sideways as small passes at the top; below, every to-do is one line and opens a sheet to act.",
+      "palette": ["#FFFFFF", "#111111", "#D7192A", "#FEF3C7", "#DCFCE7"],
+      "materials": ["horizontal pass strip", "one-line rows", "action sheet"],
+      "viewport": "Greeting; a row of small black passes (Ana Done, Maria On shift) you can swipe; 'Needs you · 7' as one-line rows with type icons; Hours as a single row at the bottom.",
+      "risk": "Approving needs a tap into the sheet (2 taps instead of 1).",
+      "html": ".impeccable/mocks/decision/carly-r-strip.html",
+      "htmlFrame": "390x844"
+    },
+    {
+      "id": "carly-queue",
+      "kind": "grounded",
+      "label": "Review Queue (earlier)",
+      "lineage": "One-at-a-time review",
+      "thesis": "Work through what needs Carly one card at a time, with Decline / Approve, then the next.",
+      "palette": ["#FFFFFF", "#111111", "#D7192A", "#FEF3C7", "#DCFCE7"],
+      "materials": ["focus card", "progress count"],
+      "viewport": "'Needs you · 1 of 7' with one big card; next-up peek; Today below.",
+      "risk": "Fast for approvals, slower to scan everything.",
+      "html": ".impeccable/mocks/decision/carly-queue.html",
+      "htmlFrame": "390x844"
+    },
+    {
+      "id": "carly-filters",
+      "kind": "grounded",
+      "label": "One List, Filters (earlier)",
+      "lineage": "Mail inbox with filter chips",
+      "thesis": "Everything in one list with chips for Requests, Flags and Supplies.",
+      "palette": ["#FFFFFF", "#111111", "#D7192A", "#FEF3C7", "#DCFCE7"],
+      "materials": ["filter chips", "inline buttons"],
+      "viewport": "Chips All 7 · Requests 2 · Flags 4 · Supplies 1; rows with inline Approve/Decline; Today and Export at the bottom.",
+      "risk": "Long mixed list; Today still at the bottom.",
+      "html": ".impeccable/mocks/decision/carly-filters.html",
+      "htmlFrame": "390x844"
+    },
+    {
+      "id": "carly-sections",
+      "kind": "grounded",
+      "label": "Grouped Sections (current build)",
+      "lineage": "Settings-style grouped lists",
+      "thesis": "Requests, Flags, Supplies sections with counts, then Today and Hours.",
+      "palette": ["#FFFFFF", "#111111", "#D7192A", "#FEF3C7", "#DCFCE7"],
+      "materials": ["section headers", "hairline rows"],
+      "viewport": "What's built now: tall request rows with inline buttons; Today and Hours far down on a phone.",
+      "risk": "The scrolling you want to fix.",
+      "html": ".impeccable/mocks/decision/carly-sections.html",
+      "htmlFrame": "390x844"
+    }
+  ],
+  "reroll": true,
+  "buildPath": { "value": "code" },
+  "steer": true
+}

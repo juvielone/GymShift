@@ -1,6 +1,6 @@
 // Everything Carly's dashboard shows, loaded through '@/data'. Server time only.
 import { useCallback, useEffect, useState } from 'react'
-import { getCurrentUser, getFlags, getOpenSupplyAlerts, getSettings, getShiftAttendance, getShifts, getUsers, serverNow } from '@/data'
+import { getCurrentUser, getFlags, getFortnightHours, getOpenSupplyAlerts, getSettings, getShiftAttendance, getShifts, getUsers, serverNow } from '@/data'
 import type { Note, SiteSettings, Timestamp, User } from '@/types'
 import type { FlagView } from '@/components/manager/FlagSheet'
 import type { TodayRow } from '@/components/manager/TodayPanel'
@@ -18,6 +18,8 @@ export interface ManagerDashboard {
   /** Fortnight start dates that have published shifts, oldest first, and the one containing today. */
   fortnights: string[]
   currentFortnight: string
+  /** Worked minutes this fortnight across everyone (closed sessions only), for the one-line hours row. */
+  fortnightMin: number
 }
 
 async function load(): Promise<ManagerDashboard> {
@@ -44,6 +46,8 @@ async function load(): Promise<ManagerDashboard> {
   const fortnights = [...new Set(shifts.map((s) => s.fortnight_start))].sort()
   const currentFortnight = fortnights.filter((f) => f <= today).at(-1) ?? fortnights[0] ?? today
 
+  const fortnightMin = (await getFortnightHours(currentFortnight)).reduce((sum, r) => sum + r.total_min, 0)
+
   return {
     me,
     settings,
@@ -60,6 +64,7 @@ async function load(): Promise<ManagerDashboard> {
     today: todayRows,
     fortnights,
     currentFortnight,
+    fortnightMin,
   }
 }
 

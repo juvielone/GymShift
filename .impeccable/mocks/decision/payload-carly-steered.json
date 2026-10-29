@@ -1,0 +1,49 @@
+{
+  "title": "Carly's dashboard: one list + Today pass",
+  "question": "Your steer: one list with filter chips, and a black pass on top showing who is on today. Three ways to do it. Pick one, steer, or re-roll.",
+  "options": [
+    {
+      "id": "carly-s-band",
+      "kind": "assigned",
+      "label": "Compact Pass Band",
+      "kicker": "THE ROLL",
+      "lineage": "One List + Filters, with today as a slim black band",
+      "thesis": "Today is one slim black band with each person as a chip, so the list starts almost at the top; Hours waits at the end as one row.",
+      "palette": ["#FFFFFF", "#111111", "#D7192A", "#FEF3C7", "#DCFCE7"],
+      "materials": ["black band", "person chips", "filter chips", "hairline rows"],
+      "viewport": "Greeting with '7 things need you'; black band 'Today: ● Josh · Night · 43 min  ✓ Ana · Morning'; chips All 7 · Requests 2 · Flags 4 · Supplies 1 (stay pinned when scrolling); full-read rows with inline Approve; Fortnight hours as one row that opens a sheet.",
+      "risk": "With 3+ shifts a day the band wraps to two lines.",
+      "html": ".impeccable/mocks/decision/carly-s-band.html",
+      "htmlFrame": "390x844"
+    },
+    {
+      "id": "carly-s-passfooter",
+      "kind": "dealt",
+      "label": "Pass with Summary Footer",
+      "lineage": "One List + Filters, with a full Today pass that also carries the counts",
+      "thesis": "A full Today pass (one row per person) whose footer says '7 things need you' and links Hours; the chips and list follow straight under it.",
+      "palette": ["#FFFFFF", "#111111", "#D7192A", "#FEF3C7", "#DCFCE7"],
+      "materials": ["full black pass", "pass footer", "filter chips"],
+      "viewport": "Greeting; black pass: Ana · Morning ✓ Done, Josh · Night ● On shift, footer '7 things need you · Hours 16h 44m ›'; chips; full-read list.",
+      "risk": "The pass is taller, so the first request sits lower on small phones.",
+      "html": ".impeccable/mocks/decision/carly-s-passfooter.html",
+      "htmlFrame": "390x844"
+    },
+    {
+      "id": "carly-s-days",
+      "kind": "dealt",
+      "label": "Pass + List by Day",
+      "lineage": "One List + Filters, with quiet day labels inside the list",
+      "thesis": "Full Today pass, chips, then one list split by quiet labels 'Today' and 'Earlier this week', so fresh items read first.",
+      "palette": ["#FFFFFF", "#111111", "#D7192A", "#FEF3C7", "#DCFCE7"],
+      "materials": ["full black pass", "filter chips", "day labels"],
+      "viewport": "Greeting; full Today pass; chips; 'Today' label with the swap, Josh's extra time and Ana's flag; 'Earlier this week' with older flags; Hours row at the end.",
+      "risk": "Day labels add a little height; old flags may feel less urgent.",
+      "html": ".impeccable/mocks/decision/carly-s-days.html",
+      "htmlFrame": "390x844"
+    }
+  ],
+  "reroll": true,
+  "buildPath": { "value": "code" },
+  "steer": true
+}

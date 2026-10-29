@@ -46,7 +46,7 @@ export function DemoLogin({ onSignIn }: { onSignIn: (id: Uuid) => void }) {
             <button
               type="button"
               onClick={() => onSignIn(u.id)}
-              className="flex min-h-[72px] w-full items-center gap-3 rounded-[18px] border border-border bg-background px-4 py-3 text-left transition-colors active:bg-muted"
+              className="flex min-h-[72px] w-full items-center gap-3 rounded-[18px] border border-border bg-background px-4 py-3 text-left transition-colors hover:bg-muted/60 active:bg-muted"
             >
               <span aria-hidden className="flex size-11 shrink-0 items-center justify-center rounded-full bg-muted text-lg font-semibold">
                 {u.full_name[0]}

@@ -16,7 +16,7 @@ const hm = (min: number) => `${Math.floor(min / 60)}:${String(min % 60).padStart
 const decimal = (min: number) => (Math.ceil((min * 5) / 3) / 100).toFixed(2) // whole-number maths: min/60 to 2dp, rounded up
 
 /** `refreshedAt` changes whenever the dashboard reloads, so corrections show up straight away. */
-export function HoursPanel({ fortnights, current, refreshedAt }: { fortnights: DateString[]; current: DateString; refreshedAt: string }) {
+export function HoursPanel({ fortnights, current, refreshedAt, inSheet = false }: { fortnights: DateString[]; current: DateString; refreshedAt: string; inSheet?: boolean }) {
   const [start, setStart] = useState(current)
   const [rows, setRows] = useState<FortnightHours[] | null>(null)
   const idx = fortnights.indexOf(start)
@@ -40,13 +40,13 @@ export function HoursPanel({ fortnights, current, refreshedAt }: { fortnights: D
     downloadCsv(`gymshift-hours-${start}-to-${end}.csv`, csv)
   }
 
-  const nav = 'flex size-11 items-center justify-center rounded-xl border border-border active:bg-muted disabled:bg-muted disabled:text-muted-foreground'
+  const nav = 'flex size-11 items-center justify-center rounded-xl border border-border hover:bg-muted active:bg-muted disabled:bg-muted disabled:text-muted-foreground'
 
   return (
-    <section aria-labelledby="hours-title" className="mt-6">
+    <section aria-labelledby="hours-title">
       <div className="flex items-center justify-between gap-2 px-1">
         <div>
-          <h2 id="hours-title" className="text-base font-semibold">
+          <h2 id="hours-title" className={inSheet ? 'text-xl font-semibold' : 'text-base font-semibold'}>
             Fortnight hours
           </h2>
           <p className="text-sm text-muted-foreground">
@@ -86,7 +86,7 @@ export function HoursPanel({ fortnights, current, refreshedAt }: { fortnights: D
         </table>
       )}
 
-      <button type="button" onClick={exportCsv} disabled={!rows || rows.length === 0} className={`${smallButton.ink} mt-3 w-full gap-2`}>
+      <button type="button" onClick={exportCsv} disabled={!rows || rows.length === 0} className={`${smallButton.ink} mt-3 w-full gap-2 ${inSheet ? 'h-14 rounded-[14px] text-lg' : ''}`}>
         <Download aria-hidden className="size-[18px]" />
         Export CSV
       </button>
