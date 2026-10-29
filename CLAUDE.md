@@ -28,6 +28,7 @@ Mobile-first roster and attendance web app for the World Gym Macquarie Park clea
    - `clock_events` is append-only.
    - Attendance time changes are new `corrections` rows: who, when, old value, new value, and a required reason. The effective time is the latest correction.
    - Edits to a published shift append to `shift_changes`.
+   - A draft shift nobody has seen may be deleted. A published shift is never deleted: it is set to `cancelled` and logged. A shift someone has clocked into can't be cancelled or reassigned (its hours belong to the assignee).
    - A swap or extension request is decided once (pending → approved/declined, recording `decided_by`/`decided_at`) and is never re-decided.
    - Resolving a flag or finishing a note sets `resolved_*` / `done_*`; it never deletes anything.
 3. **Never auto-cut hours.**
@@ -44,11 +45,12 @@ Mobile-first roster and attendance web app for the World Gym Macquarie Park clea
    - Cleaner: own records only.
    - Only the manager approves extensions, corrects attendance, resolves flags and exports hours.
    - The checks in `src/data` mirror the planned RLS policies. UI checks are a convenience only.
-7. **Business rule numbers come from `SiteSettings`** (`getSettings()`): radius, the 15/30-min flag windows, 180/210-min shift lengths, the 30-min extension request, 10 photos, 6-month retention. Never hardcode them.
+7. **Business rule numbers come from `SiteSettings`** (`getSettings()`): radius, the 15/30-min flag windows, 180/210-min shift lengths, the 30-min extension request, 10 photos, 6-month retention, and the fortnight anchor date (`roster_anchor_date`). Never hardcode them.
 8. **Types mirror the schema.** Change a `src/types` file together with its table, mock and data functions. Use the `Timestamp` / `DateString` / `TimeString` aliases. Timezone is `Australia/Sydney`.
 9. **Mobile-first.** Every staff action takes three taps or fewer on a phone. Test at phone width.
-10. **No screens yet.** Build UI only when asked.
+10. **Build UI only when asked.** Screens so far: demo login, cleaner home, manager dashboard, roster (`src/pages/RosterPage.tsx`, for Carly and Gladys).
 
 ## Notes
 - `no_show` and `missing_clock_out` flags depend on elapsed time and will come from a scheduled job (Supabase cron). They are seeded in mocks but not generated yet.
-- Placeholders still to confirm (PRD open questions): cleaner names, gym coordinates and radius (`src/mocks/settings.ts`), trial start date.
+- Staff (from the client): Carly (manager), Gladys (team lead, also works shifts), cleaners Josh, Kyle, Gino and Angel. Josh, Kyle and Gino are in Gladys's group; Angel reports to Carly.
+- Placeholders still to confirm (PRD open questions): gym coordinates and radius (`src/mocks/settings.ts`), trial start date.

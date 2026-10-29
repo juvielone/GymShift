@@ -27,6 +27,7 @@ export async function requestSwap(input: {
 }): Promise<Swap> {
   const shift = db.shifts.find((s) => s.id === input.shiftId)
   if (!shift) throw new Error(`Unknown shift ${input.shiftId}`)
+  if (shift.status !== 'published') throw new Error('Only a published shift can be swapped or covered')
   if (shift.assigned_user_id !== input.requestedBy) throw new Error('Only the assigned cleaner can request a swap or cover')
   if (input.kind === 'swap' && !input.targetUserId) throw new Error('A swap needs a named colleague')
   const row: Swap = {
@@ -57,6 +58,7 @@ export async function decideSwap(input: { swapId: Uuid; decidedBy: Uuid; approve
     throw new Error('Not allowed to decide this swap')
   }
   if (input.approve) {
+    if (db.shifts.find((s) => s.id === swap.shift_id)?.status !== 'published') throw new Error('This shift was cancelled, so the request can only be declined')
     const newAssignee = swap.kind === 'swap' ? swap.target_user_id : (input.coveredBy ?? null)
     if (!newAssignee) throw new Error('A cover needs someone to cover it')
     requireUser(newAssignee)

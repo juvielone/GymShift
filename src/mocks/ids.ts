@@ -1,13 +1,12 @@
 // Readable stand-ins for uuids so mock rows are easy to cross-reference.
-// Cleaner names are placeholders — real names are an open question in the PRD.
+// Staff from the client: Carly (manager), Gladys (team lead, also works shifts), cleaners Josh, Kyle, Gino and Angel.
 
 export const CARLY = 'user-carly'
 export const GLADYS = 'user-gladys'
 export const JOSH = 'user-josh'
-export const PRIYA = 'user-priya'
-export const TOMAS = 'user-tomas'
-export const LINH = 'user-linh'
-export const ANA = 'user-ana'
+export const KYLE = 'user-kyle'
+export const GINO = 'user-gino'
+export const ANGEL = 'user-angel'
 
 /** Shift ids are derived from date + type, e.g. "shift-2026-10-26-morning". */
 export const shiftId = (date: string, type: 'morning' | 'night') => `shift-${date}-${type}`

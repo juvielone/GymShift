@@ -64,6 +64,19 @@ export function addDays(date: string, days: number): string {
   return d.toISOString().slice(0, 10)
 }
 
+/** Monday that starts the fortnight containing `date`, counted in 14-day steps from the roster anchor. */
+export function fortnightStartOf(date: string, settings: SiteSettings): string {
+  const days = Math.round((Date.parse(`${date}T00:00:00Z`) - Date.parse(`${settings.roster_anchor_date}T00:00:00Z`)) / 86_400_000)
+  return addDays(settings.roster_anchor_date, Math.floor(days / 14) * 14)
+}
+
+/** Default shift end: start + the standard shift length, e.g. "19:00" → "22:00". */
+export function defaultEndTime(start: string, settings: SiteSettings): string {
+  const [h, m] = start.split(':').map(Number)
+  const total = (h * 60 + m + settings.standard_shift_min) % 1440
+  return `${String(Math.floor(total / 60)).padStart(2, '0')}:${String(total % 60).padStart(2, '0')}`
+}
+
 /** Local calendar date ("YYYY-MM-DD") of a timestamp in the site's timezone. */
 export function localDate(ts: Timestamp, settings: SiteSettings): string {
   return new Intl.DateTimeFormat('en-CA', { timeZone: settings.timezone }).format(new Date(ts))

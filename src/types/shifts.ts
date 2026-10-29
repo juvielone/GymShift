@@ -3,8 +3,11 @@ import type { DateString, TimeString, Timestamp, Uuid } from './common'
 
 export type ShiftType = 'morning' | 'night'
 
-/** Staff only see published shifts. */
-export type ShiftStatus = 'draft' | 'published'
+/**
+ * Staff only see published shifts. A draft nobody has seen may be deleted; a published shift
+ * is never deleted, only set to 'cancelled' (logged to shift_changes).
+ */
+export type ShiftStatus = 'draft' | 'published' | 'cancelled'
 
 export interface Shift {
   id: Uuid
@@ -24,7 +27,7 @@ export interface Shift {
 }
 
 /** Fields of a published shift whose changes are audited. */
-export type ShiftChangeField = 'date' | 'type' | 'start_time' | 'end_time' | 'assigned_user_id'
+export type ShiftChangeField = 'date' | 'type' | 'start_time' | 'end_time' | 'assigned_user_id' | 'status'
 
 /** Append-only audit log: every change to a published shift (who, when, old value, new value). */
 export interface ShiftChange {

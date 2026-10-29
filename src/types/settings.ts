@@ -17,6 +17,8 @@ export interface SiteSettings {
   max_shift_min: number
   /** Maximum minutes in a single extension request (30). */
   max_extension_request_min: number
+  /** A Monday that starts a fortnight; every roster/pay fortnight is counted from it in 14-day steps. */
+  roster_anchor_date: string
   default_morning_start: string
   default_night_start: string
   max_photos_per_shift: number

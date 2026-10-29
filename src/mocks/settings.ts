@@ -12,6 +12,7 @@ export const settings: SiteSettings = {
   standard_shift_min: 180,
   max_shift_min: 210,
   max_extension_request_min: 30,
+  roster_anchor_date: '2026-10-26',
   default_morning_start: '07:00',
   default_night_start: '19:00',
   max_photos_per_shift: 10,

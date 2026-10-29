@@ -15,6 +15,7 @@ import { FlagSheet, type FlagView } from '@/components/manager/FlagSheet'
 import { FLAG_LABEL } from '@/components/manager/flagText'
 import { TodayPanel } from '@/components/manager/TodayPanel'
 import { HoursSheet } from '@/components/manager/HoursSheet'
+import { RosterRow } from '@/components/roster/RosterRow'
 import { firstName, formatClock, formatDateLong, formatDateShort, formatDuration, localDay, siteShortName } from '@/lib/format'
 import { addDays, localDate } from '@/lib/rules'
 import { cn } from '@/lib/utils'
@@ -33,7 +34,7 @@ type Supply = { note: Note; user: User | null }
 
 const requestCreated = (r: RequestItem): Timestamp => (r.kind === 'extension' ? r.ext.created_at : r.swap.created_at)
 
-export function ManagerDashboard({ onSignOut }: { onSignOut: () => void }) {
+export function ManagerDashboard({ onSignOut, onOpenRoster }: { onSignOut: () => void; onOpenRoster?: () => void }) {
   const { data, error, refresh } = useManagerDashboard()
   const [filter, setFilter] = useState<Filter>('all')
   const [openFlag, setOpenFlag] = useState<FlagView | null>(null)
@@ -148,6 +149,7 @@ export function ManagerDashboard({ onSignOut }: { onSignOut: () => void }) {
         {/* Who is on today, then hours. Phone: above the list. Wide: right column. */}
         <aside className="mt-4 lg:col-start-2 lg:row-start-1 lg:mt-4">
           <TodayPanel rows={today} settings={settings} now={now} />
+          {onOpenRoster && <RosterRow onOpen={onOpenRoster} className="mt-3" />}
           <div className="hidden lg:block">{hoursRow}</div>
         </aside>
 

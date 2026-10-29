@@ -1,16 +1,16 @@
 import type { User } from '@/types'
-import { ANA, CARLY, GLADYS, LINH, JOSH, PRIYA, TOMAS } from './ids'
+import { ANGEL, CARLY, GINO, GLADYS, JOSH, KYLE } from './ids'
 
 const created = '2026-10-12T09:00:00+11:00'
 
 export const users: User[] = [
   { id: CARLY, full_name: 'Carly', email: 'carly@example.com', role: 'manager', team_lead_id: null, active: true, created_at: created },
+  // Team lead who also works shifts on the roster.
   { id: GLADYS, full_name: 'Gladys', email: 'gladys@example.com', role: 'team_lead', team_lead_id: null, active: true, created_at: created },
   // Gladys's group
   { id: JOSH, full_name: 'Josh Lagos', email: 'josh@example.com', role: 'cleaner', team_lead_id: GLADYS, active: true, created_at: created },
-  { id: PRIYA, full_name: 'Priya Nair', email: 'priya@example.com', role: 'cleaner', team_lead_id: GLADYS, active: true, created_at: created },
-  { id: TOMAS, full_name: 'Tomas Reyes', email: 'tomas@example.com', role: 'cleaner', team_lead_id: GLADYS, active: true, created_at: created },
-  // Report to Carly directly
-  { id: LINH, full_name: 'Linh Tran', email: 'linh@example.com', role: 'cleaner', team_lead_id: null, active: true, created_at: created },
-  { id: ANA, full_name: 'Ana Kovac', email: 'ana@example.com', role: 'cleaner', team_lead_id: null, active: true, created_at: created },
+  { id: KYLE, full_name: 'Kyle', email: 'kyle@example.com', role: 'cleaner', team_lead_id: GLADYS, active: true, created_at: created },
+  { id: GINO, full_name: 'Gino', email: 'gino@example.com', role: 'cleaner', team_lead_id: GLADYS, active: true, created_at: created },
+  // Reports to Carly directly
+  { id: ANGEL, full_name: 'Angel', email: 'angel@example.com', role: 'cleaner', team_lead_id: null, active: true, created_at: created },
 ]

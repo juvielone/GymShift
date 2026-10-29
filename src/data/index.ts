@@ -3,7 +3,20 @@
 export { getCurrentUser, getDemoAccounts, setMockCurrentUser, getUsers, getUser, getRoles, getPermissions } from './users'
 export { getSettings } from './settings'
 export { getAvailability, markUnavailable } from './availability'
-export { getShifts, getShift, getUpcomingShifts, getShiftChanges, updateShift, publishFortnight } from './shifts'
+export {
+  getShifts,
+  getShift,
+  getUpcomingShifts,
+  getShiftChanges,
+  getShiftChangesForFortnight,
+  updateShift,
+  createShift,
+  removeShift,
+  copyFortnight,
+  getRosterWarnings,
+  publishFortnight,
+} from './shifts'
+export type { RosterWarning, RosterWarningKind } from './shifts'
 export { getClockEvents, clockIn, clockOut } from './clockEvents'
 export type { ClockLocation, ClockResult } from './clockEvents'
 export { getCorrections, addCorrection } from './corrections'

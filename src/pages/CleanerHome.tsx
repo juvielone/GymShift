@@ -13,6 +13,7 @@ import { TeamSwaps } from '@/components/home/TeamSwaps'
 import { ExtensionSheet } from '@/components/home/ExtensionSheet'
 import { ClockOutConfirm } from '@/components/home/ClockOutConfirm'
 import { AccountButton } from '@/components/common/AccountButton'
+import { RosterRow } from '@/components/roster/RosterRow'
 import { firstName, formatClock, formatDateLong, formatDuration, shiftLabel, siteShortName } from '@/lib/format'
 import { getClockLocation } from '@/lib/geolocation'
 import { localDate, minutesBetween } from '@/lib/rules'
@@ -35,7 +36,7 @@ function receiptFor(kind: 'in' | 'out', result: ClockResult, name: string, worke
   return { tone: notes.length ? 'warn' : 'ok', title, detail: detail ?? (kind === 'in' ? 'Have a good shift.' : 'See you next shift.') }
 }
 
-export function CleanerHome({ onSignOut }: { onSignOut: () => void }) {
+export function CleanerHome({ onSignOut, onOpenRoster }: { onSignOut: () => void; onOpenRoster?: () => void }) {
   const { data, error, refresh } = useCleanerHome()
 
   if (error && !data) {
@@ -60,14 +61,14 @@ export function CleanerHome({ onSignOut }: { onSignOut: () => void }) {
       </Shell>
     )
   }
-  return <Home data={data} refresh={refresh} onSignOut={onSignOut} />
+  return <Home data={data} refresh={refresh} onSignOut={onSignOut} onOpenRoster={onOpenRoster} />
 }
 
 function Shell({ children }: { children: React.ReactNode }) {
   return <main className="mx-auto min-h-svh max-w-[480px] px-4">{children}</main>
 }
 
-function Home({ data, refresh, onSignOut }: { data: HomeData; refresh: () => Promise<void>; onSignOut: () => void }) {
+function Home({ data, refresh, onSignOut, onOpenRoster }: { data: HomeData; refresh: () => Promise<void>; onSignOut: () => void; onOpenRoster?: () => void }) {
   const { user, settings, now, phase, upcoming } = data
   const name = firstName(user.full_name)
   const tz = settings.timezone
@@ -153,6 +154,9 @@ function Home({ data, refresh, onSignOut }: { data: HomeData; refresh: () => Pro
       </div>
 
       <UpcomingShifts shifts={upcoming} />
+
+      {/* Team lead only: Gladys rosters for everyone on Carly's behalf. */}
+      {onOpenRoster && <RosterRow onOpen={onOpenRoster} className="mt-6" />}
 
       <TeamSwaps user={user} settings={settings} now={now} />
 
