@@ -4,6 +4,7 @@
 import { useEffect, useState } from 'react'
 import { AlertTriangle, ChevronLeft, ChevronRight, Copy, LoaderCircle, Plus, X } from 'lucide-react'
 import { copyFortnight, publishFortnight } from '@/data'
+import type { RosterWarningKind } from '@/data'
 import type { DateString, Shift, ShiftType } from '@/types'
 import { initialFortnight, useRoster, type Roster } from '@/hooks/useRoster'
 import { ShiftSheet, type Slot } from '@/components/roster/ShiftSheet'
@@ -14,6 +15,11 @@ import { cn } from '@/lib/utils'
 
 const TYPES: ShiftType[] = ['morning', 'night']
 const TYPE_LABEL: Record<ShiftType, string> = { morning: 'Morning', night: 'Night' }
+const WARN_TEXT: Record<RosterWarningKind, (note: string | null) => string> = {
+  unavailable: (note) => `Unavailable${note ? ` · ${note}` : ''}`,
+  double_booked: () => 'Two shifts this day',
+  inactive: () => 'No longer active, reassign this shift',
+}
 /** How far ahead Carly can roster, in fortnights after the current one. */
 const FORTNIGHTS_AHEAD = 2
 
@@ -227,13 +233,13 @@ interface SlotRowProps {
   shift: Shift | null
   name: string | null
   cancelledName: string | null
-  warning: { kind: 'unavailable' | 'double_booked'; note: string | null }[]
+  warning: { kind: RosterWarningKind; note: string | null }[]
   changed: boolean
   onOpen: () => void
 }
 
 function SlotRow({ type, shift, name, cancelledName, warning, changed, onOpen }: SlotRowProps) {
-  const warnText = warning.map((w) => (w.kind === 'unavailable' ? `Unavailable${w.note ? ` · ${w.note}` : ''}` : 'Two shifts this day')).join(' · ')
+  const warnText = warning.map((w) => WARN_TEXT[w.kind](w.note)).join(' · ')
   return (
     <button type="button" onClick={onOpen} className="flex min-h-14 w-full items-center gap-3 border-b border-border px-1 py-2.5 text-left hover:bg-muted/60 active:bg-muted">
       <span className="w-[72px] shrink-0 text-sm text-muted-foreground">{TYPE_LABEL[type]}</span>

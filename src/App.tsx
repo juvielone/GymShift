@@ -5,9 +5,10 @@ import { DemoLogin } from '@/pages/DemoLogin'
 import { CleanerHome } from '@/pages/CleanerHome'
 import { ManagerDashboard } from '@/pages/ManagerDashboard'
 import { RosterPage } from '@/pages/RosterPage'
+import { StaffPage } from '@/pages/StaffPage'
 import { DevSwitcher } from '@/components/dev/DevSwitcher'
 
-type View = 'home' | 'roster'
+type View = 'home' | 'roster' | 'staff'
 
 function App() {
   // Every load opens on the demo login; the mock store resets on reload too.
@@ -45,8 +46,10 @@ function App() {
     <>
       {view === 'roster' && canRoster ? (
         <RosterPage key={devKey} onBack={() => setView('home')} />
+      ) : view === 'staff' && role === 'manager' ? (
+        <StaffPage key={devKey} onBack={() => setView('home')} />
       ) : role === 'manager' ? (
-        <ManagerDashboard key={devKey} onSignOut={signOut} onOpenRoster={openRoster} />
+        <ManagerDashboard key={devKey} onSignOut={signOut} onOpenRoster={openRoster} onOpenStaff={() => setView('staff')} />
       ) : (
         role && <CleanerHome key={devKey} onSignOut={signOut} onOpenRoster={openRoster} />
       )}

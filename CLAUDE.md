@@ -48,7 +48,7 @@ Mobile-first roster and attendance web app for the World Gym Macquarie Park clea
 7. **Business rule numbers come from `SiteSettings`** (`getSettings()`): radius, the 15/30-min flag windows, 180/210-min shift lengths, the 30-min extension request, 10 photos, 6-month retention, and the fortnight anchor date (`roster_anchor_date`). Never hardcode them.
 8. **Types mirror the schema.** Change a `src/types` file together with its table, mock and data functions. Use the `Timestamp` / `DateString` / `TimeString` aliases. Timezone is `Australia/Sydney`.
 9. **Mobile-first.** Every staff action takes three taps or fewer on a phone. Test at phone width.
-10. **Build UI only when asked.** Screens so far: demo login, cleaner home (with location help), manager dashboard (gym location under the avatar menu's "Manage"), roster (`src/pages/RosterPage.tsx`, for Carly and Gladys).
+10. **Build UI only when asked.** Screens so far: demo login, cleaner home (with location help), manager dashboard (gym location under the avatar menu's "Manage"), staff (`src/pages/StaffPage.tsx`, Carly only: add, change role or group, deactivate; never delete), roster (`src/pages/RosterPage.tsx`, for Carly and Gladys).
 
 ## Notes
 - `no_show` and `missing_clock_out` flags depend on elapsed time and will come from a scheduled job (Supabase cron). They are seeded in mocks but not generated yet.

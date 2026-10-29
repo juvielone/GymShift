@@ -1,6 +1,20 @@
 // The ONLY entry point for data in the app. UI code imports from '@/data', never from '@/mocks'
 // or a Supabase client. Internal helpers (store, raiseFlag) are deliberately not re-exported.
-export { getCurrentUser, getDemoAccounts, setMockCurrentUser, getUsers, getUser, getRoles, getPermissions } from './users'
+export {
+  getCurrentUser,
+  getDemoAccounts,
+  setMockCurrentUser,
+  getUsers,
+  getUser,
+  getRoles,
+  getPermissions,
+  createUser,
+  updateUser,
+  setUserActive,
+  getStaffImpact,
+  ASSIGNABLE_ROLES,
+} from './users'
+export type { StaffImpact } from './users'
 export { getSettings, updateSiteLocation, RADIUS_MIN_M, RADIUS_MAX_M } from './settings'
 export { getAvailability, markUnavailable } from './availability'
 export {

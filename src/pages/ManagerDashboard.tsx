@@ -2,7 +2,7 @@
 // grouped by day with today's items first. Fortnight hours fold into one row that opens a sheet.
 // Phone: one column. Wide screens: chips + list on the left, Today pass + hours row on the right.
 import { useRef, useState, type ReactNode } from 'react'
-import { CalendarX, ChevronRight, LogOut, MapPin, MapPinOff, Package, Timer, UserX } from 'lucide-react'
+import { CalendarX, ChevronRight, LogOut, MapPin, MapPinOff, Package, Timer, Users, UserX } from 'lucide-react'
 import { markNoteDone } from '@/data'
 import type { FlagKind, Note, Timestamp, User } from '@/types'
 import { useManagerDashboard } from '@/hooks/useManagerDashboard'
@@ -35,7 +35,7 @@ type Supply = { note: Note; user: User | null }
 
 const requestCreated = (r: RequestItem): Timestamp => (r.kind === 'extension' ? r.ext.created_at : r.swap.created_at)
 
-export function ManagerDashboard({ onSignOut, onOpenRoster }: { onSignOut: () => void; onOpenRoster?: () => void }) {
+export function ManagerDashboard({ onSignOut, onOpenRoster, onOpenStaff }: { onSignOut: () => void; onOpenRoster?: () => void; onOpenStaff?: () => void }) {
   const { data, error, refresh } = useManagerDashboard()
   const [filter, setFilter] = useState<Filter>('all')
   const [openFlag, setOpenFlag] = useState<FlagView | null>(null)
@@ -143,6 +143,7 @@ export function ManagerDashboard({ onSignOut, onOpenRoster }: { onSignOut: () =>
           siteName={settings.site_name}
           onSignOut={onSignOut}
           manage={[
+            ...(onOpenStaff ? [{ id: 'staff', icon: <Users />, title: 'Staff', detail: 'Add people and set their roles', onSelect: onOpenStaff }] : []),
             {
               id: 'gym-location',
               icon: <MapPin />,

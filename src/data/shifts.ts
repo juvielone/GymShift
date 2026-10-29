@@ -162,7 +162,7 @@ export async function copyFortnight(input: { fromStart: DateString; toStart: Dat
   return created
 }
 
-export type RosterWarningKind = 'unavailable' | 'double_booked'
+export type RosterWarningKind = 'unavailable' | 'double_booked' | 'inactive'
 export interface RosterWarning {
   shift_id: Uuid
   kind: RosterWarningKind
@@ -175,6 +175,7 @@ export async function getRosterWarnings(fortnightStart: DateString): Promise<Ros
   const shifts = db.shifts.filter((s) => s.fortnight_start === fortnightStart && s.status !== 'cancelled')
   const warnings: RosterWarning[] = []
   for (const s of shifts) {
+    if (!requireUser(s.assigned_user_id).active) warnings.push({ shift_id: s.id, kind: 'inactive', note: null })
     const away = db.availability.find((a) => a.user_id === s.assigned_user_id && a.date === s.date)
     if (away) warnings.push({ shift_id: s.id, kind: 'unavailable', note: away.note })
     if (shifts.some((o) => o.id !== s.id && o.date === s.date && o.assigned_user_id === s.assigned_user_id)) {
