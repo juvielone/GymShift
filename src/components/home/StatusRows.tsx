@@ -3,7 +3,7 @@ import type { ReactNode } from 'react'
 import { Check, ChevronRight, Hourglass, MapPin, MapPinOff, Plus } from 'lucide-react'
 import type { EffectiveClockEvent } from '@/data'
 import type { SiteSettings } from '@/types'
-import type { HomePhase, Session } from '@/hooks/useCleanerHome'
+import type { HomePhase, LocationAccess, Session } from '@/hooks/useCleanerHome'
 import { formatClock, formatDuration } from '@/lib/format'
 import { isOffSite } from '@/lib/rules'
 import { cn } from '@/lib/utils'
@@ -46,9 +46,16 @@ function locationOf(e: EffectiveClockEvent, settings: SiteSettings): LocationKin
   return isOffSite(e.distance_m, e.accuracy_m, settings) ? 'away' : 'ok'
 }
 
-export function LocationRow({ phase, settings }: { phase: HomePhase; settings: SiteSettings }) {
-  if (phase.kind === 'before' || phase.kind === 'no_shift') {
-    return <Row icon={<MapPin />} tone="neutral" title="Location" detail="Checked only when you tap Clock in or Clock out." />
+export function LocationRow({ phase, settings, access, onHelp }: { phase: HomePhase; settings: SiteSettings; access: LocationAccess; onHelp: () => void }) {
+  const notClocked = phase.kind === 'before' || phase.kind === 'no_shift'
+  // Warn before the next tap that needs a location, so it can be fixed instead of flagged.
+  if (access === 'blocked' && (notClocked || phase.kind === 'on')) {
+    const next = phase.kind === 'on' ? 'clock-out' : 'clock-in'
+    return <Row icon={<MapPinOff />} tone="warn" title="Location is blocked" detail={`Turn it on so Carly doesn't have to check your ${next}. Tap for how.`} onClick={onHelp} />
+  }
+  if (notClocked) {
+    const detail = access === 'ask' ? 'Your phone will ask when you tap Clock in. Tap Allow.' : 'Checked only when you tap Clock in or Clock out.'
+    return <Row icon={<MapPin />} tone="neutral" title="Location" detail={detail} />
   }
   const { clockIn, clockOut } = phase.session
   const inKind = locationOf(clockIn, settings)

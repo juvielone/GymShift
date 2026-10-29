@@ -16,7 +16,7 @@ Mobile-first roster and attendance web app for the World Gym Macquarie Park clea
 ## Structure
 - `src/types/`: one file per future DB table. Field names are snake_case and must match the Postgres columns exactly.
 - `src/data/`: **the only data-access layer.** Async functions; reads return copies. `store.ts` is the in-memory "DB" plus the mock server clock, and is internal to `src/data`.
-- `src/mocks/`: seed data for one fortnight (26 Oct – 8 Nov 2026, mock "now" = 28 Oct 7:40 pm). Imported **only** by `src/data`.
+- `src/mocks/`: seed data for one fortnight (26 Oct – 8 Nov 2026, mock "now" = 28 Oct 6:50 pm). Imported **only** by `src/data`.
 - `src/lib/rules.ts`: pure business rules (off-site check, over-length check, extension cap, durations). No data access.
 - `src/components/ui/`: shadcn-generated. Add components via the CLI and don't hand-edit them. This folder is excluded from lint.
 - `@/` aliases `src/`.
@@ -48,9 +48,9 @@ Mobile-first roster and attendance web app for the World Gym Macquarie Park clea
 7. **Business rule numbers come from `SiteSettings`** (`getSettings()`): radius, the 15/30-min flag windows, 180/210-min shift lengths, the 30-min extension request, 10 photos, 6-month retention, and the fortnight anchor date (`roster_anchor_date`). Never hardcode them.
 8. **Types mirror the schema.** Change a `src/types` file together with its table, mock and data functions. Use the `Timestamp` / `DateString` / `TimeString` aliases. Timezone is `Australia/Sydney`.
 9. **Mobile-first.** Every staff action takes three taps or fewer on a phone. Test at phone width.
-10. **Build UI only when asked.** Screens so far: demo login, cleaner home, manager dashboard, roster (`src/pages/RosterPage.tsx`, for Carly and Gladys).
+10. **Build UI only when asked.** Screens so far: demo login, cleaner home (with location help), manager dashboard (gym location under the avatar menu's "Manage"), roster (`src/pages/RosterPage.tsx`, for Carly and Gladys).
 
 ## Notes
 - `no_show` and `missing_clock_out` flags depend on elapsed time and will come from a scheduled job (Supabase cron). They are seeded in mocks but not generated yet.
 - Staff (from the client): Carly (manager), Gladys (team lead, also works shifts), cleaners Josh, Kyle, Gino and Angel. Josh, Kyle and Gino are in Gladys's group; Angel reports to Carly.
-- Placeholders still to confirm (PRD open questions): gym coordinates and radius (`src/mocks/settings.ts`), trial start date.
+- Placeholders still to confirm (PRD open questions): gym coordinates and radius (seeded in `src/mocks/settings.ts`; Carly sets the real ones from her dashboard via `updateSiteLocation`), trial start date.

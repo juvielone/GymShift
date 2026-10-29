@@ -15,6 +15,7 @@ import { FlagSheet, type FlagView } from '@/components/manager/FlagSheet'
 import { FLAG_LABEL } from '@/components/manager/flagText'
 import { TodayPanel } from '@/components/manager/TodayPanel'
 import { HoursSheet } from '@/components/manager/HoursSheet'
+import { GymLocationSheet } from '@/components/manager/GymLocationSheet'
 import { RosterRow } from '@/components/roster/RosterRow'
 import { firstName, formatClock, formatDateLong, formatDateShort, formatDuration, localDay, siteShortName } from '@/lib/format'
 import { addDays, localDate } from '@/lib/rules'
@@ -39,6 +40,7 @@ export function ManagerDashboard({ onSignOut, onOpenRoster }: { onSignOut: () =>
   const [filter, setFilter] = useState<Filter>('all')
   const [openFlag, setOpenFlag] = useState<FlagView | null>(null)
   const [hoursOpen, setHoursOpen] = useState(false)
+  const [gymOpen, setGymOpen] = useState(false)
   const [doneErr, setDoneErr] = useState<string | null>(null)
   const listRef = useRef<HTMLElement>(null)
 
@@ -135,7 +137,21 @@ export function ManagerDashboard({ onSignOut, onOpenRoster }: { onSignOut: () =>
           <span className="text-[15px] font-bold tracking-[0.08em] uppercase">World Gym</span>
           <span className="text-[15px] text-muted-foreground">{siteShortName(settings.site_name)}</span>
         </p>
-        <AccountButton name={me.full_name} onSignOut={onSignOut} />
+        <AccountButton
+          userId={me.id}
+          name={me.full_name}
+          siteName={settings.site_name}
+          onSignOut={onSignOut}
+          manage={[
+            {
+              id: 'gym-location',
+              icon: <MapPin />,
+              title: `Gym location · ${settings.radius_m} m radius`,
+              detail: settings.updated_at ? `Set ${formatDateShort(localDay(settings.updated_at, tz))}` : 'Not set in the app yet',
+              onSelect: () => setGymOpen(true),
+            },
+          ]}
+        />
       </header>
 
       <div className="px-1 pt-1">
@@ -234,6 +250,8 @@ export function ManagerDashboard({ onSignOut, onOpenRoster }: { onSignOut: () =>
         </section>
       </div>
 
+      {/* Mounted only while open, so each visit starts from the saved point. */}
+      {gymOpen && <GymLocationSheet open onOpenChange={setGymOpen} settings={settings} me={me} onSaved={() => void refresh()} />}
       <HoursSheet open={hoursOpen} onOpenChange={setHoursOpen} fortnights={fortnights} current={currentFortnight} refreshedAt={now} />
       {openFlag && <FlagSheet key={openFlag.flag.id} view={openFlag} viewer={me} settings={settings} onOpenChange={(o) => !o && setOpenFlag(null)} onChanged={() => void refresh()} />}
     </main>

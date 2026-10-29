@@ -221,4 +221,4 @@ Prices are approximate as of October 2026.
 - [ ] Exact headcount and names for account setup.
 - [ ] Who sends staff the written location notice 14 days before the trial starts?
 - [ ] Trial start date.
-- [ ] Exact gym coordinates and the radius to use (default 150 m).
+- [ ] Exact gym coordinates and the radius to use (default 150 m). Carly can set both in the app by standing in the gym; still needs doing once before the trial.

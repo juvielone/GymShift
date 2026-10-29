@@ -11,8 +11,8 @@ export const ANGEL = 'user-angel'
 /** Shift ids are derived from date + type, e.g. "shift-2026-10-26-morning". */
 export const shiftId = (date: string, type: 'morning' | 'night') => `shift-${date}-${type}`
 
-/** Mock "current time": Wed 28 Oct 2026, 7:40 pm Sydney — Josh's night shift is in progress. */
-export const MOCK_NOW = '2026-10-28T19:40:00+11:00'
+/** Mock "current time": Wed 28 Oct 2026, 6:50 pm Sydney — Josh's night shift starts in 10 minutes, not clocked in yet. */
+export const MOCK_NOW = '2026-10-28T18:50:00+11:00'
 
 /** Monday that starts the mock published fortnight. */
 export const FORTNIGHT_START = '2026-10-26'

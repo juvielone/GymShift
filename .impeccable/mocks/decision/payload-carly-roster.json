@@ -1,0 +1,80 @@
+{
+ "title": "Carly's dashboard: where Roster lives",
+ "question": "Gym location moves to an Account page behind Carly's initial in all three. Pick where Roster goes, or steer.",
+ "options": [
+  {
+   "id": "carly-roster-passfooter",
+   "kind": "assigned",
+   "label": "Full roster inside the Today pass",
+   "kicker": "RECOMMENDED",
+   "lineage": "Pass + List by Day, with the pass as the door to the roster",
+   "thesis": "The Today pass is already today's slice of the roster, so its last line opens the rest. One tap, one box fewer.",
+   "palette": [
+    "#FFFFFF",
+    "#111111",
+    "#D7192A",
+    "#FEF3C7",
+    "#DCFCE7"
+   ],
+   "materials": [
+    "black pass",
+    "pass footer line",
+    "one outlined Hours row"
+   ],
+   "viewport": "Greeting · black Today pass (Gladys Done, Josh Starts 7:00 pm) ending in 'Full roster ›' · Fortnight hours row · chips · list.",
+   "risk": "Carly has to learn that the pass is tappable; the chevron line carries that.",
+   "html": ".impeccable/mocks/decision/carly-roster-passfooter.html",
+   "htmlFrame": "390x844"
+  },
+  {
+   "id": "carly-roster-account",
+   "kind": "dealt",
+   "label": "Roster on the Account page",
+   "lineage": "Pass + List by Day, with all setup behind the avatar",
+   "thesis": "The dashboard is only today and what needs Carly. Roster sits with Gym location behind her initial.",
+   "palette": [
+    "#FFFFFF",
+    "#111111",
+    "#D7192A",
+    "#FEF3C7",
+    "#DCFCE7"
+   ],
+   "materials": [
+    "black pass",
+    "one outlined Hours row",
+    "account page"
+   ],
+   "viewport": "Greeting · black Today pass · Fortnight hours row · chips · list. Initial → Account: Roster, Gym location, Switch user.",
+   "risk": "Roster becomes two taps and hidden; she changes shifts often, so she may hunt for it.",
+   "html": ".impeccable/mocks/decision/carly-roster-account.html",
+   "htmlFrame": "390x844"
+  },
+  {
+   "id": "carly-roster-row",
+   "kind": "dealt",
+   "label": "Roster stays its own row",
+   "lineage": "Pass + List by Day as built, minus the Gym location row",
+   "thesis": "Keep what Carly already knows: a Roster row above Fortnight hours.",
+   "palette": [
+    "#FFFFFF",
+    "#111111",
+    "#D7192A",
+    "#FEF3C7",
+    "#DCFCE7"
+   ],
+   "materials": [
+    "black pass",
+    "two outlined rows"
+   ],
+   "viewport": "Greeting · black Today pass · Roster row · Fortnight hours row · chips · list.",
+   "risk": "Two stacked boxes push the list lower on a phone; the first request starts near the fold.",
+   "html": ".impeccable/mocks/decision/carly-roster-row.html",
+   "htmlFrame": "390x844"
+  }
+ ],
+ "reroll": false,
+ "buildPath": {
+  "value": "code"
+ },
+ "steer": true
+}

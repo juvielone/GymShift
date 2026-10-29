@@ -1,4 +1,5 @@
 // Table: site_settings (single row, one site in v1). All business-rule numbers come from here — never hardcode them.
+import type { Timestamp, Uuid } from './common'
 
 export interface SiteSettings {
   site_name: string
@@ -23,4 +24,7 @@ export interface SiteSettings {
   default_night_start: string
   max_photos_per_shift: number
   photo_retention_months: number
+  /** Who last changed the gym location or radius, and when. null = never changed in the app. */
+  updated_by: Uuid | null
+  updated_at: Timestamp | null
 }

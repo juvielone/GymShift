@@ -1,14 +1,14 @@
 import type { ClockEvent } from '@/types'
 import { GLADYS, ANGEL, JOSH, KYLE, GINO, shiftId } from './ids'
 
-// Past shifts up to MOCK_NOW (28 Oct, 7:40 pm). Scenarios:
+// Past shifts up to MOCK_NOW (28 Oct, 6:50 pm). Scenarios:
 //  26 Oct morning  Josh  forgot to clock out; clocked out from home at 1:40 pm → corrected to 10:00 (correction-01)
 //  26 Oct night    Gino  late (no-show flag at 19:15), then 3h 20m with no extension → flagged, NOT cut
 //  27 Oct morning  Kyle  clocked in 420 m away (±25 m) → off-site flag (open)
 //  27 Oct 1–2 pm   Gino  unscheduled visit to restock → unscheduled flag (open), hours still counted
 //  27 Oct night    Angel   poor GPS (260 m ±140 m) → NOT flagged; 3h 25m with approved 25-min extension → NOT flagged
 //  28 Oct morning  Gladys    location permission denied → still saved, no-location flag (open)
-//  28 Oct night    Josh  clocked in, shift in progress (pending extension request)
+//  28 Oct night    Josh  starts at 7:00 pm, not clocked in yet (clock in and out live to test)
 const e = (
   id: string,
   user_id: string,
@@ -34,5 +34,4 @@ export const clockEvents: ClockEvent[] = [
   e('ce-10', ANGEL, shiftId('2026-10-27', 'night'), 'out', '2026-10-27T22:24:00+11:00', [-33.77725, 151.12048, 10, 45]),
   e('ce-11', GLADYS, shiftId('2026-10-28', 'morning'), 'in', '2026-10-28T07:00:00+11:00', 'denied'),
   e('ce-12', GLADYS, shiftId('2026-10-28', 'morning'), 'out', '2026-10-28T09:58:00+11:00', [-33.77719, 151.12043, 9, 38]),
-  e('ce-13', JOSH, shiftId('2026-10-28', 'night'), 'in', '2026-10-28T18:57:00+11:00', [-33.77712, 151.12041, 10, 30]),
 ]

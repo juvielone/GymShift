@@ -3,7 +3,7 @@ import { CARLY, GLADYS, JOSH } from '@/mocks'
 import { copy, db, requireUser, roleOf } from './store'
 
 // Mock session. Replaced by Supabase auth (magic link / password) later.
-// Starts as Josh so the seeded scenario (his night shift in progress) opens on the cleaner home.
+// Starts as Josh so the seeded scenario (his night shift about to start) opens on the cleaner home.
 let currentUserId: Uuid = JOSH
 
 export async function getCurrentUser(): Promise<User> {

@@ -14,6 +14,10 @@ import {
 import type { EffectiveClockEvent } from '@/data'
 import type { Extension, Shift, SiteSettings, Timestamp, User } from '@/types'
 import { approvedShiftMinutes, compareTs, localDate, minutesBetween } from '@/lib/rules'
+import { getLocationPermission } from '@/lib/geolocation'
+
+/** What to tell the cleaner about location before they tap. 'unknown' keeps the plain text. */
+export type LocationAccess = 'blocked' | 'ask' | 'ok' | 'unknown'
 
 export type HomePhase =
   /** No rostered shift left today and nothing open. */
@@ -42,6 +46,7 @@ export interface CleanerHome {
   now: Timestamp
   phase: HomePhase
   upcoming: Shift[]
+  locationAccess: LocationAccess
 }
 
 async function loadHome(): Promise<CleanerHome> {
@@ -49,10 +54,11 @@ async function loadHome(): Promise<CleanerHome> {
   const now = serverNow()
   const today = localDate(now, settings)
 
-  const [todayShifts, events, upcomingAll] = await Promise.all([
+  const [todayShifts, events, upcomingAll, permission] = await Promise.all([
     getShifts({ userId: user.id, status: 'published', from: today, to: today }),
     getEffectiveClockEvents({ userId: user.id }),
     getUpcomingShifts(user.id, 8),
+    getLocationPermission(),
   ])
 
   const buildSession = async (shift: Shift | null, clockIn: EffectiveClockEvent, clockOut: EffectiveClockEvent | null): Promise<Session> => {
@@ -97,7 +103,19 @@ async function loadHome(): Promise<CleanerHome> {
   const shownId = phase.kind === 'before' ? phase.shift.id : phase.kind === 'on' || phase.kind === 'done' ? phase.session.shift?.id : undefined
   const upcoming = upcomingAll.filter((s) => s.id !== shownId && !doneIds.has(s.id))
 
-  return { user, settings, now, phase, upcoming }
+  // Without the Permissions API, a last clock event that was denied is the best sign it's still blocked.
+  const locationAccess: LocationAccess =
+    permission === 'denied'
+      ? 'blocked'
+      : permission === 'prompt'
+        ? 'ask'
+        : permission === 'granted'
+          ? 'ok'
+          : last?.location_status === 'denied'
+            ? 'blocked'
+            : 'unknown'
+
+  return { user, settings, now, phase, upcoming, locationAccess }
 }
 
 /** Refreshes every 30 s so worked time and the progress line keep up with the server clock. */

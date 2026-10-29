@@ -79,3 +79,15 @@ export function zonedTimestamp(date: DateString, time: TimeString, timeZone: str
 
 /** Site-local calendar date of a timestamp, "YYYY-MM-DD". */
 export const localDay = (ts: Timestamp, timeZone: string): DateString => new Intl.DateTimeFormat('en-CA', { timeZone }).format(new Date(ts))
+
+/** "-33.7769, 151.1203" as copied from Google Maps → coordinates, or null if it isn't a valid pair. */
+export function parseLatLng(text: string): { lat: number; lng: number } | null {
+  const m = /^\s*\(?\s*(-?\d{1,3}(?:\.\d+)?)\s*[,\s]\s*(-?\d{1,3}(?:\.\d+)?)\s*\)?\s*$/.exec(text)
+  if (!m) return null
+  const lat = Number(m[1])
+  const lng = Number(m[2])
+  return Math.abs(lat) <= 90 && Math.abs(lng) <= 180 ? { lat, lng } : null
+}
+
+/** Coordinates to 5 decimals (about 1 m), the precision that matters for the geofence. */
+export const formatLatLng = (lat: number, lng: number): string => `${lat.toFixed(5)}, ${lng.toFixed(5)}`

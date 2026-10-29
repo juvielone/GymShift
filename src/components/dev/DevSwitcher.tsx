@@ -6,9 +6,11 @@ import type { User } from '@/types'
 import { setDevLocationMode, type DevLocationMode } from '@/lib/geolocation'
 
 const TIMES: { label: string; ts: string }[] = [
-  { label: 'Wed 28 Oct · 6:30 pm', ts: '2026-10-28T18:30:00+11:00' },
-  { label: 'Wed 28 Oct · 7:40 pm', ts: '2026-10-28T19:40:00+11:00' },
-  { label: 'Wed 28 Oct · 10:15 pm', ts: '2026-10-28T22:15:00+11:00' },
+  // Josh's 28 Oct night shift, step by step: before, during, a normal finish, then over 3h (flagged).
+  { label: 'Wed 28 Oct · 6:50 pm (before shift)', ts: '2026-10-28T18:50:00+11:00' },
+  { label: 'Wed 28 Oct · 7:40 pm (during)', ts: '2026-10-28T19:40:00+11:00' },
+  { label: 'Wed 28 Oct · 9:45 pm (finish)', ts: '2026-10-28T21:45:00+11:00' },
+  { label: 'Wed 28 Oct · 10:15 pm (over 3h)', ts: '2026-10-28T22:15:00+11:00' },
   { label: 'Thu 29 Oct · 12:00 pm', ts: '2026-10-29T12:00:00+11:00' },
   { label: 'Sat 31 Oct · 6:50 am', ts: '2026-10-31T06:50:00+11:00' },
 ]
@@ -26,7 +28,7 @@ export function DevSwitcher({ onChange }: { onChange: () => void }) {
   const [open, setOpen] = useState(false)
   const [users, setUsers] = useState<User[]>([])
   const [userId, setUserId] = useState('')
-  const [time, setTime] = useState(TIMES[1].ts)
+  const [time, setTime] = useState(TIMES[0].ts)
   const [loc, setLoc] = useState<DevLocationMode>('gym')
 
   useEffect(() => {

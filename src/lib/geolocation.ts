@@ -16,6 +16,24 @@ export function setDevLocationMode(mode: DevLocationMode, gym: { lat: number; ln
   devGym = gym
 }
 
+export type LocationPermission = 'granted' | 'prompt' | 'denied' | 'unknown'
+
+/**
+ * Whether the browser will give a location, checked before the tap so a blocked site can be fixed first.
+ * Never rejects: browsers without the Permissions API (older iOS Safari) report 'unknown'. Asks nothing.
+ */
+export async function getLocationPermission(): Promise<LocationPermission> {
+  if (import.meta.env.DEV && devMode !== 'real') return devMode === 'denied' ? 'denied' : 'granted'
+  try {
+    if (!('geolocation' in navigator)) return 'denied'
+    if (!navigator.permissions?.query) return 'unknown'
+    const { state } = await navigator.permissions.query({ name: 'geolocation' })
+    return state
+  } catch {
+    return 'unknown'
+  }
+}
+
 export function getClockLocation(): Promise<ClockLocation> {
   if (import.meta.env.DEV && devMode !== 'real' && devGym) {
     const gym = devGym

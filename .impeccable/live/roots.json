@@ -1,0 +1,10 @@
+{
+  "version": 1,
+  "appRoot": "C:\\Users\\juvie\\Downloads\\000N",
+  "repoRoot": "C:\\Users\\juvie\\Downloads\\000N",
+  "contextRoot": "C:\\Users\\juvie\\Downloads\\000N",
+  "sessionRoot": "C:\\Users\\juvie\\Downloads\\000N\\.impeccable\\live",
+  "productPath": "C:\\Users\\juvie\\Downloads\\000N\\PRODUCT.md",
+  "designPath": "C:\\Users\\juvie\\Downloads\\000N\\DESIGN.md",
+  "resolvedFrom": "target:src\\pages\\ManagerDashboard.tsx"
+}

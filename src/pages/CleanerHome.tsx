@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { LoaderCircle, X } from 'lucide-react'
 import { clockIn, clockOut } from '@/data'
-import type { ClockResult } from '@/data'
+import type { ClockLocation, ClockResult } from '@/data'
 import type { FlagKind } from '@/types'
 import { useCleanerHome, type CleanerHome as HomeData } from '@/hooks/useCleanerHome'
 import { ShiftPass } from '@/components/home/ShiftPass'
@@ -12,6 +12,8 @@ import { UpcomingShifts } from '@/components/home/UpcomingShifts'
 import { TeamSwaps } from '@/components/home/TeamSwaps'
 import { ExtensionSheet } from '@/components/home/ExtensionSheet'
 import { ClockOutConfirm } from '@/components/home/ClockOutConfirm'
+import { LocationFailSheet } from '@/components/home/LocationFailSheet'
+import { LocationHelpSheet } from '@/components/home/LocationHelpSheet'
 import { AccountButton } from '@/components/common/AccountButton'
 import { RosterRow } from '@/components/roster/RosterRow'
 import { firstName, formatClock, formatDateLong, formatDuration, shiftLabel, siteShortName } from '@/lib/format'
@@ -21,6 +23,7 @@ import { cn } from '@/lib/utils'
 
 type Step = 'idle' | 'locating' | 'saving' | 'saved'
 type Receipt = { tone: 'ok' | 'warn'; title: string; detail?: string }
+type NoFix = Extract<ClockLocation, { status: unknown }>
 
 /** Plain, warm wording for what just happened. Flags become "Carly will check it", never blame. */
 function receiptFor(kind: 'in' | 'out', result: ClockResult, name: string, workedMin: number | null): Receipt {
@@ -79,6 +82,8 @@ function Home({ data, refresh, onSignOut, onOpenRoster }: { data: HomeData; refr
   const [failed, setFailed] = useState(false)
   const [confirmOpen, setConfirmOpen] = useState(false)
   const [extOpen, setExtOpen] = useState(false)
+  const [helpOpen, setHelpOpen] = useState(false)
+  const [noFix, setNoFix] = useState<{ kind: 'in' | 'out'; location: NoFix } | null>(null)
   const receiptTimer = useRef<number | undefined>(undefined)
 
   useEffect(() => () => window.clearTimeout(receiptTimer.current), [])
@@ -93,8 +98,20 @@ function Home({ data, refresh, onSignOut, onOpenRoster }: { data: HomeData; refr
     setConfirmOpen(false)
     setFailed(false)
     setReceipt(null)
+    setNoFix(null)
     setStep('locating')
     const location = await getClockLocation()
+    // No location: nothing is saved yet. Offer a retry first; "anyway" saves it and Carly checks it.
+    if ('status' in location) {
+      setStep('idle')
+      setNoFix({ kind, location })
+      return
+    }
+    await save(kind, location)
+  }
+
+  async function save(kind: 'in' | 'out', location: ClockLocation) {
+    setNoFix(null)
     setStep('saving')
     try {
       const result = kind === 'in' ? await clockIn(user.id, location) : await clockOut(user.id, location)
@@ -132,7 +149,7 @@ function Home({ data, refresh, onSignOut, onOpenRoster }: { data: HomeData; refr
           <span className="text-[15px] font-bold tracking-[0.08em] uppercase">World Gym</span>
           <span className="text-[15px] text-muted-foreground">{siteShortName(settings.site_name)}</span>
         </p>
-        <AccountButton name={user.full_name} onSignOut={onSignOut} />
+        <AccountButton userId={user.id} name={user.full_name} siteName={settings.site_name} onSignOut={onSignOut} />
       </header>
 
       <div className="px-1 pt-1">
@@ -149,7 +166,7 @@ function Home({ data, refresh, onSignOut, onOpenRoster }: { data: HomeData; refr
       </div>
 
       <div className="mt-2">
-        <LocationRow phase={phase} settings={settings} />
+        <LocationRow phase={phase} settings={settings} access={data.locationAccess} onHelp={() => setHelpOpen(true)} />
         {session && <ExtensionRow session={session} settings={settings} tz={tz} onAsk={() => setExtOpen(true)} />}
       </div>
 
@@ -204,6 +221,21 @@ function Home({ data, refresh, onSignOut, onOpenRoster }: { data: HomeData; refr
           onConfirm={() => void clock('out')}
         />
       )}
+      {noFix && (
+        <LocationFailSheet
+          open
+          onOpenChange={(o) => !o && setNoFix(null)}
+          kind={noFix.kind}
+          status={noFix.location.status}
+          onRetry={() => void clock(noFix.kind)}
+          onAnyway={() => void save(noFix.kind, noFix.location)}
+          onHelp={() => {
+            setNoFix(null)
+            setHelpOpen(true)
+          }}
+        />
+      )}
+      <LocationHelpSheet open={helpOpen} onOpenChange={setHelpOpen} onFixed={() => void refresh()} />
       {session && session.shift && (
         <ExtensionSheet
           open={extOpen}

@@ -386,7 +386,7 @@ Fortnight hours folded into one tappable row: at least 56px tall, control corner
 - **Time input:** native time field, 48px tall, control corners, Hairline border, 18px semibold value.
 
 ### Navigation
-- **Top bar:** 48px tall: the uppercase World Gym wordmark plus the site name in 15px Quiet Grey on the left; on the right the account button, a 36px Soft Grey pill avatar with the person's initial in 15px/600, which returns to the demo login to switch user (labelled "Name. Switch user"). Pressed: Hairline ground.
+- **Top bar:** 48px tall: the uppercase World Gym wordmark plus the site name in 15px Quiet Grey on the left; on the right the account button, a 36px Soft Grey pill avatar with the person's initial in 15px/600 inside a 44px target (labelled "Name. Account"). Pressed: Hairline ground. It opens the account sheet: a 48px initial, the name as the 20px title and "Role · Site" below; for the manager, a quiet "Manage" label over hairline rows with neutral discs (Gym location now, Staff later), for setup that is not daily; then a full-width outline Log out. No red in this sheet: logging out is not a go action.
 - **Demo login:** a demo-only screen with the same top bar, a 28px "GymShift" headline and one 72px hairline card per person (initial avatar, name · role, what they will see, chevron). Not a pattern for production screens.
 
 ### Drawers / Sheets
