@@ -1,0 +1,45 @@
+{
+  "title": "Cleaner home: work photos",
+  "question": "Where do work photos live on Josh's home? All three use the phone's own picker, show a saving bar on each photo, and turn a failed photo amber with a retry. Clock-out stays one tap, so the 'no photos yet' nudge sits in the clocked-out receipt. Pick one, or steer.",
+  "options": [
+    {
+      "id": "photos-a-row",
+      "label": "A Photos row under the pass",
+      "kicker": "RECOMMENDED",
+      "lineage": "Same hairline status rows as 'At the gym' and 'Need more time?'",
+      "thesis": "Photos are one more status row, with a thumbnail strip inside it. One tap opens the picker.",
+      "palette": ["#FFFFFF", "#111111", "#D7192A", "#FEF3C7", "#DCFCE7"],
+      "materials": ["hairline row", "56px thumbnail strip", "amber retry tile"],
+      "viewport": "Greeting · black pass · At the gym · Work photos 5 of 10 with strip · Need more time? · red Clock out.",
+      "risk": "The quietest option: photos look like everything else in the list, so they could be overlooked.",
+      "html": ".impeccable/mocks/decision/photos-a-row.html",
+      "htmlFrame": "390x844"
+    },
+    {
+      "id": "photos-b-pass",
+      "label": "B Ten slots on the pass",
+      "lineage": "The pass's progress line, repeated as a count of ten",
+      "thesis": "The pass shows ten small slots under Worked / Left, so you can see at a glance how many photos are in.",
+      "palette": ["#111111", "#FFFFFF", "#71717A", "#D7192A", "#FEF3C7"],
+      "materials": ["black pass", "ten 26px slots", "photo sheet"],
+      "viewport": "Black pass with progress line, stats and a 'Photos 3 of 10' slot line · At the gym · red Clock out.",
+      "risk": "The pass gets busier, and adding photos takes two taps (slot line → sheet → Add photos).",
+      "html": ".impeccable/mocks/decision/photos-b-pass.html",
+      "htmlFrame": "390x844"
+    },
+    {
+      "id": "photos-c-dock",
+      "label": "C Camera beside Clock out",
+      "lineage": "Docked actions, like a camera app's shutter bar",
+      "thesis": "A camera button sits in the dock beside Clock out, so photos are always one thumb tap away.",
+      "palette": ["#FFFFFF", "#1C1C1C", "#D7192A", "#FEF3C7"],
+      "materials": ["split dock", "rising upload tray"],
+      "viewport": "Greeting · pass · rows · upload tray above a dock of [camera 3/10] + red Clock out.",
+      "risk": "Camera right next to Clock out: a missed tap clocks someone out, which only Carly can fix.",
+      "html": ".impeccable/mocks/decision/photos-c-dock.html",
+      "htmlFrame": "390x844"
+    }
+  ],
+  "followup": true,
+  "steer": true
+}

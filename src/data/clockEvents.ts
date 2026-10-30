@@ -4,7 +4,7 @@ import type { ClockEvent, ClockKind, Flag, LocationStatus, Timestamp, Uuid } fro
 import { approvedShiftMinutes, compareTs, distanceMetres, formatMinutes, isOffSite, isOverWithoutExtension, localDate, minutesBetween } from '@/lib/rules'
 import { effectiveTime } from './attendance'
 import { raiseFlag } from './flags'
-import { copy, db, newId, requireUser, serverNow } from './store'
+import { copy, db, newId, requireFreshClock, requireUser, serverNow } from './store'
 
 /** What the phone sends: a GPS fix, or why there isn't one. Never a timestamp. */
 export type ClockLocation = { lat: number; lng: number; accuracy_m: number } | { status: Exclude<LocationStatus, 'ok'> }
@@ -67,6 +67,7 @@ function openClockIn(userId: Uuid): ClockEvent | null {
 /** Links to the user's published shift for today (site timezone) that has no clock-in yet; otherwise unscheduled. */
 export async function clockIn(userId: Uuid, location: ClockLocation): Promise<ClockResult> {
   requireUser(userId)
+  await requireFreshClock()
   const today = localDate(serverNow(), db.settings)
   const shift = db.shifts
     .filter((s) => s.assigned_user_id === userId && s.status === 'published' && s.date === today)
@@ -83,6 +84,7 @@ export async function clockIn(userId: Uuid, location: ClockLocation): Promise<Cl
 /** Closes the user's open session. Over-length is flagged against approved extensions — never cut. */
 export async function clockOut(userId: Uuid, location: ClockLocation): Promise<ClockResult> {
   requireUser(userId)
+  await requireFreshClock()
   const open = openClockIn(userId)
   const { event, flags } = appendEvent(userId, open?.shift_id ?? null, 'out', location)
 

@@ -1,14 +1,22 @@
 import type { Role, RoleId, User, Uuid } from '@/types'
 import { CARLY, GLADYS, JOSH } from '@/mocks'
-import { copy, db, newId, requireUser, roleOf, serverNow } from './store'
+import { auth, copy, db, newId, requireUser, roleOf, serverNow } from './store'
 import { compareTs, localDate } from '@/lib/rules'
 
-// Mock session. Replaced by Supabase auth (magic link / password) later.
+// Mock session (held in the store so trial mode remembers it). Replaced by Supabase auth (magic link / password) later.
 // Starts as Josh so the seeded scenario (his night shift about to start) opens on the cleaner home.
-let currentUserId: Uuid = JOSH
 
 export async function getCurrentUser(): Promise<User> {
-  return copy(requireUser(currentUserId))
+  return copy(requireUser(auth.userId))
+}
+
+/** Whether someone is signed in. Demo mode always starts signed out; trial mode remembers. */
+export async function isSignedIn(): Promise<boolean> {
+  return auth.signedIn
+}
+
+export async function signOut(): Promise<void> {
+  auth.signedIn = false
 }
 
 /** Demo login: one account per role (manager, team lead, cleaner). Removed when real auth arrives. */
@@ -19,7 +27,8 @@ export async function getDemoAccounts(): Promise<User[]> {
 /** Mock sign-in, used by the demo login and the dev switcher to see the app from a user's role. */
 export async function setMockCurrentUser(id: Uuid): Promise<void> {
   requireUser(id)
-  currentUserId = id
+  auth.userId = id
+  auth.signedIn = true
 }
 
 export async function getUsers(filter: { role?: RoleId; teamLeadId?: Uuid; activeOnly?: boolean } = {}): Promise<User[]> {

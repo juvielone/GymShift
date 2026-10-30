@@ -1,4 +1,4 @@
-import type { Note, NoteTag, Uuid } from '@/types'
+import type { Note, NoteTag, Timestamp, Uuid } from '@/types'
 import { copy, db, newId, requireUser, roleOf, serverNow } from './store'
 import { compareTs } from '@/lib/rules'
 
@@ -21,16 +21,31 @@ export async function getOpenSupplyAlerts(): Promise<Note[]> {
   return getNotes({ tag: 'supplies_low', open: true })
 }
 
-export async function addNote(input: { shiftId: Uuid; userId: Uuid; body: string; tag?: NoteTag }): Promise<Note> {
-  if (!db.shifts.some((s) => s.id === input.shiftId)) throw new Error(`Unknown shift ${input.shiftId}`)
+/** Open "Issue" notes (something wrong at the gym) for the manager dashboard. */
+export async function getOpenIssues(): Promise<Note[]> {
+  return getNotes({ tag: 'issue', open: true })
+}
+
+/**
+ * On the author's own shift (the manager may note any shift). A 'running_late' note says when they
+ * expect to arrive; it is information for Carly's Today card, never a task in her list.
+ */
+export async function addNote(input: { shiftId: Uuid; userId: Uuid; body: string; tag?: NoteTag; arriveBy?: Timestamp }): Promise<Note> {
+  const author = requireUser(input.userId)
+  const shift = db.shifts.find((s) => s.id === input.shiftId)
+  if (!shift) throw new Error(`Unknown shift ${input.shiftId}`)
+  if (shift.assigned_user_id !== author.id && roleOf(author).view_records_scope !== 'all') throw new Error('Notes can only be added to your own shift')
   const body = input.body.trim()
   if (!body) throw new Error('A note needs some text')
+  const tag = input.tag ?? null
+  if (tag === 'running_late' && !input.arriveBy) throw new Error('Say about when you will arrive')
   const row: Note = {
     id: newId('note'),
-    shift_id: input.shiftId,
-    user_id: input.userId,
+    shift_id: shift.id,
+    user_id: author.id,
     body,
-    tag: input.tag ?? null,
+    tag,
+    arrive_by: tag === 'running_late' ? (input.arriveBy ?? null) : null,
     created_at: serverNow(),
     done_at: null,
     done_by: null,

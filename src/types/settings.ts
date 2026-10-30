@@ -23,6 +23,10 @@ export interface SiteSettings {
   default_morning_start: string
   default_night_start: string
   max_photos_per_shift: number
+  /** Minutes after clock-out during which photos can still be added (default 180). */
+  photo_upload_window_min: number
+  /** Minutes after adding a photo during which the cleaner can remove it themselves (default 10). */
+  photo_remove_window_min: number
   photo_retention_months: number
   /** Who last changed the gym location or radius, and when. null = never changed in the app. */
   updated_by: Uuid | null

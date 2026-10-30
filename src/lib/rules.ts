@@ -57,6 +57,28 @@ export function canApproveExtension(requestMin: number, extensions: Extension[],
   return settings.standard_shift_min + approvedExtensionMinutes(extensions) + requestMin <= settings.max_shift_min
 }
 
+const plusMinutes = (ts: Timestamp, min: number): Timestamp => new Date(Date.parse(ts) + min * 60_000).toISOString()
+
+/** Photos can be added from clock-in until this long after clock-out. null = still on shift, so still open. */
+export function photoWindowClosesAt(clockOut: Timestamp | null, settings: SiteSettings): Timestamp | null {
+  return clockOut === null ? null : plusMinutes(clockOut, settings.photo_upload_window_min)
+}
+
+/** The cleaner can remove their own photo for a short time after adding it (a mistake, not a review). */
+export function canRemoveOwnPhoto(uploadedAt: Timestamp, now: Timestamp, settings: SiteSettings): boolean {
+  return compareTs(now, plusMinutes(uploadedAt, settings.photo_remove_window_min)) < 0
+}
+
+/**
+ * When a missing clock-in becomes a possible no-show: the no-show window after the shift starts, or
+ * after the time a "running late" note said they'd arrive, whichever is later. Lateness itself is never
+ * flagged; paid time starts at clock-in, so nothing needs cutting.
+ */
+export function noShowDueAt(shiftStart: Timestamp, arriveBy: Timestamp | null, settings: SiteSettings): Timestamp {
+  const from = arriveBy !== null && compareTs(arriveBy, shiftStart) > 0 ? arriveBy : shiftStart
+  return plusMinutes(from, settings.no_show_after_min)
+}
+
 /** Add days to a "YYYY-MM-DD" date. */
 export function addDays(date: string, days: number): string {
   const d = new Date(`${date}T00:00:00Z`)

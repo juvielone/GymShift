@@ -1,13 +1,18 @@
 // Cleaner home: today's shift as a pass, one docked clock button, location and extra time, next shifts.
 // Clocking always saves; location problems and unscheduled clock-ins are flagged for Carly, never blocked.
-import { useEffect, useRef, useState } from 'react'
-import { LoaderCircle, X } from 'lucide-react'
+import { useCallback, useEffect, useRef, useState } from 'react'
+import { LoaderCircle, MessageSquare, X } from 'lucide-react'
 import { clockIn, clockOut } from '@/data'
 import type { ClockLocation, ClockResult } from '@/data'
-import type { FlagKind } from '@/types'
+import type { FlagKind, Photo } from '@/types'
 import { useCleanerHome, type CleanerHome as HomeData } from '@/hooks/useCleanerHome'
 import { ShiftPass } from '@/components/home/ShiftPass'
-import { ExtensionRow, LocationRow } from '@/components/home/StatusRows'
+import { ExtensionRow, LocationRow, StatusRow } from '@/components/home/StatusRows'
+import { PhotosRow } from '@/components/home/PhotosRow'
+import { PhotoSheet } from '@/components/home/PhotoSheet'
+import { PhotoPrompt } from '@/components/home/PhotoPrompt'
+import { NoteSheet, type NoteSent } from '@/components/home/NoteSheet'
+import { usePhotoUploads } from '@/hooks/usePhotoUploads'
 import { UpcomingShifts } from '@/components/home/UpcomingShifts'
 import { TeamSwaps } from '@/components/home/TeamSwaps'
 import { ExtensionSheet } from '@/components/home/ExtensionSheet'
@@ -22,7 +27,7 @@ import { localDate, minutesBetween } from '@/lib/rules'
 import { cn } from '@/lib/utils'
 
 type Step = 'idle' | 'locating' | 'saving' | 'saved'
-type Receipt = { tone: 'ok' | 'warn'; title: string; detail?: string }
+type Receipt = { tone: 'ok' | 'warn'; title: string; detail?: string; action?: { label: string; onClick: () => void } }
 type NoFix = Extract<ClockLocation, { status: unknown }>
 
 /** Plain, warm wording for what just happened. Flags become "Carly will check it", never blame. */
@@ -72,10 +77,12 @@ function Shell({ children }: { children: React.ReactNode }) {
 }
 
 function Home({ data, refresh, onSignOut, onOpenRoster }: { data: HomeData; refresh: () => Promise<void>; onSignOut: () => void; onOpenRoster?: () => void }) {
-  const { user, settings, now, phase, upcoming } = data
+  const { user, settings, now, phase, upcoming, recordShift, photos, notes } = data
   const name = firstName(user.full_name)
   const tz = settings.timezone
   const session = phase.kind === 'on' || phase.kind === 'done' ? phase.session : null
+  // Photos go on a rostered shift from clock-in on; unscheduled time has no shift to hold them.
+  const photoShiftId = session && recordShift ? recordShift.id : null
 
   const [step, setStep] = useState<Step>('idle')
   const [receipt, setReceipt] = useState<Receipt | null>(null)
@@ -84,7 +91,17 @@ function Home({ data, refresh, onSignOut, onOpenRoster }: { data: HomeData; refr
   const [extOpen, setExtOpen] = useState(false)
   const [helpOpen, setHelpOpen] = useState(false)
   const [noFix, setNoFix] = useState<{ kind: 'in' | 'out'; location: NoFix } | null>(null)
+  const [photoPromptOpen, setPhotoPromptOpen] = useState(false)
+  const [openPhoto, setOpenPhoto] = useState<Photo | null>(null)
+  const [noteOpen, setNoteOpen] = useState(false)
   const receiptTimer = useRef<number | undefined>(undefined)
+  const refreshQuietly = useCallback(() => void refresh(), [refresh])
+  const uploads = usePhotoUploads({
+    shiftId: photoShiftId,
+    userId: user.id,
+    room: settings.max_photos_per_shift - photos.length,
+    onSaved: refreshQuietly,
+  })
 
   useEffect(() => () => window.clearTimeout(receiptTimer.current), [])
 
@@ -96,6 +113,7 @@ function Home({ data, refresh, onSignOut, onOpenRoster }: { data: HomeData; refr
 
   async function clock(kind: 'in' | 'out') {
     setConfirmOpen(false)
+    setPhotoPromptOpen(false)
     setFailed(false)
     setReceipt(null)
     setNoFix(null)
@@ -117,7 +135,14 @@ function Home({ data, refresh, onSignOut, onOpenRoster }: { data: HomeData; refr
       const result = kind === 'in' ? await clockIn(user.id, location) : await clockOut(user.id, location)
       const worked = kind === 'out' && session ? minutesBetween(session.clockIn.effective_time, result.event.server_time) : null
       await refresh()
-      showReceipt(receiptFor(kind, result, name, worked))
+      const r = receiptFor(kind, result, name, worked)
+      // Clocked out with no photos: the receipt offers them, since clocking out never waits for photos.
+      if (kind === 'out' && photoShiftId && photos.length === 0 && uploads.queue.length === 0) {
+        const closes = formatClock(new Date(Date.parse(result.event.server_time) + settings.photo_upload_window_min * 60_000).toISOString(), tz)
+        r.detail = `${r.tone === 'warn' ? `${r.detail} ` : ''}Please add your work photos by ${closes}.`
+        r.action = { label: 'Add photos', onClick: uploads.pick }
+      }
+      showReceipt(r)
       // The button itself confirms with one drawn tick before settling into its next state.
       setStep('saved')
       window.setTimeout(() => setStep('idle'), 1400)
@@ -131,10 +156,22 @@ function Home({ data, refresh, onSignOut, onOpenRoster }: { data: HomeData; refr
     if (phase.kind === 'on') {
       // Before the approved length a mistaken tap would end the shift early, so ask once.
       const early = phase.session.shift !== null && phase.session.workedMin < phase.session.approvedMin
-      if (early) setConfirmOpen(true)
+      // No photos yet: ask "Add your photos first?" once (it also covers the early question). Never a block.
+      if (photoShiftId && photos.length === 0 && uploads.queue.length === 0) setPhotoPromptOpen(true)
+      else if (early) setConfirmOpen(true)
       else void clock('out')
     } else void clock('in')
   }
+
+  const noteSent = ({ tag, arriveBy }: NoteSent) => {
+    void refresh()
+    if (tag === 'running_late' && arriveBy) {
+      showReceipt({ tone: 'ok', title: `Thanks, ${name}. Carly knows.`, detail: `She'll expect you about ${formatClock(arriveBy, tz)}. Your time starts when you clock in.` })
+    } else {
+      showReceipt({ tone: 'ok', title: 'Sent to Carly.', detail: tag === 'supplies_low' ? "She'll see what is running low." : 'She sees it on her dashboard.' })
+    }
+  }
+  const lateNote = phase.kind === 'before' ? notes.find((n) => n.tag === 'running_late' && n.arrive_by) : undefined
 
   const busy = step === 'locating' || step === 'saving'
   const showDock = phase.kind !== 'done' || step === 'saved'
@@ -167,7 +204,35 @@ function Home({ data, refresh, onSignOut, onOpenRoster }: { data: HomeData; refr
 
       <div className="mt-2">
         <LocationRow phase={phase} settings={settings} access={data.locationAccess} onHelp={() => setHelpOpen(true)} />
+        {photoShiftId && session && (
+          <PhotosRow
+            photos={photos}
+            queue={uploads.queue}
+            notice={uploads.notice}
+            settings={settings}
+            now={now}
+            clockOut={session.clockOut?.effective_time ?? null}
+            onPick={uploads.pick}
+            onRetry={uploads.retry}
+            onOpen={setOpenPhoto}
+          />
+        )}
         {session && <ExtensionRow session={session} settings={settings} tz={tz} onAsk={() => setExtOpen(true)} />}
+        {recordShift && (
+          <StatusRow
+            icon={<MessageSquare />}
+            tone="neutral"
+            title="Note for Carly"
+            detail={
+              lateNote?.arrive_by
+                ? `Carly knows you'll arrive about ${formatClock(lateNote.arrive_by, tz)}.`
+                : phase.kind === 'before'
+                  ? 'Running late? Tell her here.'
+                  : 'Supplies, a problem or anything else.'
+            }
+            onClick={() => setNoteOpen(true)}
+          />
+        )}
       </div>
 
       <UpcomingShifts shifts={upcoming} />
@@ -212,6 +277,49 @@ function Home({ data, refresh, onSignOut, onOpenRoster }: { data: HomeData; refr
         </div>
       )}
 
+      {session && (
+        <PhotoPrompt
+          open={photoPromptOpen}
+          onOpenChange={setPhotoPromptOpen}
+          earlyNote={
+            markTs && session.shift && session.workedMin < session.approvedMin
+              ? `You've worked ${formatDuration(session.workedMin)}. Your shift time is up at ${formatClock(markTs, tz)}.`
+              : null
+          }
+          uploadWindowMin={settings.photo_upload_window_min}
+          onAddPhotos={() => {
+            setPhotoPromptOpen(false)
+            uploads.pick()
+          }}
+          onClockOut={() => void clock('out')}
+        />
+      )}
+      {openPhoto && (
+        <PhotoSheet
+          key={openPhoto.id}
+          photo={openPhoto}
+          index={Math.max(0, photos.findIndex((p) => p.id === openPhoto.id))}
+          total={photos.length}
+          userId={user.id}
+          settings={settings}
+          now={now}
+          onOpenChange={(o) => !o && setOpenPhoto(null)}
+          onRemoved={refreshQuietly}
+        />
+      )}
+      {recordShift && (
+        <NoteSheet
+          key={`${recordShift.id}-${phase.kind === 'before'}`}
+          open={noteOpen}
+          onOpenChange={setNoteOpen}
+          shift={recordShift}
+          beforeClockIn={phase.kind === 'before'}
+          userId={user.id}
+          settings={settings}
+          now={now}
+          onSent={noteSent}
+        />
+      )}
       {session && markTs && (
         <ClockOutConfirm
           open={confirmOpen}
@@ -268,6 +376,15 @@ function ReceiptBanner({ receipt, onClose }: { receipt: Receipt; onClose: () => 
       <div className="min-w-0 flex-1">
         <p className="text-base leading-snug font-semibold">{receipt.title}</p>
         {receipt.detail && <p className="mt-0.5 text-[15px] leading-snug text-foreground/80">{receipt.detail}</p>}
+        {receipt.action && (
+          <button
+            type="button"
+            onClick={receipt.action.onClick}
+            className="mt-2.5 inline-flex h-11 items-center gap-2 rounded-[14px] bg-foreground px-4 text-[15px] font-semibold text-background transition-colors hover:bg-foreground/85 active:bg-foreground/85"
+          >
+            {receipt.action.label}
+          </button>
+        )}
       </div>
       <button type="button" onClick={onClose} aria-label="Dismiss" className="-m-2 flex size-10 shrink-0 items-center justify-center rounded-full">
         <X aria-hidden className="size-5" />

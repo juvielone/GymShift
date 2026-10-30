@@ -3,13 +3,15 @@ import { Check } from 'lucide-react'
 import type { AttendanceSession } from '@/data'
 import type { Shift, SiteSettings, Timestamp, User } from '@/types'
 import { firstName, formatClock, formatDuration, formatTime, formatTimeRange, zonedTimestamp } from '@/lib/format'
-import { compareTs, minutesBetween } from '@/lib/rules'
+import { compareTs, minutesBetween, noShowDueAt } from '@/lib/rules'
 import { cn } from '@/lib/utils'
 
 export interface TodayRow {
   shift: Shift
   user: User
   session: AttendanceSession | null
+  /** From a "running late" note: when they said they'd arrive. */
+  arriveBy: Timestamp | null
 }
 
 export function TodayPanel({ rows, settings, now }: { rows: TodayRow[]; settings: SiteSettings; now: Timestamp }) {
@@ -23,10 +25,13 @@ export function TodayPanel({ rows, settings, now }: { rows: TodayRow[]; settings
         <p className="mt-2 text-base">No shifts today.</p>
       ) : (
         <ul className="mt-1 divide-y divide-pass-line">
-          {rows.map(({ shift, user, session }) => {
+          {rows.map(({ shift, user, session, arriveBy }) => {
             const inAt = session?.clock_in?.effective_time
             const outAt = session?.clock_out?.effective_time
-            const started = compareTs(now, zonedTimestamp(shift.date, shift.start_time, tz)) >= 0
+            const startTs = zonedTimestamp(shift.date, shift.start_time, tz)
+            const started = compareTs(now, startTs) >= 0
+            // A late note keeps the row calm until its time plus the no-show window has passed.
+            const lateCalm = arriveBy !== null && compareTs(now, noShowDueAt(startTs, arriveBy, settings)) < 0
             let chip: { label: string; tone: 'live' | 'done' | 'quiet' | 'warn' }
             let line: string
             if (inAt && outAt) {
@@ -35,12 +40,15 @@ export function TodayPanel({ rows, settings, now }: { rows: TodayRow[]; settings
             } else if (inAt) {
               chip = { label: 'On shift', tone: 'live' }
               line = `In ${formatClock(inAt, tz)} · ${formatDuration(minutesBetween(inAt, now))}`
+            } else if (started && lateCalm) {
+              chip = { label: 'Running late', tone: 'quiet' }
+              line = `Said about ${formatClock(arriveBy, tz)}`
             } else if (started) {
               chip = { label: 'Not in yet', tone: 'warn' }
-              line = `Was due ${formatTime(shift.start_time)}`
+              line = arriveBy ? `Was due ${formatTime(shift.start_time)} · said about ${formatClock(arriveBy, tz)}` : `Was due ${formatTime(shift.start_time)}`
             } else {
               chip = { label: `Starts ${formatTime(shift.start_time)}`, tone: 'quiet' }
-              line = formatTimeRange(shift.start_time, shift.end_time)
+              line = arriveBy ? `Running late · about ${formatClock(arriveBy, tz)}` : formatTimeRange(shift.start_time, shift.end_time)
             }
             return (
               <li key={shift.id} className="flex items-center justify-between gap-3 py-3">

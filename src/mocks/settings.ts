@@ -16,6 +16,8 @@ export const settings: SiteSettings = {
   default_morning_start: '07:00',
   default_night_start: '19:00',
   max_photos_per_shift: 10,
+  photo_upload_window_min: 180,
+  photo_remove_window_min: 10,
   photo_retention_months: 6,
   updated_by: null,
   updated_at: null,

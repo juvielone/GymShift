@@ -5,6 +5,8 @@ import {
   getCurrentUser,
   getEffectiveClockEvents,
   getExtensions,
+  getNotes,
+  getPhotos,
   getSettings,
   getShiftAttendance,
   getShifts,
@@ -12,7 +14,7 @@ import {
   serverNow,
 } from '@/data'
 import type { EffectiveClockEvent } from '@/data'
-import type { Extension, Shift, SiteSettings, Timestamp, User } from '@/types'
+import type { Extension, Note, Photo, Shift, SiteSettings, Timestamp, User } from '@/types'
 import { approvedShiftMinutes, compareTs, localDate, minutesBetween } from '@/lib/rules'
 import { getLocationPermission } from '@/lib/geolocation'
 
@@ -47,6 +49,12 @@ export interface CleanerHome {
   phase: HomePhase
   upcoming: Shift[]
   locationAccess: LocationAccess
+  /** The rostered shift photos and notes attach to (today's, before, during or after it). null = none. */
+  recordShift: Shift | null
+  /** Shown work photos on that shift, oldest first. */
+  photos: Photo[]
+  /** This person's notes on that shift, newest first. */
+  notes: Note[]
 }
 
 async function loadHome(): Promise<CleanerHome> {
@@ -115,7 +123,12 @@ async function loadHome(): Promise<CleanerHome> {
             ? 'blocked'
             : 'unknown'
 
-  return { user, settings, now, phase, upcoming, locationAccess }
+  const recordShift = phase.kind === 'before' ? phase.shift : phase.kind === 'no_shift' ? null : phase.session.shift
+  const [photos, notes] = recordShift
+    ? await Promise.all([getPhotos({ shiftId: recordShift.id }), getNotes({ shiftId: recordShift.id, userId: user.id })])
+    : [[], []]
+
+  return { user, settings, now, phase, upcoming, locationAccess, recordShift, photos, notes }
 }
 
 /** Refreshes every 30 s so worked time and the progress line keep up with the server clock. */

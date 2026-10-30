@@ -1,6 +1,6 @@
 // Everything Carly's dashboard shows, loaded through '@/data'. Server time only.
 import { useCallback, useEffect, useState } from 'react'
-import { getCurrentUser, getFlags, getFortnightHours, getOpenSupplyAlerts, getSettings, getShiftAttendance, getShifts, getUsers, serverNow } from '@/data'
+import { getCurrentUser, getFlags, getFortnightHours, getNotes, getOpenIssues, getOpenSupplyAlerts, getSettings, getShiftAttendance, getShifts, getUsers, serverNow } from '@/data'
 import type { Note, SiteSettings, Timestamp, User } from '@/types'
 import type { FlagView } from '@/components/manager/FlagSheet'
 import type { TodayRow } from '@/components/manager/TodayPanel'
@@ -13,7 +13,8 @@ export interface ManagerDashboard {
   now: Timestamp
   requests: RequestItem[]
   flags: FlagView[]
-  supplies: { note: Note; user: User | null }[]
+  /** Open "Supplies low" and "Something wrong" notes, oldest first. */
+  notes: { note: Note; user: User | null }[]
   today: TodayRow[]
   /** Fortnight start dates that have published shifts, oldest first, and the one containing today. */
   fortnights: string[]
@@ -26,11 +27,13 @@ async function load(): Promise<ManagerDashboard> {
   const [me, settings] = await Promise.all([getCurrentUser(), getSettings()])
   const now = serverNow()
   const today = localDate(now, settings)
-  const [users, shifts, flags, supplies, requests] = await Promise.all([
+  const [users, shifts, flags, supplies, issues, late, requests] = await Promise.all([
     getUsers(),
     getShifts({ status: 'published' }),
     getFlags({ open: true }),
     getOpenSupplyAlerts(),
+    getOpenIssues(),
+    getNotes({ tag: 'running_late' }),
     loadRequests(me, settings),
   ])
   const userById = new Map(users.map((u) => [u.id, u]))
@@ -40,7 +43,9 @@ async function load(): Promise<ManagerDashboard> {
   const todayRows: TodayRow[] = []
   for (const shift of todayShifts) {
     const user = userById.get(shift.assigned_user_id)
-    if (user) todayRows.push({ shift, user, session: await getShiftAttendance(shift.id) })
+    // Running late is information for this card only, never a task in the list. Newest note wins.
+    const arriveBy = late.find((n) => n.shift_id === shift.id)?.arrive_by ?? null
+    if (user) todayRows.push({ shift, user, session: await getShiftAttendance(shift.id), arriveBy })
   }
 
   const fortnights = [...new Set(shifts.map((s) => s.fortnight_start))].sort()
@@ -60,7 +65,7 @@ async function load(): Promise<ManagerDashboard> {
         const user = userById.get(flag.user_id)
         return user ? [{ flag, user, shift: flag.shift_id ? (shiftById.get(flag.shift_id) ?? null) : null }] : []
       }),
-    supplies: supplies.sort((a, b) => compareTs(a.created_at, b.created_at)).map((note) => ({ note, user: userById.get(note.user_id) ?? null })),
+    notes: [...supplies, ...issues].sort((a, b) => compareTs(a.created_at, b.created_at)).map((note) => ({ note, user: userById.get(note.user_id) ?? null })),
     today: todayRows,
     fortnights,
     currentFortnight,

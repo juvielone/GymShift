@@ -8,7 +8,7 @@ import { formatClock, formatDuration } from '@/lib/format'
 import { isOffSite } from '@/lib/rules'
 import { cn } from '@/lib/utils'
 
-type Tone = 'ok' | 'warn' | 'neutral'
+export type Tone = 'ok' | 'warn' | 'neutral'
 
 const toneClass: Record<Tone, string> = {
   ok: 'bg-ok-soft text-ok',
@@ -16,7 +16,7 @@ const toneClass: Record<Tone, string> = {
   neutral: 'bg-muted text-foreground',
 }
 
-function Row({ icon, tone, title, detail, onClick }: { icon: ReactNode; tone: Tone; title: string; detail: string; onClick?: () => void }) {
+export function StatusRow({ icon, tone, title, detail, onClick }: { icon: ReactNode; tone: Tone; title: string; detail: string; onClick?: () => void }) {
   const body = (
     <>
       <span aria-hidden className={cn('flex size-9 shrink-0 items-center justify-center rounded-full [&_svg]:size-[18px]', toneClass[tone])}>
@@ -51,24 +51,24 @@ export function LocationRow({ phase, settings, access, onHelp }: { phase: HomePh
   // Warn before the next tap that needs a location, so it can be fixed instead of flagged.
   if (access === 'blocked' && (notClocked || phase.kind === 'on')) {
     const next = phase.kind === 'on' ? 'clock-out' : 'clock-in'
-    return <Row icon={<MapPinOff />} tone="warn" title="Location is blocked" detail={`Turn it on so Carly doesn't have to check your ${next}. Tap for how.`} onClick={onHelp} />
+    return <StatusRow icon={<MapPinOff />} tone="warn" title="Location is blocked" detail={`Turn it on so Carly doesn't have to check your ${next}. Tap for how.`} onClick={onHelp} />
   }
   if (notClocked) {
     const detail = access === 'ask' ? 'Your phone will ask when you tap Clock in. Tap Allow.' : 'Checked only when you tap Clock in or Clock out.'
-    return <Row icon={<MapPin />} tone="neutral" title="Location" detail={detail} />
+    return <StatusRow icon={<MapPin />} tone="neutral" title="Location" detail={detail} />
   }
   const { clockIn, clockOut } = phase.session
   const inKind = locationOf(clockIn, settings)
   const outKind = clockOut ? locationOf(clockOut, settings) : null
   const problem = [inKind, outKind].find((k) => k === 'away' || k === 'none')
   if (!problem) {
-    return <Row icon={<Check strokeWidth={3} />} tone="ok" title="At the gym" detail={clockOut ? 'Saved when you clocked in and out' : 'Saved when you clocked in'} />
+    return <StatusRow icon={<Check strokeWidth={3} />} tone="ok" title="At the gym" detail={clockOut ? 'Saved when you clocked in and out' : 'Saved when you clocked in'} />
   }
   const when = inKind !== 'ok' ? (outKind && outKind !== 'ok' ? 'you clocked in and out' : 'you clocked in') : 'you clocked out'
   return problem === 'none' ? (
-    <Row icon={<MapPinOff />} tone="warn" title="No location" detail={`We couldn't get your location when ${when}. Carly will check it.`} />
+    <StatusRow icon={<MapPinOff />} tone="warn" title="No location" detail={`We couldn't get your location when ${when}. Carly will check it.`} />
   ) : (
-    <Row icon={<MapPin />} tone="warn" title="Away from the gym" detail={`Your phone was outside the gym when ${when}. Carly will check it.`} />
+    <StatusRow icon={<MapPin />} tone="warn" title="Away from the gym" detail={`Your phone was outside the gym when ${when}. Carly will check it.`} />
   )
 }
 
@@ -80,12 +80,12 @@ export function ExtensionRow({ session, settings, tz, onAsk }: { session: Sessio
 
   if (session.shift === null) return null
   if (latest?.status === 'pending') {
-    return <Row icon={<Hourglass />} tone="warn" title={`Extra ${formatDuration(latest.minutes)} asked`} detail="Waiting for Carly" />
+    return <StatusRow icon={<Hourglass />} tone="warn" title={`Extra ${formatDuration(latest.minutes)} asked`} detail="Waiting for Carly" />
   }
   if (latest?.status === 'approved') {
     const until = formatClock(new Date(Date.parse(session.clockIn.effective_time) + session.approvedMin * 60_000).toISOString(), tz)
     return (
-      <Row
+      <StatusRow
         icon={<Check strokeWidth={3} />}
         tone="ok"
         title={`Extra ${formatDuration(latest.minutes)} approved`}
@@ -96,10 +96,10 @@ export function ExtensionRow({ session, settings, tz, onAsk }: { session: Sessio
   }
   if (session.clockOut) return null
   if (room <= 0) {
-    return <Row icon={<Plus />} tone="neutral" title="No more extra time" detail={`${formatDuration(settings.max_shift_min)} is the most a shift can be approved for.`} />
+    return <StatusRow icon={<Plus />} tone="neutral" title="No more extra time" detail={`${formatDuration(settings.max_shift_min)} is the most a shift can be approved for.`} />
   }
   if (latest?.status === 'declined') {
-    return <Row icon={<Plus />} tone="neutral" title="Extra time not approved" detail="You can ask again if you need to." onClick={ask} />
+    return <StatusRow icon={<Plus />} tone="neutral" title="Extra time not approved" detail="You can ask again if you need to." onClick={ask} />
   }
-  return <Row icon={<Plus />} tone="neutral" title="Need more time?" detail={`Ask Carly for up to ${formatDuration(Math.min(room, settings.max_extension_request_min))}.`} onClick={ask} />
+  return <StatusRow icon={<Plus />} tone="neutral" title="Need more time?" detail={`Ask Carly for up to ${formatDuration(Math.min(room, settings.max_extension_request_min))}.`} onClick={ask} />
 }

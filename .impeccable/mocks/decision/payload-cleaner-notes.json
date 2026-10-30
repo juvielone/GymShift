@@ -1,0 +1,44 @@
+{
+  "title": "Cleaner home: notes, supplies and running late",
+  "question": "Photos row locked. Now: how does Josh tell Carly about supplies, a problem, or running late? 'Running late' is a new note tag. It never stops the late flag; Carly just sees the reason beside it. Pick one, or steer.",
+  "options": [
+    {
+      "id": "notes-a-sheet",
+      "label": "A One 'Note for Carly' sheet",
+      "kicker": "RECOMMENDED",
+      "lineage": "Same sheet pattern as 'Ask for extra time': chips first, typing optional",
+      "thesis": "One row, one sheet. Pick a topic, tap what applies, send. Three taps for every kind of note.",
+      "palette": ["#FFFFFF", "#1C1C1C", "#D7192A", "#F5F5F5"],
+      "materials": ["hairline row", "2×2 topic chips", "item chips", "red Send"],
+      "viewport": "Pass · rows · sheet: topic chips (Supplies low selected) · supply chips · text · red Send to Carly.",
+      "risk": "Running late is one tap deeper (row → topic) than if it sat on the pass.",
+      "html": ".impeccable/mocks/decision/notes-a-sheet.html",
+      "htmlFrame": "390x844"
+    },
+    {
+      "id": "notes-b-tiles",
+      "label": "B Three quick tiles + late on the pass",
+      "lineage": "Shortcut tiles, like a banking app's quick actions",
+      "thesis": "Supplies / Problem / Note tiles under the pass, and a 'Running late' button on the pass before the shift starts.",
+      "palette": ["#FFFFFF", "#111111", "#D7192A", "#E0E0E0"],
+      "materials": ["three outline tiles", "tick-list sheet", "pass button"],
+      "viewport": "Pass · three 72px tiles · rows · red Clock out.",
+      "risk": "Tiles add a block of boxes to a calm list; three tiles push Next shifts down.",
+      "html": ".impeccable/mocks/decision/notes-b-tiles.html",
+      "htmlFrame": "390x844"
+    },
+    {
+      "id": "notes-c-list",
+      "label": "C Notes list with 'seen' and 'done'",
+      "lineage": "A message thread for the shift",
+      "thesis": "A 'Notes for Carly' section lists what you sent and whether Carly has seen or done it. 'Add' opens the sheet from A.",
+      "palette": ["#FFFFFF", "#1C1C1C", "#DCFCE7", "#F5F5F5"],
+      "materials": ["section heading + Add", "sent-note rows", "green done disc"],
+      "viewport": "Pass · rows · Notes for Carly: 'Toilet paper, Paper towels · Carly has seen it' · 'About 10 min late'.",
+      "risk": "Showing 'seen' needs Carly's dashboard to record when she opened a note: one new field.",
+      "html": ".impeccable/mocks/decision/notes-c-list.html",
+      "htmlFrame": "390x844"
+    }
+  ],
+  "steer": true
+}

@@ -8,14 +8,15 @@ Mobile-first roster and attendance web app for the World Gym Macquarie Park clea
 - Hosting: Cloudflare Pages (static SPA)
 
 ## Commands
-- `npm run dev`: dev server
+- `npm run dev`: dev server (demo mode: seeded fortnight at the mock time, resets on reload)
+- `npm run build` then `npx vite preview`: the production build runs in **trial mode** (see `store.ts`). Force either mode with `VITE_DATA_MODE=demo|trial`.
 - `npm run build`: typecheck (`tsc -b`) and production build
 - `npm run lint`: oxlint
 - `npx shadcn@latest add <component>`: add a UI component
 
 ## Structure
 - `src/types/`: one file per future DB table. Field names are snake_case and must match the Postgres columns exactly.
-- `src/data/`: **the only data-access layer.** Async functions; reads return copies. `store.ts` is the in-memory "DB" plus the mock server clock, and is internal to `src/data`.
+- `src/data/`: **the only data-access layer.** Async functions; reads return copies. `store.ts` is the in-memory "DB", the server clock and the mock sign-in, and is internal to `src/data`. Two modes until Supabase: **demo** (dev server: seed data, fixed mock time, reset on reload) and **trial** (production build: real time read from our web server's `Date` header, data saved on the phone in localStorage, photo images in IndexedDB via `photoFiles.ts`). Every write exported from `src/data/index.ts` is wrapped in `persisted()`; wrap any new write the same way.
 - `src/mocks/`: seed data for one fortnight (26 Oct – 8 Nov 2026, mock "now" = 28 Oct 6:50 pm). Imported **only** by `src/data`.
 - `src/lib/rules.ts`: pure business rules (off-site check, over-length check, extension cap, durations). No data access.
 - `src/components/ui/`: shadcn-generated. Add components via the CLI and don't hand-edit them. This folder is excluded from lint.
@@ -38,7 +39,7 @@ Mobile-first roster and attendance web app for the World Gym Macquarie Park clea
 4. **Flag, don't block.**
    - Off-site, no-location (denied/timeout/unavailable) and unscheduled clock-ins and clock-outs always save, then raise a flag.
    - Off-site means `distance − accuracy > radius`. Poor GPS accuracy alone never flags or blocks.
-5. **Server time is authoritative.** Never send or trust the phone's clock. In mocks use `serverNow()`; in Supabase use the DB's `now()`. Location is captured only at the moment of clocking in or out, never continuously.
+5. **Server time is authoritative.** Never send or trust the phone's clock. In mocks use `serverNow()` (demo: mock time; trial: the web server's `Date` header, counted forward with `performance.now()` and re-read before every clock event); in Supabase use the DB's `now()`. Location is captured only at the moment of clocking in or out, never continuously.
 6. **Permissions follow the PRD role table.**
    - Manager (Carly): everything.
    - Team lead (Gladys): rosters and approves swaps for all cleaners, on Carly's behalf. Records (photos, notes, hours) for their own group only.
@@ -48,9 +49,9 @@ Mobile-first roster and attendance web app for the World Gym Macquarie Park clea
 7. **Business rule numbers come from `SiteSettings`** (`getSettings()`): radius, the 15/30-min flag windows, 180/210-min shift lengths, the 30-min extension request, 10 photos, 6-month retention, and the fortnight anchor date (`roster_anchor_date`). Never hardcode them.
 8. **Types mirror the schema.** Change a `src/types` file together with its table, mock and data functions. Use the `Timestamp` / `DateString` / `TimeString` aliases. Timezone is `Australia/Sydney`.
 9. **Mobile-first.** Every staff action takes three taps or fewer on a phone. Test at phone width.
-10. **Build UI only when asked.** Screens so far: demo login, cleaner home (with location help), manager dashboard (gym location under the avatar menu's "Manage"), staff (`src/pages/StaffPage.tsx`, Carly only: add, change role or group, deactivate; never delete), roster (`src/pages/RosterPage.tsx`, for Carly and Gladys).
+10. **Build UI only when asked.** Screens so far: demo login, cleaner home (with location help), manager dashboard (gym location under the avatar menu's "Manage"), staff (`src/pages/StaffPage.tsx`, Carly only: add, change role or group, deactivate; never delete), roster (`src/pages/RosterPage.tsx`, for Carly and Gladys). On the cleaner home: work photos row (`PhotosRow`, upload queue in `usePhotoUploads`, compression in `src/lib/image.ts`), "Add your photos first?" on clock-out (`PhotoPrompt`), photo view/remove (`PhotoSheet`), and "Note for Carly" (`NoteSheet`, incl. Running late before clock-in). Carly's dashboard lists Supplies low and Something wrong notes under "Notes"; running late shows only on her Today pass.
 
 ## Notes
-- `no_show` and `missing_clock_out` flags depend on elapsed time and will come from a scheduled job (Supabase cron). They are seeded in mocks but not generated yet.
+- `no_show` and `missing_clock_out` flags depend on elapsed time and will come from a scheduled job (Supabase cron). They are seeded in mocks but not generated yet. The no-show job must use `noShowDueAt()` from `src/lib/rules.ts`, which waits for a "running late" note's time plus the no-show window.
 - Staff (from the client): Carly (manager), Gladys (team lead, also works shifts), cleaners Josh, Kyle, Gino and Angel. Josh, Kyle and Gino are in Gladys's group; Angel reports to Carly.
 - Placeholders still to confirm (PRD open questions): gym coordinates and radius (seeded in `src/mocks/settings.ts`; Carly sets the real ones from her dashboard via `updateSiteLocation`), trial start date.

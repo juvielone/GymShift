@@ -112,17 +112,20 @@ Nine features, ordered by build priority. Each acceptance criterion is a test th
 
 *As a cleaner, I want to upload my work photos against my shift so that Carly can check them without WhatsApp.*
 
-- Up to 10 photos per shift, uploaded during or after the shift.
+- Up to 10 photos per shift, uploaded from clock-in until 3 hours after clock-out.
 - Photos are compressed on the phone to about 150 KB before upload.
 - Each photo stores the shift, the cleaner and the upload time.
+- Clocking out with no photos asks "Add your photos first?" once. The cleaner can still clock out without them; it never blocks. *(Decided 30 Oct 2026.)*
+- A cleaner can remove a photo they added by mistake within 10 minutes of adding it. After that only Carly can remove it. A removed photo keeps its record (who removed it, when); only the image is deleted.
 - Photos are deleted automatically after 6 months.
 
 ### F8. Shift notes and supply alerts
 
 *As a cleaner, I want to leave a note on my shift so that I can flag low supplies or issues.*
 
-- A note can be added to any shift, with an optional tag: Supplies low, Issue, or General.
-- Notes tagged Supplies low appear on Carly's dashboard until she marks them done.
+- A note can be added to the cleaner's own shift, with an optional tag: Supplies low, Issue, General, or Running late.
+- Notes tagged Supplies low or Issue appear on Carly's dashboard until she marks them done.
+- **Running late** is sent before clock-in, with about how late ("about 15 min"). It is information, not a task: it does not go into Carly's list. Her Today card shows "Running late · about 7:15 pm" instead of "Not in yet". The no-show check waits until that time plus the no-show window before flagging. Pay is unaffected, because paid time starts at clock-in. *(Decided 30 Oct 2026.)*
 
 ### F9. Manager dashboard and hours export
 
@@ -152,6 +155,8 @@ Rules marked *confirmed* come from Carly. The rest are defaults to check during 
 | No-show flag | No clock-in 15 min after shift start | Default |
 | Missing clock-out flag | No clock-out 30 min after shift end | Default |
 | Max photos per shift | 10 | From current WhatsApp practice |
+| Photo upload window | Until 3 hours after clock-out | Default (decided 30 Oct 2026) |
+| Remove own photo | Within 10 min of adding it | Default (decided 30 Oct 2026) |
 
 **Off-site rule:** an event is flagged when its distance from the gym, minus the GPS accuracy, is greater than the radius. Poor accuracy alone never blocks anyone.
 
@@ -213,6 +218,7 @@ Prices are approximate as of October 2026.
 
 - During the trial, app records replace the clock photos as the hours used for pay. This is based on Carly saying "let's trial using the app for clocking in and out."
 - There are about 5 cleaners at one site (Macquarie Park).
+- Before Supabase is connected, the trial build keeps its data on the phone (browser storage) and takes the time from the web server's clock, never the phone's. Each phone has its own copy, so this is for testing only, not for pay.
 - Gladys rosters and approves swaps and covers for all cleaners, acting on Carly's behalf. She still sees records (photos, notes, hours) only for her own group. *(Changed 29 Oct 2026.)*
 - Every staff member uses their own smartphone with mobile data. Reception inside the gym is good.
 

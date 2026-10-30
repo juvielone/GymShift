@@ -2,24 +2,27 @@
 // Mock only. Replaced by Supabase auth (magic link / password) later.
 import { useEffect, useState } from 'react'
 import { ChevronRight } from 'lucide-react'
-import { getDemoAccounts, getRoles, getSettings } from '@/data'
+import { getDataMode, getDemoAccounts, getRoles, getSettings, resetTrialData, type DataMode } from '@/data'
 import type { RoleId, User, Uuid } from '@/types'
 import { siteShortName } from '@/lib/format'
 
 const WHAT_YOU_SEE: Record<RoleId, string> = {
   manager: "Approvals, flags, today's shifts and hours export.",
   team_lead: 'Own shifts plus swap approvals for the team.',
-  cleaner: 'Clock in and out, ask for extra time, next shifts.',
+  cleaner: 'Clock in and out, work photos, notes, extra time, next shifts.',
 }
 
 export function DemoLogin({ onSignIn }: { onSignIn: (id: Uuid) => void }) {
   const [accounts, setAccounts] = useState<User[]>([])
   const [roleLabels, setRoleLabels] = useState<Partial<Record<RoleId, string>>>({})
   const [site, setSite] = useState('')
+  const [mode, setMode] = useState<DataMode | null>(null)
+  const [confirmReset, setConfirmReset] = useState(false)
 
   useEffect(() => {
     void (async () => {
-      const [users, roles, settings] = await Promise.all([getDemoAccounts(), getRoles(), getSettings()])
+      const [users, roles, settings, dataMode] = await Promise.all([getDemoAccounts(), getRoles(), getSettings(), getDataMode()])
+      setMode(dataMode)
       setAccounts(users)
       setRoleLabels(Object.fromEntries(roles.map((r) => [r.id, r.label])))
       setSite(siteShortName(settings.site_name))
@@ -63,7 +66,20 @@ export function DemoLogin({ onSignIn }: { onSignIn: (id: Uuid) => void }) {
         ))}
       </ul>
 
-      <p className="mt-auto pt-10 text-center text-sm text-muted-foreground">Demo data. Changes reset when the page reloads.</p>
+      {mode === 'trial' ? (
+        <div className="mt-auto pt-10 text-center">
+          <p className="text-sm text-muted-foreground">Trial: everything is saved on this phone only. Times come from the server.</p>
+          <button
+            type="button"
+            onClick={() => (confirmReset ? void resetTrialData() : setConfirmReset(true))}
+            className="mt-2 h-11 rounded-[14px] px-4 text-base font-medium text-muted-foreground active:bg-muted"
+          >
+            {confirmReset ? 'Tap again to clear this phone' : 'Start again with demo data'}
+          </button>
+        </div>
+      ) : (
+        <p className="mt-auto pt-10 text-center text-sm text-muted-foreground">Demo data. Changes reset when the page reloads.</p>
+      )}
     </main>
   )
 }

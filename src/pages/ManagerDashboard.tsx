@@ -2,7 +2,7 @@
 // grouped by day with today's items first. Fortnight hours fold into one row that opens a sheet.
 // Phone: one column. Wide screens: chips + list on the left, Today pass + hours row on the right.
 import { useRef, useState, type ReactNode } from 'react'
-import { CalendarX, ChevronRight, LogOut, MapPin, MapPinOff, Package, Timer, Users, UserX } from 'lucide-react'
+import { CalendarX, ChevronRight, CircleAlert, LogOut, MapPin, MapPinOff, Package, Timer, Users, UserX } from 'lucide-react'
 import { markNoteDone } from '@/data'
 import type { FlagKind, Note, Timestamp, User } from '@/types'
 import { useManagerDashboard } from '@/hooks/useManagerDashboard'
@@ -30,8 +30,8 @@ const FLAG_ICON: Record<FlagKind, ReactNode> = {
   over_without_extension: <Timer />,
 }
 
-type Filter = 'all' | 'requests' | 'flags' | 'supplies'
-type Supply = { note: Note; user: User | null }
+type Filter = 'all' | 'requests' | 'flags' | 'notes'
+type NoteItem = { note: Note; user: User | null }
 
 const requestCreated = (r: RequestItem): Timestamp => (r.kind === 'extension' ? r.ext.created_at : r.swap.created_at)
 
@@ -72,9 +72,9 @@ export function ManagerDashboard({ onSignOut, onOpenRoster, onOpenStaff }: { onS
     )
   }
 
-  const { me, settings, now, requests, flags, supplies, today, fortnights, currentFortnight, fortnightMin } = data
+  const { me, settings, now, requests, flags, notes, today, fortnights, currentFortnight, fortnightMin } = data
   const tz = settings.timezone
-  const total = requests.length + flags.length + supplies.length
+  const total = requests.length + flags.length + notes.length
   const todayDate = localDate(now, settings)
 
   async function done(noteId: string) {
@@ -92,8 +92,8 @@ export function ManagerDashboard({ onSignOut, onOpenRoster, onOpenStaff }: { onS
   const dayOf = (ts: Timestamp) => localDay(ts, tz)
   const shownReq = show('requests') ? requests : []
   const shownFlags = show('flags') ? flags : []
-  const shownSupplies = show('supplies') ? supplies : []
-  const days = [...new Set([...shownReq.map((r) => dayOf(requestCreated(r))), ...shownFlags.map((v) => dayOf(v.flag.created_at)), ...shownSupplies.map((s) => dayOf(s.note.created_at))])]
+  const shownNotes = show('notes') ? notes : []
+  const days = [...new Set([...shownReq.map((r) => dayOf(requestCreated(r))), ...shownFlags.map((v) => dayOf(v.flag.created_at)), ...shownNotes.map((s) => dayOf(s.note.created_at))])]
     .sort()
     .reverse()
   const groups = days.map((day) => ({
@@ -101,21 +101,21 @@ export function ManagerDashboard({ onSignOut, onOpenRoster, onOpenStaff }: { onS
     label: day === todayDate ? 'Today' : formatDateShort(day),
     requests: shownReq.filter((r) => dayOf(requestCreated(r)) === day),
     flags: shownFlags.filter((v) => dayOf(v.flag.created_at) === day),
-    supplies: shownSupplies.filter((s) => dayOf(s.note.created_at) === day),
+    notes: shownNotes.filter((s) => dayOf(s.note.created_at) === day),
   }))
-  const shownCount = groups.reduce((n, g) => n + g.requests.length + g.flags.length + g.supplies.length, 0)
+  const shownCount = groups.reduce((n, g) => n + g.requests.length + g.flags.length + g.notes.length, 0)
   const emptyText: Record<Filter, string> = {
     all: 'Nothing needs you right now.',
     requests: 'No requests to decide.',
     flags: 'No flags. Every clock-in looks fine.',
-    supplies: 'Nothing running low.',
+    notes: 'No notes waiting. Nothing running low.',
   }
 
   const chips: { id: Filter; label: string; count: number }[] = [
     { id: 'all', label: 'All', count: total },
     { id: 'requests', label: 'Requests', count: requests.length },
     { id: 'flags', label: 'Flags', count: flags.length },
-    { id: 'supplies', label: 'Supplies', count: supplies.length },
+    { id: 'notes', label: 'Notes', count: notes.length },
   ]
 
   const hoursRow = (
@@ -202,7 +202,7 @@ export function ManagerDashboard({ onSignOut, onOpenRoster, onOpenStaff }: { onS
             <p className="border-b border-border px-1 py-3 text-[15px] text-muted-foreground">{emptyText[filter]}</p>
           ) : (
             groups.map((g) =>
-              g.requests.length + g.flags.length + g.supplies.length === 0 ? null : (
+              g.requests.length + g.flags.length + g.notes.length === 0 ? null : (
                 <div key={g.id} role="group" aria-labelledby={`day-${g.id}`}>
                   <h3 id={`day-${g.id}`} className="px-1 pt-4 pb-0.5 text-[13px] font-medium text-muted-foreground">
                     {g.label}
@@ -225,15 +225,13 @@ export function ManagerDashboard({ onSignOut, onOpenRoster, onOpenStaff }: { onS
                         </button>
                       </li>
                     ))}
-                    {g.supplies.map((s: Supply) => (
+                    {g.notes.map((s: NoteItem) => (
                       <li key={s.note.id} className={`${rowClass} items-center`}>
-                        <Disc tone="neutral">
-                          <Package />
-                        </Disc>
+                        <Disc tone="neutral">{s.note.tag === 'issue' ? <CircleAlert /> : <Package />}</Disc>
                         <div className="min-w-0 flex-1">
                           <p className="text-base leading-snug">{s.note.body}</p>
                           <p className="text-sm text-muted-foreground">
-                            {s.user ? firstName(s.user.full_name) : 'Staff'} · supplies · {formatClock(s.note.created_at, tz)}
+                            {s.user ? firstName(s.user.full_name) : 'Staff'} · {s.note.tag === 'issue' ? 'something wrong' : 'supplies'} · {formatClock(s.note.created_at, tz)}
                           </p>
                         </div>
                         <button type="button" onClick={() => void done(s.note.id)} className={smallButton.outline}>
