@@ -1,10 +1,10 @@
 // Carly's dashboard: who is on today (black pass), then one filterable list of what needs her,
 // grouped by day with today's items first. Fortnight hours fold into one row that opens a sheet.
 // Phone: one column. Wide screens: chips + list on the left, Today pass + hours row on the right.
-import { useRef, useState, type ReactNode } from 'react'
-import { CalendarX, ChevronRight, CircleAlert, LogOut, MapPin, MapPinOff, Package, Timer, Users, UserX } from 'lucide-react'
-import { markNoteDone } from '@/data'
-import type { FlagKind, Note, Timestamp, User } from '@/types'
+import { useRef, useState } from 'react'
+import { ChevronRight, CircleAlert, MapPin, Package, Users } from 'lucide-react'
+import { getShiftRecord, markNoteDone, type ShiftRecord } from '@/data'
+import type { Note, Timestamp, User } from '@/types'
 import { useManagerDashboard } from '@/hooks/useManagerDashboard'
 import type { RequestItem } from '@/hooks/requests'
 import { AccountButton } from '@/components/common/AccountButton'
@@ -13,35 +13,40 @@ import { rowClass, smallButton } from '@/components/common/listStyles'
 import { RequestList } from '@/components/requests/RequestList'
 import { FlagSheet, type FlagView } from '@/components/manager/FlagSheet'
 import { FLAG_LABEL } from '@/components/manager/flagText'
+import { FLAG_ICON } from '@/components/manager/flagIcons'
 import { TodayPanel } from '@/components/manager/TodayPanel'
 import { HoursSheet } from '@/components/manager/HoursSheet'
 import { GymLocationSheet } from '@/components/manager/GymLocationSheet'
 import { RosterRow } from '@/components/roster/RosterRow'
+import { RecordsRow } from '@/components/records/RecordsRow'
+import { ShiftRecordSheet } from '@/components/records/ShiftRecordSheet'
 import { firstName, formatClock, formatDateLong, formatDateShort, formatDuration, localDay, siteShortName } from '@/lib/format'
 import { addDays, localDate } from '@/lib/rules'
 import { cn } from '@/lib/utils'
-
-const FLAG_ICON: Record<FlagKind, ReactNode> = {
-  off_site: <MapPin />,
-  no_location: <MapPinOff />,
-  unscheduled: <CalendarX />,
-  no_show: <UserX />,
-  missing_clock_out: <LogOut />,
-  over_without_extension: <Timer />,
-}
 
 type Filter = 'all' | 'requests' | 'flags' | 'notes'
 type NoteItem = { note: Note; user: User | null }
 
 const requestCreated = (r: RequestItem): Timestamp => (r.kind === 'extension' ? r.ext.created_at : r.swap.created_at)
 
-export function ManagerDashboard({ onSignOut, onOpenRoster, onOpenStaff }: { onSignOut: () => void; onOpenRoster?: () => void; onOpenStaff?: () => void }) {
+export function ManagerDashboard({
+  onSignOut,
+  onOpenRoster,
+  onOpenStaff,
+  onOpenRecords,
+}: {
+  onSignOut: () => void
+  onOpenRoster?: () => void
+  onOpenStaff?: () => void
+  onOpenRecords: () => void
+}) {
   const { data, error, refresh } = useManagerDashboard()
   const [filter, setFilter] = useState<Filter>('all')
   const [openFlag, setOpenFlag] = useState<FlagView | null>(null)
   const [hoursOpen, setHoursOpen] = useState(false)
   const [gymOpen, setGymOpen] = useState(false)
   const [doneErr, setDoneErr] = useState<string | null>(null)
+  const [openRecord, setOpenRecord] = useState<ShiftRecord | null>(null)
   const listRef = useRef<HTMLElement>(null)
 
   // Switching filter while the chips are pinned returns to the top of the list, so a short
@@ -76,6 +81,10 @@ export function ManagerDashboard({ onSignOut, onOpenRoster, onOpenStaff }: { onS
   const tz = settings.timezone
   const total = requests.length + flags.length + notes.length
   const todayDate = localDate(now, settings)
+
+  async function openShift(shiftId: string) {
+    setOpenRecord(await getShiftRecord({ shiftId, viewerId: me.id }))
+  }
 
   async function done(noteId: string) {
     setDoneErr(null)
@@ -165,8 +174,9 @@ export function ManagerDashboard({ onSignOut, onOpenRoster, onOpenStaff }: { onS
       <div className="lg:mt-2 lg:grid lg:grid-cols-[minmax(0,1fr)_360px] lg:gap-x-12">
         {/* Who is on today, then hours. Phone: above the list. Wide: right column. */}
         <aside className="mt-4 lg:col-start-2 lg:row-start-1 lg:mt-4">
-          <TodayPanel rows={today} settings={settings} now={now} />
+          <TodayPanel rows={today} settings={settings} now={now} onOpen={(id) => void openShift(id)} />
           {onOpenRoster && <RosterRow onOpen={onOpenRoster} className="mt-3" />}
+          <RecordsRow own={false} onOpen={onOpenRecords} className="mt-3" />
           <div className="hidden lg:block">{hoursRow}</div>
         </aside>
 
@@ -252,6 +262,9 @@ export function ManagerDashboard({ onSignOut, onOpenRoster, onOpenStaff }: { onS
       {/* Mounted only while open, so each visit starts from the saved point. */}
       {gymOpen && <GymLocationSheet open onOpenChange={setGymOpen} settings={settings} me={me} onSaved={() => void refresh()} />}
       <HoursSheet open={hoursOpen} onOpenChange={setHoursOpen} fortnights={fortnights} current={currentFortnight} refreshedAt={now} />
+      {openRecord && (
+        <ShiftRecordSheet key={openRecord.shift.id} record={openRecord} settings={settings} now={now} onOpenChange={(o) => !o && setOpenRecord(null)} />
+      )}
       {openFlag && <FlagSheet key={openFlag.flag.id} view={openFlag} viewer={me} settings={settings} onOpenChange={(o) => !o && setOpenFlag(null)} onChanged={() => void refresh()} />}
     </main>
   )

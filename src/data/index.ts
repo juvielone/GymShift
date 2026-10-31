@@ -72,6 +72,9 @@ export { getPhotos, getPhotoUrl } from './photos'
 export const uploadPhoto = persisted(photos.uploadPhoto)
 export const removePhoto = persisted(photos.removePhoto)
 
+export { getShiftRecord, getShiftRecords, getRecordPeople } from './records'
+export type { ShiftRecord } from './records'
+
 export { getNotes, getOpenSupplyAlerts, getOpenIssues } from './notes'
 export const addNote = persisted(notes.addNote)
 export const markNoteDone = persisted(notes.markNoteDone)

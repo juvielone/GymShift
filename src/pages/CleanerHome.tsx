@@ -21,6 +21,7 @@ import { LocationFailSheet } from '@/components/home/LocationFailSheet'
 import { LocationHelpSheet } from '@/components/home/LocationHelpSheet'
 import { AccountButton } from '@/components/common/AccountButton'
 import { RosterRow } from '@/components/roster/RosterRow'
+import { RecordsRow } from '@/components/records/RecordsRow'
 import { firstName, formatClock, formatDateLong, formatDuration, shiftLabel, siteShortName } from '@/lib/format'
 import { getClockLocation } from '@/lib/geolocation'
 import { localDate, minutesBetween } from '@/lib/rules'
@@ -44,7 +45,7 @@ function receiptFor(kind: 'in' | 'out', result: ClockResult, name: string, worke
   return { tone: notes.length ? 'warn' : 'ok', title, detail: detail ?? (kind === 'in' ? 'Have a good shift.' : 'See you next shift.') }
 }
 
-export function CleanerHome({ onSignOut, onOpenRoster }: { onSignOut: () => void; onOpenRoster?: () => void }) {
+export function CleanerHome({ onSignOut, onOpenRoster, onOpenRecords }: { onSignOut: () => void; onOpenRoster?: () => void; onOpenRecords: () => void }) {
   const { data, error, refresh } = useCleanerHome()
 
   if (error && !data) {
@@ -69,14 +70,26 @@ export function CleanerHome({ onSignOut, onOpenRoster }: { onSignOut: () => void
       </Shell>
     )
   }
-  return <Home data={data} refresh={refresh} onSignOut={onSignOut} onOpenRoster={onOpenRoster} />
+  return <Home data={data} refresh={refresh} onSignOut={onSignOut} onOpenRoster={onOpenRoster} onOpenRecords={onOpenRecords} />
 }
 
 function Shell({ children }: { children: React.ReactNode }) {
   return <main className="mx-auto min-h-svh max-w-[480px] px-4">{children}</main>
 }
 
-function Home({ data, refresh, onSignOut, onOpenRoster }: { data: HomeData; refresh: () => Promise<void>; onSignOut: () => void; onOpenRoster?: () => void }) {
+function Home({
+  data,
+  refresh,
+  onSignOut,
+  onOpenRoster,
+  onOpenRecords,
+}: {
+  data: HomeData
+  refresh: () => Promise<void>
+  onSignOut: () => void
+  onOpenRoster?: () => void
+  onOpenRecords: () => void
+}) {
   const { user, settings, now, phase, upcoming, recordShift, photos, notes } = data
   const name = firstName(user.full_name)
   const tz = settings.timezone
@@ -238,7 +251,9 @@ function Home({ data, refresh, onSignOut, onOpenRoster }: { data: HomeData; refr
       <UpcomingShifts shifts={upcoming} />
 
       {/* Team lead only: Gladys rosters for everyone on Carly's behalf. */}
-      {onOpenRoster && <RosterRow onOpen={onOpenRoster} className="mt-6" />}
+      {/* A cleaner sees their own past shifts; Gladys sees her group's (src/data checks it). */}
+      <RecordsRow own={user.role === 'cleaner'} onOpen={onOpenRecords} className="mt-6" />
+      {onOpenRoster && <RosterRow onOpen={onOpenRoster} className="mt-3" />}
 
       <TeamSwaps user={user} settings={settings} now={now} />
 

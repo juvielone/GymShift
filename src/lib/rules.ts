@@ -79,6 +79,13 @@ export function noShowDueAt(shiftStart: Timestamp, arriveBy: Timestamp | null, s
   return plusMinutes(from, settings.no_show_after_min)
 }
 
+/** Oldest day still kept in the records: photos and reports are deleted after the retention period. */
+export function recordsOldestDate(today: string, settings: SiteSettings): string {
+  const d = new Date(`${today}T00:00:00Z`)
+  d.setUTCMonth(d.getUTCMonth() - settings.photo_retention_months)
+  return d.toISOString().slice(0, 10)
+}
+
 /** Add days to a "YYYY-MM-DD" date. */
 export function addDays(date: string, days: number): string {
   const d = new Date(`${date}T00:00:00Z`)

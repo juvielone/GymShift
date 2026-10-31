@@ -1,5 +1,5 @@
 // Today's shifts on a black pass: who is on, done, not started, or not in yet.
-import { Check } from 'lucide-react'
+import { Check, ChevronRight } from 'lucide-react'
 import type { AttendanceSession } from '@/data'
 import type { Shift, SiteSettings, Timestamp, User } from '@/types'
 import { firstName, formatClock, formatDuration, formatTime, formatTimeRange, zonedTimestamp } from '@/lib/format'
@@ -14,7 +14,8 @@ export interface TodayRow {
   arriveBy: Timestamp | null
 }
 
-export function TodayPanel({ rows, settings, now }: { rows: TodayRow[]; settings: SiteSettings; now: Timestamp }) {
+/** Each row opens that shift's record (times, photos, notes) when onOpen is given. */
+export function TodayPanel({ rows, settings, now, onOpen }: { rows: TodayRow[]; settings: SiteSettings; now: Timestamp; onOpen?: (shiftId: string) => void }) {
   const tz = settings.timezone
   return (
     <section aria-labelledby="today-title" className="rounded-[18px] bg-pass p-[18px] text-pass-foreground shadow-[0_8px_24px_-12px_rgb(0_0_0/0.45)]">
@@ -51,26 +52,34 @@ export function TodayPanel({ rows, settings, now }: { rows: TodayRow[]; settings
               line = arriveBy ? `Running late · about ${formatClock(arriveBy, tz)}` : formatTimeRange(shift.start_time, shift.end_time)
             }
             return (
-              <li key={shift.id} className="flex items-center justify-between gap-3 py-3">
-                <div className="min-w-0">
-                  <p className="text-base font-medium">
-                    {firstName(user.full_name)} <span className="font-normal text-pass-muted">· {shift.type === 'morning' ? 'Morning' : 'Night'}</span>
-                  </p>
-                  <p className="text-sm text-pass-muted">{line}</p>
-                </div>
-                <span
-                  className={cn(
-                    'flex shrink-0 items-center gap-1.5 rounded-full px-2.5 py-1.5 text-[13px] leading-none font-semibold',
-                    chip.tone === 'live' && 'bg-pass-foreground text-pass',
-                    chip.tone === 'done' && 'bg-pass-line text-pass-foreground',
-                    chip.tone === 'quiet' && 'bg-pass-line text-pass-foreground',
-                    chip.tone === 'warn' && 'bg-warn-soft text-warn',
-                  )}
+              <li key={shift.id}>
+                <button
+                  type="button"
+                  disabled={!onOpen}
+                  onClick={() => onOpen?.(shift.id)}
+                  className="-mx-2 flex w-[calc(100%+1rem)] items-center justify-between gap-3 rounded-[12px] px-2 py-3 text-left transition-colors enabled:hover:bg-white/[0.06] enabled:active:bg-white/10"
                 >
-                  {chip.tone === 'live' && <span aria-hidden className="size-[7px] rounded-full bg-brand" />}
-                  {chip.tone === 'done' && <Check aria-hidden className="size-3.5" strokeWidth={3} />}
-                  {chip.label}
-                </span>
+                  <span className="min-w-0 flex-1">
+                    <span className="block text-base font-medium">
+                      {firstName(user.full_name)} <span className="font-normal text-pass-muted">· {shift.type === 'morning' ? 'Morning' : 'Night'}</span>
+                    </span>
+                    <span className="block text-sm text-pass-muted">{line}</span>
+                  </span>
+                  <span
+                    className={cn(
+                      'flex shrink-0 items-center gap-1.5 rounded-full px-2.5 py-1.5 text-[13px] leading-none font-semibold',
+                      chip.tone === 'live' && 'bg-pass-foreground text-pass',
+                      chip.tone === 'done' && 'bg-pass-line text-pass-foreground',
+                      chip.tone === 'quiet' && 'bg-pass-line text-pass-foreground',
+                      chip.tone === 'warn' && 'bg-warn-soft text-warn',
+                    )}
+                  >
+                    {chip.tone === 'live' && <span aria-hidden className="size-[7px] rounded-full bg-brand" />}
+                    {chip.tone === 'done' && <Check aria-hidden className="size-3.5" strokeWidth={3} />}
+                    {chip.label}
+                  </span>
+                  {onOpen && <ChevronRight aria-hidden className="-mr-1 size-5 shrink-0 text-pass-muted" />}
+                </button>
               </li>
             )
           })}

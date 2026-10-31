@@ -132,7 +132,9 @@ Nine features, ordered by build priority. Each acceptance criterion is a test th
 *As Carly, I want one screen showing today and anything that needs attention so that I don't have to chase people.*
 
 - The dashboard shows today's shifts with clock-in status, open flags, pending requests, and open supply notes.
-- Carly can view photos and notes grouped by shift.
+- Carly can view photos and notes grouped by shift: tapping a shift on her Today card, or in Shift records, opens its record (clock times with location and corrections, worked time, photos, notes, flags).
+- **Shift records** list past shifts one fortnight at a time (the roster and pay period), with a person picker and ‹ › arrows back to the 6-month retention limit, plus a summary line (shifts, hours, shifts with no photos) that matches the hours export for that fortnight. Carly sees everyone, Gladys her own group. *(Decided 31 Oct 2026.)*
+- Cleaners see their own past shifts the same way ("My past shifts"), with their hours for the chosen fortnight, so they can check their pay period. *(Decided 31 Oct 2026.)*
 - Carly can export a fortnight's hours per cleaner as a CSV file, using corrected times.
 - Exported hours match the sum of the shift durations shown in the app.
 

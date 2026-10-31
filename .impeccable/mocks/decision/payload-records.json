@@ -1,0 +1,44 @@
+{
+  "title": "Shift records (Carly) and My past shifts (cleaners)",
+  "question": "Past shifts, this fortnight first, then 'Show earlier' back to 6 months. Tapping a shift opens the sheet you just picked. Cleaners get the same screen with their own shifts only. Pick one, or steer.",
+  "options": [
+    {
+      "id": "records-a-daylist",
+      "label": "A Day list with photo strips",
+      "kicker": "RECOMMENDED",
+      "lineage": "Same day labels and filter chips as Carly's dashboard",
+      "thesis": "One list, newest day first. Each row: who, times, worked, a strip of small photos, amber 'No photos' or flag tags.",
+      "palette": ["#FFFFFF", "#1C1C1C", "#FEF3C7", "#F5F5F5"],
+      "materials": ["person chips", "day labels", "40px thumbnail strip", "amber tags"],
+      "viewport": "Back · Shift records · chips All/Josh/Kyle… · Wed 28 Oct: Gladys · Morning with 2 photos · Tue 27 Oct: Kyle · No photos · Over time.",
+      "risk": "Long list over months; the person chips and 'Show earlier' keep it short.",
+      "html": ".impeccable/mocks/decision/records-a-daylist.html",
+      "htmlFrame": "390x844"
+    },
+    {
+      "id": "records-b-person",
+      "label": "B Grouped by person",
+      "lineage": "A per-person summary, like a team report",
+      "thesis": "A section per cleaner with their fortnight hours, each shift one line with its photo count.",
+      "palette": ["#FFFFFF", "#1C1C1C", "#92400E"],
+      "materials": ["person sections", "one-line shifts", "no thumbnails"],
+      "viewport": "Josh · 2 shifts · 5h 51m: Wed 28 Oct Night 8 photos…; Kyle · No photos (amber)…",
+      "risk": "Weak for 'what happened yesterday?', and no photos are visible until you tap.",
+      "html": ".impeccable/mocks/decision/records-b-person.html",
+      "htmlFrame": "390x844"
+    },
+    {
+      "id": "records-c-cards",
+      "label": "C Photo cards",
+      "lineage": "A photo feed",
+      "thesis": "Each shift a card with a mosaic of its first photos above the times.",
+      "palette": ["#FFFFFF", "#1C1C1C", "#FEF3C7"],
+      "materials": ["card per shift", "3-photo mosaic"],
+      "viewport": "Chips · Josh card with mosaic · Kyle card 'No photos' · Angel card.",
+      "risk": "Only about three shifts per screen, and it is the card stack the design system avoids.",
+      "html": ".impeccable/mocks/decision/records-c-cards.html",
+      "htmlFrame": "390x844"
+    }
+  ],
+  "steer": true
+}

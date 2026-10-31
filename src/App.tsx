@@ -6,9 +6,10 @@ import { CleanerHome } from '@/pages/CleanerHome'
 import { ManagerDashboard } from '@/pages/ManagerDashboard'
 import { RosterPage } from '@/pages/RosterPage'
 import { StaffPage } from '@/pages/StaffPage'
+import { RecordsPage } from '@/pages/RecordsPage'
 import { DevSwitcher } from '@/components/dev/DevSwitcher'
 
-type View = 'home' | 'roster' | 'staff'
+type View = 'home' | 'roster' | 'staff' | 'records'
 
 function App() {
   // Demo mode opens on the demo login every load. Trial mode keeps data and sign-in on this phone.
@@ -61,6 +62,7 @@ function App() {
     setSignedIn(false)
   }
   const openRoster = canRoster ? () => setView('roster') : undefined
+  const openRecords = () => setView('records')
 
   if (ready === 'starting') return <main className="min-h-svh" aria-busy role="status" aria-label="Loading" />
   if (ready === 'offline') {
@@ -80,12 +82,14 @@ function App() {
     <>
       {view === 'roster' && canRoster ? (
         <RosterPage key={devKey} onBack={() => setView('home')} />
+      ) : view === 'records' ? (
+        <RecordsPage key={devKey} onBack={() => setView('home')} />
       ) : view === 'staff' && role === 'manager' ? (
         <StaffPage key={devKey} onBack={() => setView('home')} />
       ) : role === 'manager' ? (
-        <ManagerDashboard key={devKey} onSignOut={signOut} onOpenRoster={openRoster} onOpenStaff={() => setView('staff')} />
+        <ManagerDashboard key={devKey} onSignOut={signOut} onOpenRoster={openRoster} onOpenStaff={() => setView('staff')} onOpenRecords={openRecords} />
       ) : (
-        role && <CleanerHome key={devKey} onSignOut={signOut} onOpenRoster={openRoster} />
+        role && <CleanerHome key={devKey} onSignOut={signOut} onOpenRoster={openRoster} onOpenRecords={openRecords} />
       )}
       {import.meta.env.DEV && mode === 'demo' && <DevSwitcher onChange={() => setDevKey((k) => k + 1)} />}
     </>

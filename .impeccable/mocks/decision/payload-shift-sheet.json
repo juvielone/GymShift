@@ -1,0 +1,45 @@
+{
+  "title": "Carly: shift detail sheet",
+  "question": "One sheet for any shift: who, times, worked, photos, notes, flags. It opens from her Today card, her list, and the new records screen. Which order? Pick one, or steer.",
+  "options": [
+    {
+      "id": "shiftsheet-a-facts",
+      "label": "A Facts first, then photos",
+      "kicker": "RECOMMENDED",
+      "lineage": "Same hairline facts as the flag sheet Carly already uses",
+      "thesis": "Clock-in, clock-out and worked time as facts, then a 3-across photo grid, then notes and flags.",
+      "palette": ["#FFFFFF", "#1C1C1C", "#FEF3C7", "#F5F5F5"],
+      "materials": ["hairline facts", "3-across photo grid", "note and flag rows"],
+      "viewport": "Josh · Night shift · Wed 28 Oct; Clock-in 7:02 pm (At the gym); Clock-out 9:58 pm; Worked 2h 56m; Photos 8 of 10 grid; Notes.",
+      "risk": "Photos start below the fold on a small phone; she scrolls once to see them all.",
+      "html": ".impeccable/mocks/decision/shiftsheet-a-facts.html",
+      "htmlFrame": "390x844"
+    },
+    {
+      "id": "shiftsheet-b-photos",
+      "label": "B Photos first",
+      "lineage": "A photo review, with times as one line",
+      "thesis": "One summary line for the times, then big 2-across photos, because checking the cleaning is why she opens it.",
+      "palette": ["#FFFFFF", "#1C1C1C", "#F5F5F5"],
+      "materials": ["summary line", "2-across photos"],
+      "viewport": "Josh · Night shift; 'In 7:02 pm · Out 9:58 pm · 2h 56m · At the gym'; six big photos; Notes.",
+      "risk": "Location and correction details get pushed down, and flags are easy to miss.",
+      "html": ".impeccable/mocks/decision/shiftsheet-b-photos.html",
+      "htmlFrame": "390x844"
+    },
+    {
+      "id": "shiftsheet-c-tabs",
+      "label": "C Tabs: Photos · Times · Notes",
+      "lineage": "Segmented control, like iOS settings",
+      "thesis": "A short sheet with three tabs, so nothing scrolls far. Opens on Photos, or on Times when there is a flag.",
+      "palette": ["#FFFFFF", "#1C1C1C", "#F5F5F5"],
+      "materials": ["segmented control", "3-across grid"],
+      "viewport": "Josh · Night shift; [Photos 8 | Times | Notes 1]; photo grid.",
+      "risk": "Hides two of the three parts behind a tap; a flag or note can go unseen.",
+      "html": ".impeccable/mocks/decision/shiftsheet-c-tabs.html",
+      "htmlFrame": "390x844"
+    }
+  ],
+  "followup": true,
+  "steer": true
+}

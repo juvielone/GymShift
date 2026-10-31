@@ -1,0 +1,44 @@
+{
+  "title": "Shift records: choosing a person and a fortnight",
+  "question": "The sliding name chips go. How should Carly pick who and which fortnight? Each option's full mockup also shows the cleaner's view. Pick one, or steer.",
+  "options": [
+    {
+      "id": "filters-a-stepper",
+      "label": "A Person picker + fortnight arrows",
+      "kicker": "RECOMMENDED",
+      "lineage": "Same ‹ › arrows as the Fortnight hours sheet; picker like 'Who covers?'",
+      "thesis": "A full-width 'Showing: Everyone ▾' picker, then ‹ Last fortnight · 12 – 25 Oct › with one summary line under it.",
+      "palette": ["#FFFFFF", "#1C1C1C", "#E0E0E0", "#FEF3C7"],
+      "materials": ["full-width native picker", "44px arrows", "summary line"],
+      "viewport": "Back · Shift records · Showing: Everyone ▾ · ‹ Last fortnight 12 – 25 Oct › · '8 shifts · 23h 40m · 1 with no photos' · day list.",
+      "risk": "Jumping 3 months back is 6 taps on the arrows; tapping the fortnight label opens a list for that.",
+      "html": ".impeccable/mocks/decision/filters-a-stepper.html",
+      "htmlFrame": "390x844"
+    },
+    {
+      "id": "filters-b-pickers",
+      "label": "B Two pickers side by side",
+      "lineage": "Report filters",
+      "thesis": "[👤 Everyone ▾] [📅 12 – 25 Oct ▾] on one line, summary under.",
+      "palette": ["#FFFFFF", "#1C1C1C", "#E0E0E0"],
+      "materials": ["two half-width native pickers"],
+      "viewport": "Back · Shift records · two pickers · summary · day list.",
+      "risk": "'Last fortnight' always takes two taps, and long names and dates get cut at half width.",
+      "html": ".impeccable/mocks/decision/filters-b-pickers.html",
+      "htmlFrame": "390x844"
+    },
+    {
+      "id": "filters-c-card",
+      "label": "C Fortnight card with total hours",
+      "lineage": "The dashboard's Fortnight hours row",
+      "thesis": "The person picker, then an outlined card: ‹ Last fortnight › with the fortnight's total hours big underneath.",
+      "palette": ["#FFFFFF", "#1C1C1C", "#EBEBEB", "#FEF3C7"],
+      "materials": ["outlined card", "big total"],
+      "viewport": "Back · Shift records · picker · card with arrows and '23h 40m · 8 shifts' · day list.",
+      "risk": "The pinned top gets taller, so fewer shifts fit on the screen.",
+      "html": ".impeccable/mocks/decision/filters-c-card.html",
+      "htmlFrame": "390x844"
+    }
+  ],
+  "steer": true
+}

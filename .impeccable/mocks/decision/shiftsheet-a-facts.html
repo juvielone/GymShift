@@ -1,0 +1,142 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=390">
+<title>Shift sheet A · Facts first</title>
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{width:390px;background:#fff}
+body{color:#1c1c1c;font-family:Geist,system-ui,sans-serif;font-variant-numeric:tabular-nums;-webkit-font-smoothing:antialiased}
+::selection{background:#111;color:#fff}
+.frame{position:relative;width:390px;height:844px;overflow:hidden;background:#fff}
+.cap{background:#ebebeb;color:#5e5e5e;font:500 13px/1.3 Geist;padding:14px 20px}
+.cap b{color:#1c1c1c;font-weight:600}
+.top{display:flex;justify-content:space-between;align-items:center;height:48px;padding:0 20px}
+.wm{font:700 15px/1 Geist;letter-spacing:.08em}.site{font:400 15px/1 Geist;color:#5e5e5e;margin-left:8px}
+.av{width:36px;height:36px;border-radius:50%;background:#f5f5f5;display:flex;align-items:center;justify-content:center;font:600 15px/1 Geist}
+.hi{padding:4px 20px 0}.hi h1{font:600 28px/1.25 Geist;letter-spacing:-.01em}.hi p{font:400 15px/1.4 Geist;color:#6b6b6b;margin-top:2px}
+.pass{margin:16px 16px 0;background:#111;color:#fff;border-radius:18px;padding:18px;box-shadow:0 8px 24px -12px rgb(0 0 0/.45)}
+.ph{display:flex;justify-content:space-between;align-items:center}
+.ph h2{display:flex;gap:8px;align-items:center;font:500 15px/1 Geist;color:#c4c4cc}
+.chip{border-radius:999px;padding:6px 10px;font:600 13px/1 Geist;display:inline-flex;gap:6px;align-items:center;background:#fff;color:#111}
+.chip i{width:7px;height:7px;border-radius:50%;background:#d7192a}
+.chip.q{background:#3f3f46;color:#fff}
+.time{margin-top:12px;font:600 34px/1.1 Geist;letter-spacing:-.02em}
+.track{position:relative;margin-top:16px;height:6px;border-radius:99px;background:#3f3f46}
+.zone{position:absolute;top:0;bottom:0;background:repeating-linear-gradient(90deg,#71717a 0 3px,transparent 3px 6px);border-radius:0 99px 99px 0}
+.fill{position:absolute;top:0;bottom:0;left:0;background:#fff;border-radius:99px}
+.mark{position:absolute;top:-5px;height:16px;width:2px;background:#fff;border-radius:2px;transform:translateX(-50%)}
+.leg{display:flex;justify-content:space-between;margin-top:8px;font:500 13px/1 Geist;color:#c4c4cc}
+.stats{display:flex;gap:32px;margin-top:14px;border-top:1px solid #3f3f46;padding-top:12px}
+.stats dt{font:400 13px/1.3 Geist;color:#c4c4cc}.stats dd{font:600 20px/1.3 Geist}
+.pnote{margin-top:14px;border-top:1px solid #3f3f46;padding-top:12px;font:400 15px/1.35 Geist;color:#c4c4cc}
+.rows{margin:8px 16px 0}
+.row{display:flex;align-items:center;gap:12px;padding:12px 4px;border-bottom:1px solid #ebebeb;min-height:56px}
+.disc{width:36px;height:36px;border-radius:50%;flex:none;display:flex;align-items:center;justify-content:center}
+.ok{background:#dcfce7;color:#15803d}.warn{background:#fef3c7;color:#92400e}.neu{background:#f5f5f5;color:#1c1c1c}
+.rt{flex:1;min-width:0}.rt p{font:500 16px/1.35 Geist}.rt em{display:block;font-style:normal;font:400 14px/1.35 Geist;color:#6b6b6b}
+.go{color:#7a7a7a;display:flex}
+.sec{margin:20px 20px 10px;font:600 16px/1.5 Geist}
+.card{margin:0 16px;border:1px solid #ebebeb;border-radius:14px;padding:14px 16px;display:flex;gap:12px;align-items:center;box-shadow:0 2px 6px -2px rgb(0 0 0/.08);font:500 16px/1.3 Geist}
+.card em{display:block;font-style:normal;font:400 14px/1.35 Geist;color:#6b6b6b}
+.dock{position:absolute;left:0;right:0;bottom:0;background:#fff;border-top:1px solid #ebebeb;padding:12px 16px 30px}
+.btn{height:58px;border-radius:14px;background:#d7192a;color:#fff;font:600 18px/1 Geist;display:flex;align-items:center;justify-content:center;gap:8px;width:100%}
+.btn.s{height:56px}
+.btn.ink{background:#1c1c1c;color:#fff}
+.btn.out{background:#fff;color:#1c1c1c;border:1px solid #e0e0e0}
+.ib{height:44px;padding:0 16px;border-radius:14px;font:600 15px/1 Geist;display:inline-flex;align-items:center;gap:6px}
+.ib.ink{background:#1c1c1c;color:#fff}.ib.out{border:1px solid #e0e0e0;background:#fff}
+.receipt{margin:12px 16px 0;border-radius:18px;padding:14px 16px;display:flex;gap:12px}
+.receipt.okr{background:#dcfce7}.receipt.wr{background:#fef3c7}
+.tick{width:28px;height:28px;border-radius:50%;flex:none;display:flex;align-items:center;justify-content:center;background:#15803d;color:#fff}
+.receipt h3{font:600 16px/1.35 Geist}.receipt p{font:400 15px/1.4 Geist;color:rgb(28 28 28/.8);margin-top:2px}
+.receipt .acts{margin-top:10px;display:flex;gap:8px}
+.scrim{position:absolute;inset:0;background:rgb(0 0 0/.45)}
+.sheet{position:absolute;left:0;right:0;bottom:0;background:#fff;border-radius:18px 18px 0 0;padding:10px 16px 30px}
+.grab{width:44px;height:5px;border-radius:9px;background:#e5e5e5;margin:0 auto 14px}
+.sheet h3{font:600 20px/1.4 Geist;padding:0 4px}.sheet .desc{font:400 15px/1.4 Geist;color:#6b6b6b;padding:0 4px;margin-top:2px}
+.lg{font:500 14px/1.3 Geist;margin:18px 4px 8px}
+.chips{display:flex;flex-wrap:wrap;gap:8px}
+.cc{min-height:48px;padding:0 14px;border-radius:14px;border:1px solid #e0e0e0;font:500 16px/1 Geist;display:inline-flex;align-items:center;gap:8px;background:#fff}
+.cc.on{background:#1c1c1c;color:#fff;border-color:#1c1c1c}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.grid4{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
+.grid4 .cc{justify-content:center;padding:0}
+.ta{border:1px solid #e0e0e0;border-radius:10px;min-height:76px;padding:10px 12px;font:400 16px/1.4 Geist;color:#8a8a8a;margin-top:8px}
+.foot{margin-top:18px;display:flex;flex-direction:column;gap:8px}
+.help{font:400 14px/1.35 Geist;color:#6b6b6b;margin:8px 4px 0}
+/* photos */
+.ph-a{background:linear-gradient(160deg,#a7adb3 0%,#6c7278 60%,#4b5056 100%)}
+.ph-b{background:linear-gradient(200deg,#d6d3cc 0%,#9c968c 55%,#6d675e 100%)}
+.ph-c{background:linear-gradient(140deg,#3b3f45 0%,#6f757c 45%,#b9bec4 100%)}
+.ph-d{background:linear-gradient(180deg,#c9ccd0 0%,#8f949a 70%,#2f3237 100%)}
+.ph-e{background:linear-gradient(120deg,#7d828a 0%,#c3c7cc 50%,#80858c 100%)}
+.th{position:relative;border-radius:10px;overflow:hidden;flex:none}
+.th .bar{position:absolute;left:6px;right:6px;bottom:6px;height:4px;border-radius:9px;background:rgb(255 255 255/.35)}
+.th .bar span{display:block;height:100%;border-radius:9px;background:#fff}
+.th .veil{position:absolute;inset:0;background:rgb(0 0 0/.35)}
+.th.fail{background:#fef3c7;color:#92400e;display:flex;align-items:center;justify-content:center}
+.th.add{border:1px dashed #b5b5b5;color:#1c1c1c;display:flex;align-items:center;justify-content:center;background:#fff}
+.strip{display:flex;gap:8px;margin-top:10px}
+.amber{font:400 14px/1.35 Geist;color:#92400e}
+
+.facts{border-top:1px solid #ebebeb;margin-top:14px}
+.fact{display:flex;justify-content:space-between;gap:16px;padding:10px 4px;border-bottom:1px solid #ebebeb;font:400 15px/1.35 Geist}
+.fact dt{color:#6b6b6b}.fact dd{font-weight:500;text-align:right}.fact dd small{display:block;font:400 13px/1.3 Geist;color:#6b6b6b}
+.fact dd.ok{color:#15803d;background:none}.fact dd.w{color:#92400e}
+.h4{display:flex;justify-content:space-between;align-items:baseline;margin:18px 4px 8px;font:600 16px/1.4 Geist}
+.h4 span{font:400 14px/1 Geist;color:#6b6b6b}
+.g3{display:grid;grid-template-columns:repeat(3,1fr);gap:6px}
+.g2{display:grid;grid-template-columns:repeat(2,1fr);gap:6px}
+.g3 .th,.g2 .th{width:100%;aspect-ratio:1;height:auto}
+.nrow{display:flex;gap:12px;padding:10px 4px;border-bottom:1px solid #ebebeb}
+.nrow p{font:400 15px/1.35 Geist}.nrow em{display:block;font-style:normal;font:400 13px/1.3 Geist;color:#6b6b6b;margin-top:2px}
+.dsm{width:32px;height:32px}
+.seg{display:grid;grid-template-columns:repeat(3,1fr);background:#f5f5f5;border-radius:12px;padding:4px;margin-top:14px}
+.seg span{height:40px;border-radius:9px;display:flex;align-items:center;justify-content:center;font:500 15px/1 Geist;color:#5e5e5e}
+.seg span.on{background:#fff;color:#1c1c1c;box-shadow:0 1px 3px rgb(0 0 0/.12)}
+.sum{font:500 15px/1.35 Geist;margin:12px 4px 0;color:#1c1c1c}.sum b{font-weight:600}
+.back{display:flex;align-items:center;gap:4px;height:44px;font:500 16px/1 Geist;color:#1c1c1c;padding:0 16px}
+.title{padding:0 20px}.title h1{font:600 28px/1.25 Geist;letter-spacing:-.01em}.title p{font:400 15px/1.4 Geist;color:#6b6b6b;margin-top:2px}
+.fchips{display:flex;gap:6px;padding:14px 16px 8px;border-bottom:1px solid #ebebeb;overflow:hidden}
+.fc{height:44px;padding:0 12px;border-radius:999px;border:1px solid #e0e0e0;display:flex;align-items:center;font:500 15px/1 Geist;white-space:nowrap}
+.fc.on{background:#1c1c1c;color:#fff;border-color:#1c1c1c}
+.day{font:500 13px/1 Geist;color:#6b6b6b;padding:16px 20px 2px}
+.rec{display:flex;gap:12px;padding:12px 4px;border-bottom:1px solid #ebebeb;margin:0 16px}
+.rec .t{flex:1;min-width:0}.rec .t p{font:500 16px/1.3 Geist}.rec .t p span{font-weight:400;color:#6b6b6b}
+.rec .t em{display:block;font-style:normal;font:400 14px/1.35 Geist;color:#6b6b6b}
+.mini{display:flex;gap:4px;margin-top:8px;align-items:center}
+.mini .th{width:40px;height:40px;border-radius:8px}
+.more{font:500 13px/1 Geist;color:#6b6b6b;margin-left:4px}
+.tag{display:inline-flex;align-items:center;gap:5px;height:26px;padding:0 9px;border-radius:999px;font:500 13px/1 Geist;margin-top:8px;margin-right:4px}
+.tag.w{background:#fef3c7;color:#92400e}.tag.n{background:#f5f5f5;color:#1c1c1c}
+.ini{width:36px;height:36px;border-radius:50%;background:#f5f5f5;display:flex;align-items:center;justify-content:center;font:600 15px/1 Geist;flex:none}
+.psec{margin:0 16px;border-bottom:1px solid #ebebeb;padding:14px 4px}
+.psec h3{display:flex;justify-content:space-between;align-items:center;font:600 16px/1.3 Geist}
+.psec h3 small{font:400 14px/1 Geist;color:#6b6b6b}
+.pline{display:flex;justify-content:space-between;padding:8px 0;font:400 15px/1.35 Geist}
+.pline b{font-weight:500}
+.cardp{margin:12px 16px 0;border:1px solid #ebebeb;border-radius:14px;overflow:hidden;box-shadow:0 2px 6px -2px rgb(0 0 0/.08)}
+.cardp .mos{display:grid;grid-template-columns:2fr 1fr;grid-template-rows:1fr 1fr;gap:3px;height:150px}
+.cardp .mos .th{width:100%;height:100%;border-radius:0}
+.cardp .mos .th:first-child{grid-row:span 2}
+.cardp .cap{padding:12px 14px;display:flex;justify-content:space-between;gap:10px}
+.cardp .cap p{font:500 16px/1.3 Geist}.cardp .cap em{display:block;font-style:normal;font:400 14px/1.35 Geist;color:#6b6b6b}
+.hours{margin:12px 16px 0;border:1px solid #ebebeb;border-radius:14px;padding:12px 16px;display:flex;justify-content:space-between;font:600 16px/1.3 Geist}
+.hours small{display:block;font:400 14px/1.35 Geist;color:#6b6b6b}
+.earlier{margin:12px 16px;height:48px;border:1px solid #e0e0e0;border-radius:14px;display:flex;align-items:center;justify-content:center;font:600 15px/1 Geist}
+</style></head><body><div class="frame"><div class="top"><span><span class="wm">WORLD GYM</span><span class="site">Macquarie Park</span></span><span class="av">C</span></div>
+<div class="hi"><h1>Hi Carly</h1><p>Wednesday 28 October · 6 things need you</p></div>
+<section class="pass"><div class="ph"><h2>Today · 2 shifts</h2></div></section><div class="scrim"></div><div class="sheet" style="top:70px;overflow:hidden"><div class="grab"></div><h3>Josh · Night shift</h3><p class="desc">Wed 28 Oct · 7:00 – 10:00 pm</p><dl class="facts">
+<div class="fact"><dt>Clock-in</dt><dd>7:02 pm<small>At the gym · 40 m away</small></dd></div>
+<div class="fact"><dt>Clock-out</dt><dd>9:58 pm<small>At the gym</small></dd></div>
+<div class="fact"><dt>Worked</dt><dd>2h 56m</dd></div>
+</dl><p class="h4">Photos <span>8 of 10</span></p><div class="g3"><div class="th ph-a"></div><div class="th ph-b"></div><div class="th ph-c"></div><div class="th ph-d"></div><div class="th ph-e"></div><div class="th ph-a"></div><div class="th ph-b"></div><div class="th ph-c"></div></div><p class="h4">Notes</p><div class="nrow"><span class="disc neu dsm"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m7.5 4.27 9 5.15"/><path d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z"/><path d="m3.3 7 8.7 5 8.7-5"/><path d="M12 22V12"/></svg></span><div><p>Toilet paper, Paper towels</p><em>Supplies low · 7:42 pm</em></div></div></div></div>
+<p class="cap"><b>Facts first, like the flag sheet Carly already knows.</b> Clock-in / out / worked as hairline facts (location and any correction under the time), then a 3-across photo grid, then notes and flags. Tap a photo → full screen, swipe for the next.</p>
+<div class="frame"><div class="top"><span><span class="wm">WORLD GYM</span><span class="site">Macquarie Park</span></span><span class="av">C</span></div>
+<div class="hi"><h1>Hi Carly</h1><p>Wednesday 28 October · 6 things need you</p></div>
+<section class="pass"><div class="ph"><h2>Today · 2 shifts</h2></div></section><div class="scrim"></div><div class="sheet" style="top:70px;overflow:hidden"><div class="grab"></div><h3>Kyle · Morning shift</h3><p class="desc">Tue 27 Oct · 7:00 – 10:00 am</p><dl class="facts">
+<div class="fact"><dt>Clock-in</dt><dd class="w">7:03 am<small>Away from the gym · 420 m</small></dd></div>
+<div class="fact"><dt>Clock-out</dt><dd>10:15 am<small>Recorded 10:21 am · corrected by Carly</small></dd></div>
+<div class="fact"><dt>Worked</dt><dd>3h 12m</dd></div></dl>
+<p class="h4">Photos <span>None</span></p><p class="amber" style="padding:0 4px">No photos for this shift.</p><p class="h4">Flags</p><div class="nrow"><span class="disc warn dsm"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="10" x2="14" y1="2" y2="2"/><line x1="12" x2="15" y1="14" y2="11"/><circle cx="12" cy="14" r="8"/></svg></span><div><p>Over approved time</p><em>Recorded 3h 12m; approved 3h · Carly will check</em></div></div></div></div>
+<p class="cap"><b>A shift with problems.</b> Amber only where something needs a look. No photos is one amber line, not a block.</p></body></html>
