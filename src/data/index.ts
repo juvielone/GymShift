@@ -11,11 +11,23 @@ import * as extensions from './extensions'
 import * as swaps from './swaps'
 import * as photos from './photos'
 import * as notes from './notes'
-import { persist } from './store'
+import { MODE, persist } from './store'
 
-/** Every write saves the store to the phone in trial mode (a no-op in demo mode). Reads are left as they are. */
-function persisted<A extends unknown[], R>(write: (...args: A) => Promise<R>): (...args: A) => Promise<R> {
+type Live = typeof import('./live')
+
+/** A write the live app can't do yet, because its database function doesn't exist yet. */
+const NOT_LIVE_YET = "This isn't switched on in the live app yet."
+
+/**
+ * Every write saves the store to the phone in trial mode (a no-op in demo mode). In live mode the
+ * write goes to its Supabase version (`live`), or is refused until that exists. Reads are left as they are.
+ */
+function persisted<A extends unknown[], R>(write: (...args: A) => Promise<R>, live?: (l: Live) => (...args: A) => Promise<R>): (...args: A) => Promise<R> {
   return async (...args) => {
+    if (MODE === 'live') {
+      if (!live) throw new Error(NOT_LIVE_YET)
+      return live(await import('./live'))(...args)
+    }
     try {
       return await write(...args)
     } finally {
@@ -24,12 +36,14 @@ function persisted<A extends unknown[], R>(write: (...args: A) => Promise<R>): (
   }
 }
 
-export { getCurrentUser, isSignedIn, getDemoAccounts, getUsers, getUser, getRoles, getPermissions, getStaffImpact, ASSIGNABLE_ROLES } from './users'
-export type { StaffImpact } from './users'
+export { getCurrentUser, isSignedIn, getDemoAccounts, getUsers, getUser, getRoles, getPermissions, getStaffImpact, suggestUsername, ASSIGNABLE_ROLES, SIGN_IN_MISMATCH } from './users'
+export type { StaffImpact, DemoAccount } from './users'
+export const signIn = persisted(users.signIn, (l) => l.signIn)
 export const setMockCurrentUser = persisted(users.setMockCurrentUser)
-export const signOut = persisted(users.signOut)
+export const signOut = persisted(users.signOut, (l) => l.signOut)
 export const createUser = persisted(users.createUser)
 export const updateUser = persisted(users.updateUser)
+export const resetPin = persisted(users.resetPin)
 export const setUserActive = persisted(users.setUserActive)
 
 export { getSettings, RADIUS_MIN_M, RADIUS_MAX_M } from './settings'
@@ -48,8 +62,8 @@ export const publishFortnight = persisted(shifts.publishFortnight)
 
 export { getClockEvents } from './clockEvents'
 export type { ClockLocation, ClockResult } from './clockEvents'
-export const clockIn = persisted(clockEvents.clockIn)
-export const clockOut = persisted(clockEvents.clockOut)
+export const clockIn = persisted(clockEvents.clockIn, (l) => l.clockIn)
+export const clockOut = persisted(clockEvents.clockOut, (l) => l.clockOut)
 
 export { getCorrections } from './corrections'
 export const addCorrection = persisted(corrections.addCorrection)

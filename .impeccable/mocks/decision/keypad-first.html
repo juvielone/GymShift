@@ -1,0 +1,71 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Keypad first</title>
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root { --brand:#d7192a; --ink:#262626; --muted:#f5f5f5; --quiet:#5c5c5c; --line:#e5e5e5; }
+  * { box-sizing:border-box; margin:0; padding:0; }
+  html, body { width:390px; height:844px; overflow:hidden; background:#fff; color:var(--ink);
+    font-family:Geist, system-ui, sans-serif; font-variant-numeric:tabular-nums; }
+  main { height:844px; display:flex; flex-direction:column; padding:0 16px 24px; }
+  .bar { height:48px; display:flex; align-items:baseline; gap:8px; padding:14px 4px 0; }
+  .wm { font-size:15px; font-weight:700; letter-spacing:.08em; text-transform:uppercase; }
+  .site { font-size:15px; color:var(--quiet); }
+  h1 { font-size:28px; font-weight:600; letter-spacing:-.01em; line-height:1.25; margin:28px 4px 4px; }
+  .sub { font-size:15px; color:var(--quiet); margin:0 4px 20px; }
+  label { display:block; font-size:13px; font-weight:500; color:var(--quiet); margin:0 4px 6px; }
+  .field { height:48px; border:1px solid var(--line); border-radius:14px; display:flex; align-items:center;
+    padding:0 14px; font-size:18px; font-weight:600; }
+  .caret { width:2px; height:22px; background:var(--brand); margin-left:2px; }
+  .pinrow { display:grid; grid-template-columns:repeat(6, 1fr); gap:8px; margin-top:6px; }
+  .cell { height:52px; border:1px solid var(--line); border-radius:14px; display:flex; align-items:center; justify-content:center; }
+  .cell.on { border-color:var(--ink); }
+  .dot { width:12px; height:12px; border-radius:50%; background:var(--ink); }
+  .cell.next { border:2px solid var(--ink); }
+  .pad { margin-top:auto; display:grid; grid-template-columns:repeat(3, 1fr); border-top:1px solid var(--line); }
+  .key { height:72px; display:flex; align-items:center; justify-content:center; font-size:28px; font-weight:500;
+    border-bottom:1px solid var(--line); }
+  .key:not(:nth-child(3n)) { border-right:1px solid var(--line); }
+  .key.empty { color:transparent; }
+  .key svg { width:26px; height:26px; }
+  .links { display:flex; justify-content:space-between; align-items:center; padding:14px 4px 0; }
+  .text-btn { font-size:16px; font-weight:500; color:var(--ink); text-decoration:underline; text-underline-offset:3px; }
+  .help { font-size:14px; color:var(--quiet); }
+</style>
+</head>
+<body>
+<main>
+  <div class="bar"><span class="wm">World Gym</span><span class="site">Macquarie Park</span></div>
+  <h1>Sign in</h1>
+  <p class="sub">Your name and the PIN from Carly.</p>
+
+  <label>Your name</label>
+  <div class="field">josh</div>
+
+  <label style="margin-top:16px">PIN</label>
+  <div class="pinrow">
+    <div class="cell on"><span class="dot"></span></div>
+    <div class="cell on"><span class="dot"></span></div>
+    <div class="cell on"><span class="dot"></span></div>
+    <div class="cell next"></div>
+    <div class="cell"></div>
+    <div class="cell"></div>
+  </div>
+
+  <div class="pad" aria-hidden="true">
+    <div class="key">1</div><div class="key">2</div><div class="key">3</div>
+    <div class="key">4</div><div class="key">5</div><div class="key">6</div>
+    <div class="key">7</div><div class="key">8</div><div class="key">9</div>
+    <div class="key empty">.</div><div class="key">0</div>
+    <div class="key"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 5H9l-6 7 6 7h12z"/><path d="m17 9-6 6M11 9l6 6"/></svg></div>
+  </div>
+  <div class="links">
+    <span class="text-btn">Use a password instead</span>
+    <span class="help">Forgot it? Ask Carly.</span>
+  </div>
+</main>
+</body>
+</html>

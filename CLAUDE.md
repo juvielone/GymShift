@@ -4,14 +4,16 @@ Mobile-first roster and attendance web app for the World Gym Macquarie Park clea
 
 ## Stack
 - Vite + React + TypeScript, Tailwind CSS v4, shadcn/ui (radix, Nova preset), linted with oxlint
-- Backend (planned, not wired in yet): Supabase (Postgres, auth, row-level security, storage). The app runs on mock data for now.
+- Backend (being built, not wired in yet): Supabase (Postgres, auth, row-level security, storage). Migrations in `supabase/migrations`; the app still runs on mock data.
 - Hosting: Cloudflare Pages (static SPA)
 
 ## Commands
 - `npm run dev`: dev server (demo mode: seeded fortnight at the mock time, resets on reload)
+- `npm run dev:live`: dev server against Supabase (live mode: real sign-in, data from the database; needs `.env.local`). Writes without a database function yet say "This isn't switched on in the live app yet."
 - `npm run build` then `npx vite preview`: the production build runs in **trial mode** (see `store.ts`). Force either mode with `VITE_DATA_MODE=demo|trial`.
 - `npm run build`: typecheck (`tsc -b`) and production build
 - `npm run lint`: oxlint
+- `npm run test:db`: applies `supabase/migrations` to an in-memory Postgres (PGlite) and tests the database rules (see `supabase/README.md`)
 - `npx shadcn@latest add <component>`: add a UI component
 
 ## Structure
@@ -49,7 +51,7 @@ Mobile-first roster and attendance web app for the World Gym Macquarie Park clea
 7. **Business rule numbers come from `SiteSettings`** (`getSettings()`): radius, the 15/30-min flag windows, 180/210-min shift lengths, the 30-min extension request, 10 photos, 6-month retention, and the fortnight anchor date (`roster_anchor_date`). Never hardcode them.
 8. **Types mirror the schema.** Change a `src/types` file together with its table, mock and data functions. Use the `Timestamp` / `DateString` / `TimeString` aliases. Timezone is `Australia/Sydney`.
 9. **Mobile-first.** Every staff action takes three taps or fewer on a phone. Test at phone width.
-10. **Build UI only when asked.** Screens so far: demo login, cleaner home (with location help), manager dashboard (gym location under the avatar menu's "Manage"), staff (`src/pages/StaffPage.tsx`, Carly only: add, change role or group, deactivate; never delete), roster (`src/pages/RosterPage.tsx`, for Carly and Gladys). On the cleaner home: work photos row (`PhotosRow`, upload queue in `usePhotoUploads`, compression in `src/lib/image.ts`), "Add your photos first?" on clock-out (`PhotoPrompt`), photo view/remove (`PhotoSheet`), and "Note for Carly" (`NoteSheet`, incl. Running late before clock-in). Carly's dashboard lists Supplies low and Something wrong notes under "Notes"; running late shows only on her Today pass. Past shifts: `src/pages/RecordsPage.tsx` ("Shift records" for Carly and Gladys with a person picker, "My past shifts" for cleaners; one fortnight at a time with ‹ › arrows), and the read-only shift sheet `src/components/records/ShiftRecordSheet.tsx`, opened from the records list and from rows on Carly's Today pass. Records come from `getShiftRecord(s)` in `src/data/records.ts`, scoped by the role's `view_records_scope`.
+10. **Build UI only when asked.** Screens so far: sign in (`src/pages/SignIn.tsx`: username + 6-digit PIN keypad, password for Carly, demo accounts helper while on mock data), cleaner home (with location help), manager dashboard (gym location under the avatar menu's "Manage"), staff (`src/pages/StaffPage.tsx`, Carly only: add with a one-time PIN, reset PIN, change role or group, deactivate; never delete), roster (`src/pages/RosterPage.tsx`, for Carly and Gladys). On the cleaner home: work photos row (`PhotosRow`, upload queue in `usePhotoUploads`, compression in `src/lib/image.ts`), "Add your photos first?" on clock-out (`PhotoPrompt`), photo view/remove (`PhotoSheet`), and "Note for Carly" (`NoteSheet`, incl. Running late before clock-in). Carly's dashboard lists Supplies low and Something wrong notes under "Notes"; running late shows only on her Today pass. Past shifts: `src/pages/RecordsPage.tsx` ("Shift records" for Carly and Gladys with a person picker, "My past shifts" for cleaners; one fortnight at a time with ‹ › arrows), and the read-only shift sheet `src/components/records/ShiftRecordSheet.tsx`, opened from the records list and from rows on Carly's Today pass. Records come from `getShiftRecord(s)` in `src/data/records.ts`, scoped by the role's `view_records_scope`.
 
 ## Notes
 - `no_show` and `missing_clock_out` flags depend on elapsed time and will come from a scheduled job (Supabase cron). They are seeded in mocks but not generated yet. The no-show job must use `noShowDueAt()` from `src/lib/rules.ts`, which waits for a "running late" note's time plus the no-show window.

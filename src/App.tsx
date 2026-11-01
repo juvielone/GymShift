@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
-import { getCurrentUser, getDataMode, getPermissions, isSignedIn, setMockCurrentUser, signOut as endSession, startDataLayer, type DataMode } from '@/data'
-import type { RoleId, Uuid } from '@/types'
-import { DemoLogin } from '@/pages/DemoLogin'
+import { getCurrentUser, getDataMode, getPermissions, isSignedIn, signOut as endSession, startDataLayer, type DataMode } from '@/data'
+import type { RoleId } from '@/types'
+import { SignIn } from '@/pages/SignIn'
 import { CleanerHome } from '@/pages/CleanerHome'
 import { ManagerDashboard } from '@/pages/ManagerDashboard'
 import { RosterPage } from '@/pages/RosterPage'
@@ -12,7 +12,7 @@ import { DevSwitcher } from '@/components/dev/DevSwitcher'
 type View = 'home' | 'roster' | 'staff' | 'records'
 
 function App() {
-  // Demo mode opens on the demo login every load. Trial mode keeps data and sign-in on this phone.
+  // Demo mode opens on the sign-in screen every load. Trial mode keeps data and sign-in on this phone.
   const [ready, setReady] = useState<'starting' | 'ok' | 'offline'>('starting')
   const [mode, setMode] = useState<DataMode | null>(null)
   const [signedIn, setSignedIn] = useState(false)
@@ -49,8 +49,7 @@ function App() {
     })
   }, [signedIn, devKey])
 
-  async function signIn(id: Uuid) {
-    await setMockCurrentUser(id)
+  function onSignedIn() {
     setRole(null)
     setView('home')
     setSignedIn(true)
@@ -76,7 +75,7 @@ function App() {
       </main>
     )
   }
-  if (!signedIn) return <DemoLogin onSignIn={(id) => void signIn(id)} />
+  if (!signedIn) return <SignIn onSignedIn={onSignedIn} />
 
   return (
     <>

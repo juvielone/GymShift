@@ -1,0 +1,65 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Name, then a PIN sheet</title>
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root { --brand:#d7192a; --ink:#262626; --muted:#f5f5f5; --quiet:#5c5c5c; --line:#e5e5e5; }
+  * { box-sizing:border-box; margin:0; padding:0; }
+  html, body { width:390px; height:844px; overflow:hidden; background:#fff; color:var(--ink);
+    font-family:Geist, system-ui, sans-serif; font-variant-numeric:tabular-nums; }
+  .page { position:absolute; inset:0; padding:0 16px; }
+  .bar { height:48px; display:flex; align-items:baseline; gap:8px; padding:14px 4px 0; }
+  .wm { font-size:15px; font-weight:700; letter-spacing:.08em; text-transform:uppercase; }
+  .site { font-size:15px; color:var(--quiet); }
+  h1 { font-size:28px; font-weight:600; letter-spacing:-.01em; line-height:1.25; margin:40px 4px 4px; }
+  .sub { font-size:15px; color:var(--quiet); margin:0 4px 20px; }
+  label { display:block; font-size:13px; font-weight:500; color:var(--quiet); margin:0 4px 6px; }
+  .row { display:flex; gap:8px; }
+  .field { flex:1; height:48px; border:1px solid var(--line); border-radius:14px; display:flex; align-items:center; padding:0 14px; font-size:18px; font-weight:600; }
+  .next { height:48px; padding:0 18px; border-radius:14px; background:var(--ink); color:#fff; display:flex; align-items:center; font-size:15px; font-weight:600; }
+  .veil { position:absolute; inset:0; background:rgb(0 0 0 / .4); }
+  .sheet { position:absolute; left:0; right:0; bottom:0; background:#fff; border-radius:18px 18px 0 0; padding:10px 16px 24px; }
+  .grab { width:40px; height:4px; border-radius:9999px; background:var(--line); margin:0 auto 14px; }
+  .stitle { font-size:20px; font-weight:600; }
+  .sdesc { font-size:15px; color:var(--quiet); margin-top:2px; }
+  .sdesc u { color:var(--ink); font-weight:500; text-underline-offset:3px; }
+  .dots { display:flex; justify-content:center; gap:16px; margin:26px 0 24px; }
+  .d { width:16px; height:16px; border-radius:50%; border:2px solid var(--ink); }
+  .d.on { background:var(--ink); }
+  .pad { display:grid; grid-template-columns:repeat(3, 1fr); gap:8px; }
+  .key { height:58px; border-radius:14px; background:var(--muted); display:flex; align-items:center; justify-content:center; font-size:26px; font-weight:500; }
+  .key.ghost { background:transparent; }
+  .key svg { width:26px; height:26px; }
+  .foot { display:flex; justify-content:space-between; padding:16px 4px 0; }
+  .text-btn { font-size:16px; font-weight:500; text-decoration:underline; text-underline-offset:3px; }
+  .help { font-size:14px; color:var(--quiet); }
+</style>
+</head>
+<body>
+  <div class="page">
+    <div class="bar"><span class="wm">World Gym</span><span class="site">Macquarie Park</span></div>
+    <h1>Welcome to GymShift</h1>
+    <p class="sub">Sign in once and this phone remembers you.</p>
+    <label>Your name</label>
+    <div class="row"><div class="field">josh</div><div class="next">Next</div></div>
+  </div>
+  <div class="veil"></div>
+  <section class="sheet">
+    <div class="grab"></div>
+    <p class="stitle">Enter your PIN</p>
+    <p class="sdesc">Signing in as josh · <u>Change</u></p>
+    <div class="dots"><span class="d on"></span><span class="d on"></span><span class="d"></span><span class="d"></span><span class="d"></span><span class="d"></span></div>
+    <div class="pad" aria-hidden="true">
+      <div class="key">1</div><div class="key">2</div><div class="key">3</div>
+      <div class="key">4</div><div class="key">5</div><div class="key">6</div>
+      <div class="key">7</div><div class="key">8</div><div class="key">9</div>
+      <div class="key ghost"></div><div class="key">0</div>
+      <div class="key ghost"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 5H9l-6 7 6 7h12z"/><path d="m17 9-6 6M11 9l6 6"/></svg></div>
+    </div>
+    <div class="foot"><span class="text-btn">Use a password instead</span><span class="help">Forgot it? Ask Carly.</span></div>
+  </section>
+</body>
+</html>

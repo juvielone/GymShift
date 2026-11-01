@@ -1,0 +1,69 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>The pass at the gate</title>
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root { --brand:#d7192a; --ink:#262626; --muted:#f5f5f5; --quiet:#5c5c5c; --line:#e5e5e5;
+    --pass:#111111; --pass-fg:#ffffff; --pass-muted:#c4c4cc; --pass-line:#3f3f46; }
+  * { box-sizing:border-box; margin:0; padding:0; }
+  html, body { width:390px; height:844px; overflow:hidden; background:#fff; color:var(--ink);
+    font-family:Geist, system-ui, sans-serif; font-variant-numeric:tabular-nums; }
+  main { height:844px; display:flex; flex-direction:column; padding:0 16px 24px; }
+  .bar { height:48px; display:flex; align-items:baseline; gap:8px; padding:14px 4px 0; }
+  .wm { font-size:15px; font-weight:700; letter-spacing:.08em; text-transform:uppercase; }
+  .site { font-size:15px; color:var(--quiet); }
+  .pass { margin-top:20px; background:var(--pass); color:var(--pass-fg); border-radius:18px; padding:18px;
+    box-shadow:0 8px 24px -12px rgb(0 0 0 / .45); }
+  .kick { font-size:15px; font-weight:500; color:var(--pass-muted); }
+  .title { font-size:28px; font-weight:600; letter-spacing:-.01em; margin-top:4px; }
+  .lbl { font-size:13px; font-weight:500; color:var(--pass-muted); margin-top:18px; }
+  .name { display:flex; align-items:center; height:44px; border-bottom:1px solid var(--pass-line);
+    font-size:20px; font-weight:600; }
+  .steps { display:grid; grid-template-columns:repeat(6, 1fr); gap:6px; margin-top:10px; }
+  .step { height:6px; border-radius:9999px; background:var(--pass-line); }
+  .step.on { background:var(--pass-fg); }
+  .legend { display:flex; justify-content:space-between; font-size:13px; font-weight:500; color:var(--pass-muted); margin-top:8px; }
+  .pad { margin-top:auto; display:grid; grid-template-columns:repeat(3, 1fr); gap:8px; }
+  .key { height:60px; border-radius:14px; background:var(--muted); display:flex; align-items:center; justify-content:center;
+    font-size:26px; font-weight:500; }
+  .key.ghost { background:transparent; }
+  .key svg { width:26px; height:26px; }
+  .links { display:flex; justify-content:space-between; align-items:center; padding:16px 4px 0; }
+  .text-btn { font-size:16px; font-weight:500; text-decoration:underline; text-underline-offset:3px; }
+  .help { font-size:14px; color:var(--quiet); }
+</style>
+</head>
+<body>
+<main>
+  <div class="bar"><span class="wm">World Gym</span><span class="site">Macquarie Park</span></div>
+
+  <section class="pass">
+    <p class="kick">GymShift</p>
+    <p class="title">Sign in</p>
+    <p class="lbl">Your name</p>
+    <div class="name">josh</div>
+    <p class="lbl">PIN from Carly</p>
+    <div class="steps">
+      <span class="step on"></span><span class="step on"></span><span class="step on"></span>
+      <span class="step on"></span><span class="step"></span><span class="step"></span>
+    </div>
+    <div class="legend"><span>4 of 6</span><span>Signs in on the last digit</span></div>
+  </section>
+
+  <div class="pad" aria-hidden="true">
+    <div class="key">1</div><div class="key">2</div><div class="key">3</div>
+    <div class="key">4</div><div class="key">5</div><div class="key">6</div>
+    <div class="key">7</div><div class="key">8</div><div class="key">9</div>
+    <div class="key ghost"></div><div class="key">0</div>
+    <div class="key ghost"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 5H9l-6 7 6 7h12z"/><path d="m17 9-6 6M11 9l6 6"/></svg></div>
+  </div>
+  <div class="links">
+    <span class="text-btn">Use a password instead</span>
+    <span class="help">Forgot it? Ask Carly.</span>
+  </div>
+</main>
+</body>
+</html>

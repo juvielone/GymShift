@@ -2,17 +2,19 @@
 // When Supabase is wired in, each src/data module swaps its `db.*` access for a Supabase query
 // and its permission checks move into row-level security; function signatures stay the same.
 //
-// Two modes until then:
+// Three modes:
 // - 'demo' (dev server): the seeded fortnight at a fixed mock time, reset on every reload.
 // - 'trial' (production build, or VITE_DATA_MODE=trial): real time from the web server and data saved
 //   on this phone, so the app can be tried on a real shift before Supabase exists.
+// - 'live' (VITE_DATA_MODE=live, e.g. `npm run dev:live`): Supabase. Sign-in is Supabase auth; this store
+//   is a read cache of what the person's role may see (live.ts), and writes go to database functions.
 import * as seed from '@/mocks'
 import type { Role, User, Uuid } from '@/types'
 
-export type DataMode = 'demo' | 'trial'
+export type DataMode = 'demo' | 'trial' | 'live'
 
 export const MODE: DataMode =
-  import.meta.env.VITE_DATA_MODE === 'trial' || import.meta.env.VITE_DATA_MODE === 'demo'
+  import.meta.env.VITE_DATA_MODE === 'trial' || import.meta.env.VITE_DATA_MODE === 'demo' || import.meta.env.VITE_DATA_MODE === 'live'
     ? import.meta.env.VITE_DATA_MODE
     : import.meta.env.DEV
       ? 'demo'
@@ -21,6 +23,8 @@ export const MODE: DataMode =
 const fresh = () => ({
   roles: structuredClone(seed.roles),
   users: structuredClone(seed.users),
+  /** Stand-in for Supabase auth.users passwords. Internal to src/data; never returned to the UI. */
+  credentials: structuredClone(seed.credentials),
   settings: structuredClone(seed.settings),
   availability: structuredClone(seed.availability),
   shifts: structuredClone(seed.shifts),
@@ -48,8 +52,25 @@ interface Saved {
   auth: typeof auth
 }
 
+/** Live mode before anything is loaded: no records (the seed settings only give the site name on sign-in). */
+export const emptyTables = (): Omit<Db, 'settings' | 'roles'> => ({
+  users: [],
+  credentials: [],
+  availability: [],
+  shifts: [],
+  shiftChanges: [],
+  clockEvents: [],
+  corrections: [],
+  flags: [],
+  extensions: [],
+  swaps: [],
+  photos: [],
+  notes: [],
+})
+
 function load(): Db {
   const base = fresh()
+  if (MODE === 'live') return { ...base, ...emptyTables() }
   if (MODE !== 'trial') return base
   try {
     const raw = localStorage.getItem(STORAGE_KEY)
@@ -57,7 +78,10 @@ function load(): Db {
     const saved = JSON.parse(raw) as Partial<Saved>
     Object.assign(auth, saved.auth)
     // New tables and settings added since the save fall back to the seed, so an older save still loads.
-    return { ...base, ...saved.db, settings: { ...base.settings, ...saved.db?.settings } }
+    const loaded = { ...base, ...saved.db, settings: { ...base.settings, ...saved.db?.settings } }
+    // Saves from before sign-in by username: give each person their first name, lowercased.
+    for (const u of loaded.users) u.username ??= u.full_name.split(' ')[0].toLowerCase().replace(/[^a-z0-9]/g, '')
+    return loaded
   } catch {
     return base
   }
@@ -117,7 +141,7 @@ export function serverNow(): string {
  * roughly halfway through the round trip. Throws when offline; demo mode does nothing.
  */
 export async function syncServerClock(): Promise<void> {
-  if (MODE !== 'trial') return
+  if (MODE === 'demo') return
   const sent = performance.now()
   const res = await fetch(`${location.origin}/`, { method: 'HEAD', cache: 'no-store' })
   const received = performance.now()
@@ -131,11 +155,11 @@ export async function syncServerClock(): Promise<void> {
 
 /** Before saving a clock event: trial time must be fresh, so a slept phone can't stamp an old time. */
 export async function requireFreshClock(): Promise<void> {
-  if (MODE !== 'trial') return
+  if (MODE === 'demo') return
   await syncServerClock()
 }
 
-if (MODE === 'trial' && typeof document !== 'undefined') {
+if (MODE !== 'demo' && typeof document !== 'undefined') {
   const resync = () => {
     if (performance.now() - lastSyncAt > RESYNC_AFTER_MS) void syncServerClock().catch(() => {})
   }

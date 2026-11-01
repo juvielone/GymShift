@@ -52,7 +52,10 @@ Nine features, ordered by build priority. Each acceptance criterion is a test th
 *As a staff member, I want to log in on my phone so that I only see my own shifts and records.*
 
 - Carly creates accounts and assigns a role. There is no public sign-up.
-- Login works by email magic link or password and stays signed in on the phone.
+- Staff sign in with their username (first name, e.g. `josh`) and a 6-digit PIN, then stay signed in on the phone. Signing in happens about once per phone. *(Decided 1 Nov 2026: email links are unreliable on the free email tier, and nobody needs an inbox to get in.)*
+- Adding a person gives Carly a PIN, shown once, to pass on in person or by message. Carly can reset anyone's PIN from their staff sheet; that is also how a forgotten PIN is fixed. Nobody, Carly included, can look a PIN up later.
+- Carly signs in with her username and a longer password instead of a PIN, because her account can correct hours and export pay.
+- The sign-in page asks for a typed username and never lists staff names, because its link will be shared.
 - Role permissions are enforced in the database (row-level security), not only in the UI.
 
 ### F2. Fortnightly roster
@@ -171,10 +174,34 @@ These are deferred until after the trial, and added only if the trial shows a re
 - Push notifications and reminders (e.g. a missed clock-out reminder). The dashboard flags cover this for now.
 - Cleaning checklists and structured shift reports.
 - Payroll calculation, pay rates or integration with payroll software. The app exports hours only.
-- Multiple sites or gyms.
+- Multiple sites or gyms. A follow-up after the MVP; see Multiple sites below.
+- Stronger sign-in (see Later: stronger sign-in below).
 - Native iOS or Android apps. v1 is a mobile web app.
 - Offline clock-in.
 - Continuous or live location tracking.
+
+### Later: stronger sign-in (parked 1 Nov 2026)
+
+A username and PIN suit the trial. If the team moves to a paid arrangement, these are proposed as an extra layer:
+
+- **Own email sign-in** for each person (magic link or password), with a proper email service.
+- **One phone per person.** Each sign-in records the phone; signing in on a new phone flags it for Carly and signs the old one out. A clock-in from a phone last used by someone else is flagged ("Josh clocked in from Gladys's phone"). This makes one coworker clocking in for another visible to Carly. It never blocks.
+- **Early clock-in flag.** Today a clock-in links to the person's shift any time that day. Flag a clock-in more than a set time before the shift starts (a SiteSettings value).
+
+### Multiple sites (raised by Carly, 30 Oct 2026; follow-up after the MVP)
+
+Carly asked whether the app could cover more locations if the team works across more than one. Carly's intention is to bring cleaners, starting with Juvie, to other sites as well *(clarified 1 Nov 2026)*, so the main case is one person working at several sites. v1 stays at one site for the trial; this is followed up with Carly once the MVP is done.
+
+How it would work:
+
+- **Sites.** Each site has its own name, gym location, radius and timezone. Carly adds a site from her dashboard the same way she sets the gym location today. The other business rules (shift lengths, flag windows, photo limits, retention) stay shared across sites unless one needs its own.
+- **Roster.** Every shift belongs to a site. Rosters are built per site on the same fortnightly cycle, with a site switcher on the roster screen. Two shifts a day becomes two shifts a day per site.
+- **Staff.** People aren't tied to one site. Anyone can be rostered at any site, and the roster warns if someone is booked at two sites at overlapping times or too close together to travel between them. Their home screen lists upcoming shifts with the site name, and their hours and past shifts cover every site.
+- **Clock in stays one tap.** The site comes from the cleaner's shift that day, and the off-site check uses that site's location. Cleaners never pick a site. An unscheduled clock-in is matched to the nearest site and flagged as it is now.
+- **Carly's dashboard.** Today's shifts, flags and notes show the site on each row, with a site filter once there is more than one. "Supplies low" says which gym.
+- **Hours export.** Still one row per person, because pay is per person, totalling hours across all sites, with an optional per-site breakdown.
+- **Team leads.** A group stays a group of people, so Gladys's group is the same at any site.
+- **Cost.** A few sites still fit the free tiers. Photo storage grows with the number of shifts (see Free-tier limits).
 
 ## Non-functional requirements
 
@@ -230,3 +257,4 @@ Prices are approximate as of October 2026.
 - [ ] Who sends staff the written location notice 14 days before the trial starts?
 - [ ] Trial start date.
 - [ ] Exact gym coordinates and the radius to use (default 150 m). Carly can set both in the app by standing in the gym; still needs doing once before the trial.
+- [ ] Multiple sites (Carly, 30 Oct 2026; follow-up after the MVP): which other locations, and when? Would they use different shift times or rules? Would a team lead look after a site, or a group of people wherever they work?

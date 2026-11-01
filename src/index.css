@@ -224,3 +224,15 @@
 @media (prefers-reduced-motion: reduce) {
     .upload-bar { animation: none; transform: none; width: 60%; }
 }
+
+/* Sign in: a wrong PIN shakes the six cells once, then they clear. Still under reduced motion. */
+.pin-shake {
+    animation: pin-shake 360ms cubic-bezier(0.36, 0.07, 0.19, 0.97);
+}
+@keyframes pin-shake {
+    20%, 60% { transform: translateX(-6px); }
+    40%, 80% { transform: translateX(6px); }
+}
+@media (prefers-reduced-motion: reduce) {
+    .pin-shake { animation: none; }
+}

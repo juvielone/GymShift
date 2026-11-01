@@ -9,9 +9,13 @@ export async function getDataMode(): Promise<DataMode> {
   return MODE
 }
 
-/** Call once before showing any screen. Trial mode reads the server time first; throws when offline. */
+/**
+ * Call once before showing any screen. Trial and live modes read the server time first; live mode
+ * then picks up this phone's Supabase session and loads what the person may see. Throws when offline.
+ */
 export async function startDataLayer(): Promise<void> {
   await syncServerClock()
+  if (MODE === 'live') await (await import('./live')).start()
 }
 
 /** Trial mode: wipe everything saved on this phone (records and photos) and start from the seed. */
