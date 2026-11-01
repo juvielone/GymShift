@@ -104,8 +104,8 @@ function RosterView({ roster, onMove, refresh }: { roster: Roster; onMove: (star
         setConfirmPublish(false)
       }
       await refresh()
-    } catch {
-      setFailed('Not saved yet. Try again.')
+    } catch (e) {
+      setFailed(e instanceof Error ? e.message : 'Not saved yet. Try again.')
     } finally {
       setBusy(null)
     }

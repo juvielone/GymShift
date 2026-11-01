@@ -11,6 +11,7 @@ import {
   getShiftAttendance,
   getShifts,
   getUpcomingShifts,
+  refreshData,
   serverNow,
 } from '@/data'
 import type { EffectiveClockEvent } from '@/data'
@@ -138,6 +139,7 @@ export function useCleanerHome() {
 
   const refresh = useCallback(async () => {
     try {
+      await refreshData()
       setData(await loadHome())
       setError(null)
     } catch (e) {

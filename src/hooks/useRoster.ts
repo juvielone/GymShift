@@ -1,6 +1,6 @@
 // Everything the roster screen shows for one fortnight, loaded through '@/data'. Server time only.
 import { useCallback, useEffect, useState } from 'react'
-import { getAvailability, getCurrentUser, getRosterWarnings, getSettings, getShiftChangesForFortnight, getShifts, getUsers, serverNow } from '@/data'
+import { getAvailability, getCurrentUser, getRosterWarnings, getSettings, getShiftChangesForFortnight, getShifts, getUsers, refreshData, serverNow } from '@/data'
 import type { RosterWarning } from '@/data'
 import type { Availability, DateString, Shift, ShiftChange, SiteSettings, Timestamp, User } from '@/types'
 import { addDays, fortnightStartOf, localDate } from '@/lib/rules'
@@ -66,6 +66,7 @@ export function useRoster(start: DateString | null) {
   const refresh = useCallback(async () => {
     if (!start) return
     try {
+      await refreshData()
       setData(await load(start))
       setError(null)
     } catch (e) {

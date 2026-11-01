@@ -1,6 +1,6 @@
 // Everything Carly's dashboard shows, loaded through '@/data'. Server time only.
 import { useCallback, useEffect, useState } from 'react'
-import { getCurrentUser, getFlags, getFortnightHours, getNotes, getOpenIssues, getOpenSupplyAlerts, getSettings, getShiftAttendance, getShifts, getUsers, serverNow } from '@/data'
+import { getCurrentUser, getFlags, getFortnightHours, getNotes, getOpenIssues, getOpenSupplyAlerts, getSettings, getShiftAttendance, getShifts, getUsers, refreshData, serverNow } from '@/data'
 import type { Note, SiteSettings, Timestamp, User } from '@/types'
 import type { FlagView } from '@/components/manager/FlagSheet'
 import type { TodayRow } from '@/components/manager/TodayPanel'
@@ -80,6 +80,7 @@ export function useManagerDashboard() {
 
   const refresh = useCallback(async () => {
     try {
+      await refreshData()
       setData(await load())
       setError(null)
     } catch (e) {

@@ -47,18 +47,18 @@ export const resetPin = persisted(users.resetPin)
 export const setUserActive = persisted(users.setUserActive)
 
 export { getSettings, RADIUS_MIN_M, RADIUS_MAX_M } from './settings'
-export const updateSiteLocation = persisted(settings.updateSiteLocation)
+export const updateSiteLocation = persisted(settings.updateSiteLocation, (l) => l.updateSiteLocation)
 
 export { getAvailability } from './availability'
 export const markUnavailable = persisted(availability.markUnavailable)
 
 export { getShifts, getShift, getUpcomingShifts, getShiftChanges, getShiftChangesForFortnight, getRosterWarnings } from './shifts'
 export type { RosterWarning, RosterWarningKind } from './shifts'
-export const updateShift = persisted(shifts.updateShift)
-export const createShift = persisted(shifts.createShift)
-export const removeShift = persisted(shifts.removeShift)
-export const copyFortnight = persisted(shifts.copyFortnight)
-export const publishFortnight = persisted(shifts.publishFortnight)
+export const updateShift = persisted(shifts.updateShift, (l) => l.updateShift)
+export const createShift = persisted(shifts.createShift, (l) => l.createShift)
+export const removeShift = persisted(shifts.removeShift, (l) => l.removeShift)
+export const copyFortnight = persisted(shifts.copyFortnight, (l) => l.copyFortnight)
+export const publishFortnight = persisted(shifts.publishFortnight, (l) => l.publishFortnight)
 
 export { getClockEvents } from './clockEvents'
 export type { ClockLocation, ClockResult } from './clockEvents'
@@ -72,7 +72,7 @@ export { getShiftAttendance, getEffectiveClockEvents, getFortnightHours } from '
 export type { AttendanceSession, EffectiveClockEvent, FortnightHours } from './attendance'
 
 export { getFlags } from './flags'
-export const resolveFlag = persisted(flags.resolveFlag)
+export const resolveFlag = persisted(flags.resolveFlag, (l) => l.resolveFlag)
 
 export { getExtensions } from './extensions'
 export const requestExtension = persisted(extensions.requestExtension)
@@ -90,8 +90,18 @@ export { getShiftRecord, getShiftRecords, getRecordPeople } from './records'
 export type { ShiftRecord } from './records'
 
 export { getNotes, getOpenSupplyAlerts, getOpenIssues } from './notes'
-export const addNote = persisted(notes.addNote)
-export const markNoteDone = persisted(notes.markNoteDone)
+export const addNote = persisted(notes.addNote, (l) => l.addNote)
+export const markNoteDone = persisted(notes.markNoteDone, (l) => l.markNoteDone)
+
+/**
+ * Fetch what other people have changed since (their clock-ins, notes, roster edits). Live mode reads
+ * Supabase; demo and trial keep everything on this phone, so there is nothing to fetch. Never throws:
+ * offline, the screen keeps showing the last view.
+ */
+export async function refreshData(): Promise<void> {
+  if (MODE !== 'live') return
+  await (await import('./live')).pull().catch(() => {})
+}
 
 export { serverNow, setMockNow } from './store'
 export { getDataMode, startDataLayer, resetTrialData } from './trial'

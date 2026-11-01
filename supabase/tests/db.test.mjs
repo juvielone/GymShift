@@ -86,13 +86,19 @@ async function addShift({ date, type, user, start = '19:00', end = '22:00', publ
 const clock = (who, kind, loc) =>
   as(who, async (tx) => (await tx.query(`select public.clock_${kind}($1, $2, $3, $4) as r`, [loc.status ?? 'ok', loc.lat ?? null, loc.lng ?? null, loc.accuracy ?? null])).rows[0].r)
 
-before(async () => {
-  db = new PGlite()
-  await db.exec(AUTH_STUB)
+/** A new in-memory database with every migration applied and the seed loaded. */
+async function freshDb() {
+  const fresh = new PGlite()
+  await fresh.exec(AUTH_STUB)
   for (const file of readdirSync(MIGRATIONS).filter((f) => f.endsWith('.sql')).sort()) {
-    await db.exec(readFileSync(join(MIGRATIONS, file), 'utf8'))
+    await fresh.exec(readFileSync(join(MIGRATIONS, file), 'utf8'))
   }
-  await db.exec(SEED)
+  await fresh.exec(SEED)
+  return fresh
+}
+
+before(async () => {
+  db = await freshDb()
 })
 
 test('clock-in at the gym links to today’s shift, with the server’s time and no flags', async () => {
@@ -230,4 +236,265 @@ test('a deactivated person can’t clock in or read anything', async () => {
   const { rows } = await as(KYLE, (tx) => tx.query(`select * from users`))
   assert.equal(rows.length, 0)
   await db.query(`update users set active = true where id = $1`, [KYLE])
+})
+
+test('only the manager moves the gym point; new clock-ins use it, past ones keep their distance', async () => {
+  const save = (who, lat, lng, radius) =>
+    as(who, async (tx) => (await tx.query(`select * from public.update_site_location($1, $2, $3)`, [lat, lng, radius])).rows[0])
+  await rejects(save(GLADYS, -33.78, 151.12, 150), /Only the manager can change site settings/)
+  await rejects(save(JOSH, -33.78, 151.12, 150), /Only the manager can change site settings/)
+  await rejects(save(null, -33.78, 151.12, 150), /permission denied/)
+  await rejects(save(CARLY, -91, 151.12, 150), /Latitude must be between -90 and 90/)
+  await rejects(save(CARLY, -33.78, 181, 150), /Longitude must be between -180 and 180/)
+  await rejects(save(CARLY, -33.78, 151.12, 40), /Radius must be 50–300 m/)
+  await rejects(save(CARLY, -33.78, 151.12, 301), /Radius must be 50–300 m/)
+
+  const before = (await db.query(`select id, distance_m from clock_events where location_status = 'ok' order by server_time limit 1`)).rows[0]
+  const moved = { lat: -33.8, lng: 151.1203 }
+  const saved = await save(CARLY, moved.lat, moved.lng, 100)
+  assert.equal(saved.radius_m, 100)
+  assert.equal(saved.updated_by, CARLY)
+  assert.ok(saved.updated_at)
+
+  const r = await clock(JOSH, 'in', { lat: moved.lat, lng: moved.lng, accuracy: 10 })
+  assert.equal(r.event.distance_m, 0)
+  assert.ok(!r.flags.some((f) => f.kind === 'off_site'))
+  await clock(JOSH, 'out', { lat: moved.lat, lng: moved.lng, accuracy: 10 })
+  const after = (await db.query(`select distance_m from clock_events where id = $1`, [before.id])).rows[0]
+  assert.equal(after.distance_m, before.distance_m)
+
+  await save(CARLY, GYM.lat, GYM.lng, 150)
+})
+
+// ---- Roster functions (fortnights of 1 and 15 Mar 2027, clear of the tests above) ----
+
+const call = (who, sql, params = []) => as(who, async (tx) => (await tx.query(sql, params)).rows)
+const createShift = (who, date, type, user, start = null, end = null) =>
+  call(who, `select * from public.create_shift($1, $2, $3, $4, $5)`, [date, type, user, start, end]).then((r) => r[0])
+
+test('rosterers add drafts with times from site settings; one per slot; cleaners can’t roster', async () => {
+  const night = await createShift(GLADYS, '2027-03-02', 'night', JOSH)
+  assert.equal(night.status, 'draft')
+  assert.equal(night.start_time, '19:00:00')
+  assert.equal(night.end_time, '22:00:00')
+  assert.equal(night.fortnight_start.toISOString?.().slice(0, 10) ?? night.fortnight_start, '2027-03-01')
+  assert.equal(night.created_by, GLADYS)
+  const morning = await createShift(CARLY, '2027-03-02', 'morning', KYLE, '06:30', '09:30')
+  assert.equal(morning.start_time, '06:30:00')
+
+  await rejects(createShift(CARLY, '2027-03-02', 'night', KYLE), /That shift is already on the roster/)
+  await rejects(createShift(JOSH, '2027-03-03', 'night', JOSH), /Not allowed to roster this shift/)
+  await rejects(createShift(null, '2027-03-03', 'night', JOSH), /permission denied/)
+  await rejects(createShift(CARLY, '2027-03-03', 'night', JOSH, '19:00', '19:00'), /can't start and end at the same time/)
+  await db.query(`update users set active = false where id = $1`, [KYLE])
+  await rejects(createShift(CARLY, '2027-03-03', 'night', KYLE), /no longer active/)
+  await db.query(`update users set active = true where id = $1`, [KYLE])
+})
+
+test('publishing makes the fortnight’s drafts visible; edits after that are logged with who', async () => {
+  await rejects(call(JOSH, `select * from public.publish_fortnight('2027-03-01')`), /Not allowed to roster/)
+  const done = await call(GLADYS, `select * from public.publish_fortnight('2027-03-01')`)
+  assert.equal(done.length, 2)
+  assert.ok(done.every((s) => s.status === 'published' && s.published_at))
+  const seen = await call(JOSH, `select id from shifts where date = '2027-03-02' and type = 'night'`)
+  assert.equal(seen.length, 1)
+
+  const id = seen[0].id
+  const edited = (await call(CARLY, `select * from public.update_shift($1, p_start_time => '18:30', p_assigned_user_id => $2)`, [id, KYLE]))[0]
+  assert.equal(edited.start_time, '18:30:00')
+  assert.equal(edited.end_time, '22:00:00')
+  const log = await db.query(`select field, old_value, new_value, changed_by from shift_changes where shift_id = $1 order by field::text`, [id])
+  assert.deepEqual(log.rows, [
+    { field: 'start_time', old_value: '19:00', new_value: '18:30', changed_by: CARLY },
+    { field: 'assigned_user_id', old_value: JOSH, new_value: KYLE, changed_by: CARLY },
+  ].sort((a, b) => a.field.localeCompare(b.field)))
+  await rejects(call(JOSH, `select public.update_shift($1, p_start_time => '18:00')`, [id]), /Not allowed to roster this shift/)
+})
+
+test('removing: a draft is deleted, a published shift is cancelled, a clocked shift stays', async () => {
+  const draft = await createShift(CARLY, '2027-03-04', 'night', JOSH)
+  assert.deepEqual(await call(CARLY, `select public.remove_shift($1) as r`, [draft.id]), [{ r: 'deleted' }])
+  assert.equal((await db.query(`select 1 from shifts where id = $1`, [draft.id])).rows.length, 0)
+
+  const { rows } = await db.query(`select id from shifts where date = '2027-03-02' and type = 'morning'`)
+  assert.deepEqual(await call(GLADYS, `select public.remove_shift($1) as r`, [rows[0].id]), [{ r: 'cancelled' }])
+  await rejects(call(GLADYS, `select public.remove_shift($1)`, [rows[0].id]), /already cancelled/)
+  await rejects(call(GLADYS, `select public.update_shift($1, p_start_time => '07:00')`, [rows[0].id]), /This shift was cancelled/)
+  // The slot is free again.
+  await createShift(GLADYS, '2027-03-02', 'morning', JOSH)
+
+  const clocked = (await db.query(`select shift_id from clock_events where user_id = $1 and shift_id is not null limit 1`, [JOSH])).rows[0].shift_id
+  await rejects(call(CARLY, `select public.remove_shift($1)`, [clocked]), /stays on the roster/)
+  await rejects(call(CARLY, `select public.update_shift($1, p_assigned_user_id => $2)`, [clocked, KYLE]), /can't be reassigned/)
+})
+
+test('copying a fortnight makes drafts in the empty slots only, skipping people no longer active', async () => {
+  await createShift(CARLY, '2027-03-05', 'night', KYLE)
+  await createShift(CARLY, '2027-03-16', 'night', GLADYS) // Already filled in the target: the 2 Mar night copy is skipped.
+  await db.query(`update users set active = false where id = $1`, [KYLE])
+  const made = await call(GLADYS, `select * from public.copy_fortnight('2027-03-01', '2027-03-15')`)
+  await db.query(`update users set active = true where id = $1`, [KYLE])
+  // Source: 2 Mar night (Kyle, taken slot and inactive), 2 Mar morning (Josh), 5 Mar night (Kyle, inactive).
+  assert.deepEqual(made.map((s) => [s.type, s.assigned_user_id, s.status]), [['morning', JOSH, 'draft']])
+  await rejects(call(CARLY, `select * from public.copy_fortnight('2027-03-02', '2027-03-15')`), /Monday a fortnight starts on/)
+  await rejects(call(JOSH, `select * from public.copy_fortnight('2027-03-01', '2027-03-29')`), /Not allowed to roster/)
+})
+
+test('the trial path: Carly rosters a cleaner for today, publishes, and their clock-in links to it', async () => {
+  // Its own database, so today's slots are empty whatever the tests above did.
+  const shared = db
+  db = await freshDb()
+  try {
+    const { today } = await days()
+    const fortnight = (await db.query(`select private.fortnight_start_of($1::date)::text as f`, [today])).rows[0].f
+
+    const shift = await createShift(CARLY, today, 'night', JOSH)
+    assert.equal((await call(JOSH, `select id from shifts where id = $1`, [shift.id])).length, 0, 'a draft stays hidden')
+    await call(CARLY, `select * from public.publish_fortnight($1)`, [fortnight])
+    assert.equal((await call(JOSH, `select id from shifts where id = $1`, [shift.id])).length, 1, 'published: the cleaner sees it')
+
+    const r = await clock(JOSH, 'in', { lat: GYM.lat, lng: GYM.lng, accuracy: 10 })
+    assert.equal(r.event.shift_id, shift.id)
+    assert.deepEqual(r.flags, [])
+    const out = await clock(JOSH, 'out', { lat: GYM.lat, lng: GYM.lng, accuracy: 10 })
+    assert.equal(out.event.shift_id, shift.id)
+  } finally {
+    db = shared
+  }
+})
+
+test('notes: cleaners note their own shift, running late needs a time, only Carly marks done, once', async () => {
+  const shared = db
+  db = await freshDb()
+  try {
+    const { today } = await days()
+    const fortnight = (await db.query(`select private.fortnight_start_of($1::date)::text as f`, [today])).rows[0].f
+    const shift = await createShift(CARLY, today, 'night', JOSH)
+    await call(CARLY, `select * from public.publish_fortnight($1)`, [fortnight])
+    const note = (who, body, tag = null, arriveBy = null) =>
+      call(who, `select * from public.add_note($1, $2, $3, $4)`, [shift.id, body, tag, arriveBy]).then((r) => r[0])
+
+    const supplies = await note(JOSH, '  Out of paper towels  ', 'supplies_low')
+    assert.equal(supplies.body, 'Out of paper towels')
+    assert.equal(supplies.user_id, JOSH)
+    assert.equal(supplies.arrive_by, null)
+    await note(JOSH, 'Leak in the men’s showers', 'issue')
+    await note(JOSH, 'All good tonight')
+    const late = await note(JOSH, 'Train delay', 'running_late', '2030-01-01T09:15:00Z')
+    assert.ok(late.arrive_by)
+    // An arrival time only belongs on a running-late note.
+    assert.equal((await note(JOSH, 'FYI', 'general', '2030-01-01T09:15:00Z')).arrive_by, null)
+
+    await rejects(note(JOSH, 'Late', 'running_late'), /Say about when you will arrive/)
+    await rejects(note(JOSH, '   '), /A note needs some text/)
+    await rejects(note(KYLE, 'Not my shift'), /Notes can only be added to your own shift/)
+    await rejects(note(GLADYS, 'Not my shift'), /Notes can only be added to your own shift/)
+    await rejects(note(null, 'Signed out'), /permission denied/)
+    assert.equal((await note(CARLY, 'Checked the showers')).user_id, CARLY)
+
+    const done = (who) => call(who, `select * from public.mark_note_done($1)`, [supplies.id]).then((r) => r[0])
+    await rejects(done(GLADYS), /Only the manager can mark notes done/)
+    await rejects(done(JOSH), /Only the manager can mark notes done/)
+    const first = await done(CARLY)
+    assert.equal(first.done_by, CARLY)
+    assert.ok(first.done_at)
+    const again = await done(CARLY)
+    assert.equal(String(again.done_at), String(first.done_at))
+    await rejects(call(CARLY, `select * from public.mark_note_done('00000000-0000-4000-8000-0000000000ff')`), /no longer there/)
+
+    // Gladys sees her group's notes; Kyle sees none of Josh's.
+    assert.equal((await call(GLADYS, `select 1 from notes where user_id = $1`, [JOSH])).length, 5)
+    assert.equal((await call(KYLE, `select 1 from notes where user_id = $1`, [JOSH])).length, 0)
+  } finally {
+    db = shared
+  }
+})
+
+test('the scheduled job flags no-shows and missing clock-outs once, waiting for a running-late time', async () => {
+  const shared = db
+  db = await freshDb()
+  try {
+    /** A published shift starting `minutesAgo` before now (Sydney time), 3 hours long. */
+    const shiftStarting = async (minutesAgo, type, user) => {
+      const { rows } = await db.query(
+        `select (t at time zone 'Australia/Sydney')::date::text as date, to_char(t at time zone 'Australia/Sydney', 'HH24:MI') as start,
+                to_char((t + interval '3 hours') at time zone 'Australia/Sydney', 'HH24:MI') as end
+         from (select now() - make_interval(mins => $1) as t) x`,
+        [minutesAgo],
+      )
+      return addShift({ date: rows[0].date, type, user, start: rows[0].start, end: rows[0].end })
+    }
+    const clockAt = (user, shift, kind, minutesAgo) =>
+      owner(null, (tx) =>
+        tx.query(`insert into clock_events (user_id, shift_id, kind, server_time, location_status) values ($1, $2, $3, now() - make_interval(mins => $4), 'denied') returning id`, [user, shift, kind, minutesAgo]),
+      ).then((r) => r.rows[0].id)
+    const run = async () => (await db.query(`select private.raise_due_flags() as n`)).rows[0].n
+    const flagsOf = async (kind) => (await db.query(`select user_id, shift_id, clock_event_id, detail from flags where kind = $1 order by user_id`, [kind])).rows
+
+    // Josh: started 30 min ago, no clock-in → possible no-show.
+    const joshShift = await shiftStarting(30, 'night', JOSH)
+    // Kyle: started 20 min ago but said he'd arrive in 10 min → not yet.
+    const kyleShift = await shiftStarting(20, 'morning', KYLE)
+    await owner(null, (tx) => tx.query(`insert into notes (shift_id, user_id, body, tag, arrive_by) values ($1, $2, 'Train delay', 'running_late', now() + interval '10 minutes')`, [kyleShift, KYLE]))
+    // Gladys: yesterday's shift, clocked in, never out → missing clock-out.
+    const gladysShift = await shiftStarting(28 * 60, 'night', GLADYS)
+    const gladysIn = await clockAt(GLADYS, gladysShift, 'in', 28 * 60)
+    // Carly: yesterday's shift, clocked in and out → nothing.
+    const carlyShift = await shiftStarting(28 * 60, 'morning', CARLY)
+    await clockAt(CARLY, carlyShift, 'in', 28 * 60)
+    await clockAt(CARLY, carlyShift, 'out', 25 * 60)
+    // Josh, earlier today: an unscheduled clock-in 5 hours ago, never closed → missing clock-out after 3h + 30 min.
+    const joshUnscheduled = await clockAt(JOSH, null, 'in', 5 * 60)
+    // Kyle: a no-show 5 days ago is too old to flag now.
+    await shiftStarting(5 * 24 * 60, 'night', KYLE)
+
+    assert.equal(await run(), 3)
+    const noShows = await flagsOf('no_show')
+    assert.deepEqual(noShows.map((f) => [f.user_id, f.shift_id]), [[JOSH, joshShift]])
+    assert.match(noShows[0].detail, /^No clock-in by \d{1,2}:\d{2} [ap]m$/)
+    const missing = await flagsOf('missing_clock_out')
+    assert.deepEqual(
+      missing.map((f) => [f.user_id, f.shift_id, f.clock_event_id]),
+      [[GLADYS, gladysShift, gladysIn], [JOSH, null, joshUnscheduled]].sort((a, b) => a[0].localeCompare(b[0])),
+    )
+    assert.ok(missing.every((f) => /^No clock-out by \d{1,2}:\d{2} [ap]m$/.test(f.detail)))
+
+    // Raised once, however often the job runs.
+    assert.equal(await run(), 0)
+    // Kyle's arrival time passes (the note said 10 min ago, so due 5 min ago) → now flagged.
+    await owner(null, (tx) => tx.query(`insert into notes (shift_id, user_id, body, tag, arrive_by) values ($1, $2, 'Still stuck', 'running_late', now() - interval '20 minutes')`, [kyleShift, KYLE]))
+    assert.equal(await run(), 1)
+    assert.deepEqual((await flagsOf('no_show')).map((f) => f.user_id).sort(), [JOSH, KYLE].sort())
+
+    // Nobody signed in can run it.
+    await rejects(as(CARLY, (tx) => tx.query(`select private.raise_due_flags()`)), /permission denied/)
+  } finally {
+    db = shared
+  }
+})
+
+test('only Carly resolves a flag, once; the flagged record is untouched', async () => {
+  const shared = db
+  db = await freshDb()
+  try {
+    const r = await clock(JOSH, 'in', { status: 'denied' })
+    const flag = r.flags.find((f) => f.kind === 'no_location')
+    const resolve = (who, id = flag.id) => call(who, `select * from public.resolve_flag($1)`, [id]).then((rows) => rows[0])
+
+    await rejects(resolve(GLADYS), /Only the manager can resolve flags/)
+    await rejects(resolve(JOSH), /Only the manager can resolve flags/)
+    await rejects(resolve(null), /permission denied/)
+    const first = await resolve(CARLY)
+    assert.equal(first.resolved_by, CARLY)
+    assert.ok(first.resolved_at)
+    assert.equal(first.detail, flag.detail)
+    const again = await resolve(CARLY)
+    assert.equal(String(again.resolved_at), String(first.resolved_at))
+    await rejects(resolve(CARLY, '00000000-0000-4000-8000-0000000000ff'), /no longer there/)
+
+    const ev = (await db.query(`select location_status from clock_events where id = $1`, [r.event.id])).rows[0]
+    assert.equal(ev.location_status, 'denied')
+  } finally {
+    db = shared
+  }
 })

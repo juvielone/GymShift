@@ -10,9 +10,14 @@ The database for GymShift. The app still runs on mock data (`src/data`); these m
 | `migrations/…02_guards.sql` | Record-keeping rules enforced by the database itself: append-only clock events, corrections and shift changes; flags, notes and photos set once; swaps and extensions decided once; published shifts cancelled, never deleted, every change logged. |
 | `migrations/…03_rls.sql` | Row-level security. The app can only **read**, and only what the role allows (manager everyone, team lead their group, cleaner themselves). |
 | `migrations/…04_clock.sql` | `clock_in` / `clock_out`: the server stamps the time, works out the distance and raises flags. |
+| `migrations/…05_site_location.sql` | `update_site_location`: Carly moves the gym point and radius (manager only). |
+| `migrations/…06_roster.sql` | `create_shift`, `update_shift`, `remove_shift`, `copy_fortnight`, `publish_fortnight`: building the roster (Carly and Gladys). |
+| `migrations/…07_notes.sql` | `add_note`, `mark_note_done`: notes for Carly (supplies low, something wrong, running late) and her marking them done. |
+| `migrations/…08_due_flags.sql` | `private.raise_due_flags()`, run every 5 minutes by pg_cron: possible no-show and missing clock-out flags. |
+| `migrations/…09_resolve_flag.sql` | `resolve_flag`: Carly resolves a flag (manager only). |
 | `tests/db.test.mjs` | Runs every migration in an in-memory Postgres and checks the rules. `npm run test:db` |
 
-Every write the app makes is a database function (RPC) that checks who is calling with `auth.uid()` and uses the database clock (`now()`), never the phone's. Clock in/out is done; the rest (roster, swaps, extensions, corrections, flags, notes, photos, staff) come next.
+Every write the app makes is a database function (RPC) that checks who is calling with `auth.uid()` and uses the database clock (`now()`), never the phone's. Clock in/out, the gym location, the roster, notes and flags (raised and resolved) are done; the rest (swaps, extensions, corrections, photos, staff) come next.
 
 ## Setting up the project (once)
 

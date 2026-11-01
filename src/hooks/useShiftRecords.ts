@@ -2,7 +2,7 @@
 // far as records are kept. What a viewer sees is limited in src/data by their role; the person
 // filter is applied here so the picker can show each person's count for the fortnight.
 import { useCallback, useEffect, useState } from 'react'
-import { getCurrentUser, getPermissions, getRecordPeople, getSettings, getShiftRecords, serverNow, type ShiftRecord } from '@/data'
+import { getCurrentUser, getPermissions, getRecordPeople, getSettings, getShiftRecords, refreshData, serverNow, type ShiftRecord } from '@/data'
 import type { Scope, SiteSettings, Timestamp, User } from '@/types'
 import { addDays, fortnightStartOf, localDate, recordsOldestDate } from '@/lib/rules'
 
@@ -27,6 +27,7 @@ export function useShiftRecords() {
 
   const load = useCallback(async () => {
     try {
+      await refreshData()
       const [me, settings] = await Promise.all([getCurrentUser(), getSettings()])
       const now = serverNow()
       const today = localDate(now, settings)

@@ -4,7 +4,7 @@
 // read functions in the other modules work unchanged. Writes: database functions (RPC), then refresh().
 // Writes without a database function yet are refused in index.ts with NOT_LIVE_YET.
 import { createClient, type SupabaseClient } from '@supabase/supabase-js'
-import type { Availability, ClockEvent, Correction, Extension, Flag, Note, Photo, Role, Scope, Shift, ShiftChange, SiteSettings, Swap, User, Uuid } from '@/types'
+import type { Availability, ClockEvent, Correction, DateString, Extension, Flag, Note, NoteTag, Photo, Role, Scope, Shift, ShiftChange, ShiftType, SiteSettings, Swap, TimeString, Timestamp, User, Uuid } from '@/types'
 import type { ClockLocation, ClockResult } from './clockEvents'
 import { SIGN_IN_MISMATCH } from './users'
 import { auth, copy, db, emptyTables, requireUser } from './store'
@@ -34,6 +34,21 @@ type RoleRow = Omit<Role, 'can_publish_roster' | 'can_approve_swaps'> & {
 
 /** Postgres time is "19:00:00"; TimeString is "19:00". */
 const hhmm = (t: string) => t.slice(0, 5)
+const toShift = (s: Shift): Shift => ({ ...s, start_time: hhmm(s.start_time), end_time: hhmm(s.end_time) })
+
+/**
+ * A database function's error, in words for the screen. Its own messages (P0001, and 42501 for "not allowed")
+ * are written for the person. The raw error goes to the console for whoever is setting the database up.
+ */
+function saveError(error: { code?: string; message: string }): Error {
+  console.warn('[GymShift] Supabase write failed', error)
+  // PostgREST: no such function, so a migration hasn't been applied to this project yet.
+  if (error.code === 'PGRST202') return new Error("This isn't set up in the database yet (a migration is missing).")
+  // Postgres' own "permission denied for function …": the session has run out.
+  if (error.code === '42501' && error.message.startsWith('permission denied')) return new Error('Sign in again, then try once more.')
+  if (error.code === 'P0001' || error.code === '42501') return new Error(error.message)
+  return new Error('Not saved yet. Check your internet and try again.')
+}
 
 async function rows<T>(table: string): Promise<T[]> {
   const { data, error } = await sb().from(table).select('*')
@@ -41,8 +56,12 @@ async function rows<T>(table: string): Promise<T[]> {
   return data as T[]
 }
 
+let refreshesStarted = 0
+let refreshApplied = 0
+
 /** Reload everything this person may see. Small on purpose: about 7 people and a few fortnights. */
 async function refresh(): Promise<void> {
+  const started = ++refreshesStarted
   const [roles, users, settings, availability, shifts, shiftChanges, clockEvents, corrections, flags, extensions, swaps, photos, notes] = await Promise.all([
     rows<RoleRow>('roles'),
     rows<User>('users'),
@@ -58,13 +77,16 @@ async function refresh(): Promise<void> {
     rows<Photo>('photos'),
     rows<Note>('notes'),
   ])
+  // A slower, older reload (a background one overtaken by a save) must not put back what it read.
+  if (started < refreshApplied) return
+  refreshApplied = started
   const site = settings[0]
   Object.assign(db, {
     roles: roles.map((r) => ({ ...r, can_publish_roster: r.can_publish_roster ?? false, can_approve_swaps: r.can_approve_swaps ?? false })),
     users,
     settings: site ? { ...site, default_morning_start: hhmm(site.default_morning_start), default_night_start: hhmm(site.default_night_start) } : db.settings,
     availability,
-    shifts: shifts.map((s) => ({ ...s, start_time: hhmm(s.start_time), end_time: hhmm(s.end_time) })),
+    shifts: shifts.map(toShift),
     shiftChanges,
     clockEvents,
     corrections,
@@ -74,6 +96,17 @@ async function refresh(): Promise<void> {
     photos,
     notes,
   })
+}
+
+let pulling: Promise<void> | null = null
+
+/** Background reload, for screens that keep up with other people (Carly's Today, notes, the roster). One at a time. */
+export function pull(): Promise<void> {
+  if (!auth.signedIn) return Promise.resolve()
+  pulling ??= refresh().finally(() => {
+    pulling = null
+  })
+  return pulling
 }
 
 function clear(): void {
@@ -137,3 +170,101 @@ async function clock(kind: 'in' | 'out', userId: Uuid, location: ClockLocation):
 
 export const clockIn = (userId: Uuid, location: ClockLocation) => clock('in', userId, location)
 export const clockOut = (userId: Uuid, location: ClockLocation) => clock('out', userId, location)
+
+// ---- Site settings (database function public.update_site_location) ----
+
+export async function updateSiteLocation(input: { userId: Uuid; lat: number; lng: number; radius_m: number }): Promise<SiteSettings> {
+  if (input.userId !== auth.userId) throw new Error('Only the manager can change site settings')
+  const { error } = await sb().rpc('update_site_location', { p_lat: input.lat, p_lng: input.lng, p_radius_m: input.radius_m })
+  if (error) throw saveError(error)
+  await refresh().catch(() => {})
+  return copy(db.settings)
+}
+
+// ---- Roster (database functions create_shift, update_shift, remove_shift, copy_fortnight, publish_fortnight) ----
+
+/** The database rosters as whoever is signed in; this only guards against a screen passing someone else. */
+function requireMe(userId: Uuid): void {
+  if (userId !== auth.userId) throw new Error('Not allowed to roster this shift')
+}
+
+/** Calls a database function that writes, then reloads. Saved by then: if the reload fails the screen shows the last view until the next one. */
+async function write<T>(fn: string, args: Record<string, unknown>): Promise<T> {
+  const { data, error } = await sb().rpc(fn, args)
+  if (error) throw saveError(error)
+  await refresh().catch(() => {})
+  return data as T
+}
+
+export async function createShift(input: {
+  date: DateString
+  type: ShiftType
+  assignedUserId: Uuid
+  createdBy: Uuid
+  start_time?: TimeString
+  end_time?: TimeString
+}): Promise<Shift> {
+  requireMe(input.createdBy)
+  return toShift(
+    await write<Shift>('create_shift', {
+      p_date: input.date,
+      p_type: input.type,
+      p_assigned_user_id: input.assignedUserId,
+      p_start_time: input.start_time ?? null,
+      p_end_time: input.end_time ?? null,
+    }),
+  )
+}
+
+export async function updateShift(input: {
+  shiftId: Uuid
+  changedBy: Uuid
+  patch: Partial<Pick<Shift, 'date' | 'type' | 'start_time' | 'end_time' | 'assigned_user_id'>>
+}): Promise<Shift> {
+  requireMe(input.changedBy)
+  const { patch } = input
+  return toShift(
+    await write<Shift>('update_shift', {
+      p_shift_id: input.shiftId,
+      p_date: patch.date ?? null,
+      p_type: patch.type ?? null,
+      p_start_time: patch.start_time ?? null,
+      p_end_time: patch.end_time ?? null,
+      p_assigned_user_id: patch.assigned_user_id ?? null,
+    }),
+  )
+}
+
+export async function removeShift(input: { shiftId: Uuid; removedBy: Uuid }): Promise<{ removed: 'deleted' | 'cancelled' }> {
+  requireMe(input.removedBy)
+  return { removed: await write<'deleted' | 'cancelled'>('remove_shift', { p_shift_id: input.shiftId }) }
+}
+
+export async function copyFortnight(input: { fromStart: DateString; toStart: DateString; createdBy: Uuid }): Promise<Shift[]> {
+  requireMe(input.createdBy)
+  return (await write<Shift[]>('copy_fortnight', { p_from_start: input.fromStart, p_to_start: input.toStart })).map(toShift)
+}
+
+export async function publishFortnight(input: { fortnightStart: DateString; publishedBy: Uuid }): Promise<Shift[]> {
+  requireMe(input.publishedBy)
+  return (await write<Shift[]>('publish_fortnight', { p_fortnight_start: input.fortnightStart })).map(toShift)
+}
+
+// ---- Notes (database functions add_note, mark_note_done) ----
+
+export async function addNote(input: { shiftId: Uuid; userId: Uuid; body: string; tag?: NoteTag; arriveBy?: Timestamp }): Promise<Note> {
+  if (input.userId !== auth.userId) throw new Error('Notes can only be added to your own shift')
+  return write<Note>('add_note', { p_shift_id: input.shiftId, p_body: input.body, p_tag: input.tag ?? null, p_arrive_by: input.arriveBy ?? null })
+}
+
+export async function markNoteDone(input: { noteId: Uuid; doneBy: Uuid }): Promise<Note> {
+  if (input.doneBy !== auth.userId) throw new Error('Only the manager can mark notes done')
+  return write<Note>('mark_note_done', { p_note_id: input.noteId })
+}
+
+// ---- Flags (database function resolve_flag; raising them happens inside clock_in/out and the scheduled job) ----
+
+export async function resolveFlag(input: { flagId: Uuid; resolvedBy: Uuid }): Promise<Flag> {
+  if (input.resolvedBy !== auth.userId) throw new Error('Only the manager can resolve flags')
+  return write<Flag>('resolve_flag', { p_flag_id: input.flagId })
+}
