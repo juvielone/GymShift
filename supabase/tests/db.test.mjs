@@ -1,7 +1,8 @@
 // Database rules, tested against real Postgres (PGlite, in memory) with every migration applied.
 // Run: npm run test:db
 // A small stand-in for Supabase's auth schema (auth.users, auth.uid(), the anon/authenticated roles)
-// is created first; it is test-only and never part of the migrations.
+// and Storage (buckets, objects with row-level security) is created first; it is test-only and never
+// part of the migrations.
 import { test, before } from 'node:test'
 import assert from 'node:assert/strict'
 import { readdirSync, readFileSync } from 'node:fs'
@@ -26,6 +27,15 @@ const AUTH_STUB = `
   $$;
   grant usage on schema auth to anon, authenticated;
   grant usage on schema public to anon, authenticated;
+  create schema storage;
+  create table storage.buckets (id text primary key, name text not null, public boolean default false, file_size_limit bigint, allowed_mime_types text[]);
+  create table storage.objects (
+    id uuid primary key default gen_random_uuid(), bucket_id text references storage.buckets (id), name text not null,
+    owner_id text default (auth.uid())::text, metadata jsonb, unique (bucket_id, name)
+  );
+  alter table storage.objects enable row level security;
+  grant usage on schema storage to anon, authenticated;
+  grant select, insert, delete on storage.objects to authenticated;
 `
 
 const SEED = `
@@ -494,6 +504,81 @@ test('only Carly resolves a flag, once; the flagged record is untouched', async 
 
     const ev = (await db.query(`select location_status from clock_events where id = $1`, [r.event.id])).rows[0]
     assert.equal(ev.location_status, 'denied')
+  } finally {
+    db = shared
+  }
+})
+
+test('photos: upload into your own folder, saved by add_photo with the rules; removal keeps the row', async () => {
+  const shared = db
+  db = await freshDb()
+  try {
+    const { today } = await days()
+    const fortnight = (await db.query(`select private.fortnight_start_of($1::date)::text as f`, [today])).rows[0].f
+    const shift = (await createShift(CARLY, today, 'night', JOSH)).id
+    const kyleShift = (await createShift(CARLY, today, 'morning', KYLE)).id
+    await call(CARLY, `select * from public.publish_fortnight($1)`, [fortnight])
+    const pathFor = (user, sid = shift) => `${user}/${sid}/${crypto.randomUUID()}.jpg`
+    /** Storage upload as that person (what the Storage API does with their sign-in). */
+    const upload = (who, path, size = 150_000) =>
+      call(who, `insert into storage.objects (bucket_id, name, metadata) values ('shift-photos', $1, $2) returning name`, [path, { size }])
+    const add = (who, path, sid = shift) => call(who, `select * from public.add_photo($1, $2)`, [sid, path]).then((r) => r[0])
+
+    // Storage: only your own folder, for your own shift.
+    await rejects(upload(JOSH, pathFor(KYLE, kyleShift)), /row-level security/)
+    await rejects(upload(JOSH, pathFor(JOSH, kyleShift)), /row-level security/)
+    await rejects(upload(JOSH, `${JOSH}/${shift}/../x.jpg`), /row-level security/)
+
+    // Not clocked in yet.
+    const early = pathFor(JOSH)
+    await upload(JOSH, early)
+    await rejects(add(JOSH, early), /Photos can be added once you clock in/)
+    await clock(JOSH, 'in', { lat: GYM.lat, lng: GYM.lng, accuracy: 10 })
+
+    const first = await add(JOSH, early)
+    assert.equal(first.user_id, JOSH)
+    assert.equal(first.size_bytes, 150_000)
+    const months = (await db.query(`select round(extract(epoch from expires_at - uploaded_at) / 86400) as d from photos where id = $1`, [first.id])).rows[0].d
+    assert.ok(Number(months) >= 180 && Number(months) <= 185, 'kept about 6 months')
+    await rejects(add(JOSH, early), /already saved/)
+    await rejects(add(JOSH, pathFor(JOSH)), /didn't upload/)
+    await rejects(add(KYLE, early), /only be added to your own shift/)
+
+    // Who can see the image: Josh, Gladys (his team lead), Carly; not Kyle.
+    const sees = async (who, path) => (await call(who, `select 1 from storage.objects where name = $1`, [path])).length === 1
+    assert.deepEqual([await sees(JOSH, early), await sees(GLADYS, early), await sees(CARLY, early), await sees(KYLE, early)], [true, true, true, false])
+
+    // Up to the limit (10); the 11th is refused.
+    for (let i = 1; i < 10; i++) {
+      const p = pathFor(JOSH)
+      await upload(JOSH, p)
+      await add(JOSH, p)
+    }
+    const eleventh = pathFor(JOSH)
+    await upload(JOSH, eleventh)
+    await rejects(add(JOSH, eleventh), /at most 10 photos/)
+    // The image that never got a row: its uploader can clean it up.
+    assert.equal((await call(JOSH, `delete from storage.objects where name = $1 returning name`, [eleventh])).length, 1)
+    // A saved photo's image can't be deleted while it's shown.
+    assert.equal((await call(JOSH, `delete from storage.objects where name = $1 returning name`, [early])).length, 0)
+
+    // Remove: Josh within 10 minutes; then only Carly. The row stays with who and when.
+    const removed = (await call(JOSH, `select * from public.remove_photo($1)`, [first.id]))[0]
+    assert.equal(removed.removed_by, JOSH)
+    assert.equal((await call(JOSH, `delete from storage.objects where name = $1 returning name`, [early])).length, 1)
+    assert.equal((await db.query(`select count(*)::int as n from photos where id = $1`, [first.id])).rows[0].n, 1)
+    const old = (await owner(null, (tx) =>
+      tx.query(`insert into photos (shift_id, user_id, storage_path, size_bytes, uploaded_at, expires_at) values ($1, $2, $3, 1000, now() - interval '20 minutes', now() + interval '6 months') returning id`, [shift, JOSH, pathFor(JOSH)]),
+    )).rows[0].id
+    await rejects(call(JOSH, `select public.remove_photo($1)`, [old]), /removed for 10 minutes after adding them/)
+    await rejects(call(GLADYS, `select public.remove_photo($1)`, [old]), /removed for 10 minutes/)
+    assert.equal((await call(CARLY, `select * from public.remove_photo($1)`, [old]))[0].removed_by, CARLY)
+
+    // With a place free again, a new photo fits; after clock-out plus 3 hours, photos close.
+    const late = pathFor(JOSH)
+    await upload(JOSH, late)
+    await owner(null, (tx) => tx.query(`insert into clock_events (user_id, shift_id, kind, server_time, location_status) values ($1, $2, 'out', now() - interval '181 minutes', 'denied')`, [JOSH, shift]))
+    await rejects(add(JOSH, late), /Photos for this shift have closed/)
   } finally {
     db = shared
   }

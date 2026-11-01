@@ -1,6 +1,6 @@
 // Work photos. Max per shift, the upload window, the remove window and retention come from settings.
-// The phone compresses each photo (~150 KB) before it gets here. Images live in photoFiles until
-// Supabase Storage (private bucket, short-lived signed URLs); the rows here are the record.
+// The phone compresses each photo (~150 KB) before it gets here. Demo and trial keep images in
+// photoFiles; the live app uses Supabase Storage (live.ts). The rows here are the record.
 // A removed photo keeps its row (who removed it, when); only the image goes.
 import type { Photo, Uuid } from '@/types'
 import { canRemoveOwnPhoto, compareTs, photoWindowClosesAt } from '@/lib/rules'
@@ -36,8 +36,11 @@ function attendanceOf(shiftId: Uuid) {
   return { clockIn: clockIn ? effectiveTime(clockIn) : null, clockOut: clockOut ? effectiveTime(clockOut) : null }
 }
 
-/** Own shift only, from clock-in until the upload window after clock-out closes. */
-export async function uploadPhoto(input: { shiftId: Uuid; userId: Uuid; file: Blob }): Promise<Photo> {
+/**
+ * Own shift only, from clock-in until the upload window after clock-out closes, up to the shift's limit.
+ * Live mode runs this too before uploading, so an image isn't sent only to be refused (the database checks again).
+ */
+export function requireCanAddPhoto(input: { shiftId: Uuid; userId: Uuid }) {
   const user = requireUser(input.userId)
   const shift = db.shifts.find((s) => s.id === input.shiftId)
   if (!shift) throw new Error(`Unknown shift ${input.shiftId}`)
@@ -51,7 +54,11 @@ export async function uploadPhoto(input: { shiftId: Uuid; userId: Uuid; file: Bl
   if (db.photos.filter((p) => p.shift_id === shift.id && p.removed_at === null).length >= db.settings.max_photos_per_shift) {
     throw new Error(`A shift can have at most ${db.settings.max_photos_per_shift} photos`)
   }
+  return { user, shift, now }
+}
 
+export async function uploadPhoto(input: { shiftId: Uuid; userId: Uuid; file: Blob }): Promise<Photo> {
+  const { user, shift, now } = requireCanAddPhoto(input)
   const expires = new Date(now)
   expires.setUTCMonth(expires.getUTCMonth() + db.settings.photo_retention_months)
   const id = newId('photo')

@@ -6,6 +6,7 @@
 import { createClient, type SupabaseClient } from '@supabase/supabase-js'
 import type { Availability, ClockEvent, Correction, DateString, Extension, Flag, Note, NoteTag, Photo, Role, Scope, Shift, ShiftChange, ShiftType, SiteSettings, Swap, TimeString, Timestamp, User, Uuid } from '@/types'
 import type { ClockLocation, ClockResult } from './clockEvents'
+import { requireCanAddPhoto } from './photos'
 import { SIGN_IN_MISMATCH } from './users'
 import { auth, copy, db, emptyTables, requireUser } from './store'
 
@@ -110,6 +111,7 @@ export function pull(): Promise<void> {
 }
 
 function clear(): void {
+  photoLinks.clear()
   Object.assign(db, emptyTables())
   auth.signedIn = false
 }
@@ -267,4 +269,53 @@ export async function markNoteDone(input: { noteId: Uuid; doneBy: Uuid }): Promi
 export async function resolveFlag(input: { flagId: Uuid; resolvedBy: Uuid }): Promise<Flag> {
   if (input.resolvedBy !== auth.userId) throw new Error('Only the manager can resolve flags')
   return write<Flag>('resolve_flag', { p_flag_id: input.flagId })
+}
+
+// ---- Photos (private Storage bucket shift-photos; database functions add_photo, remove_photo) ----
+
+const PHOTO_BUCKET = 'shift-photos'
+/** Signed links last an hour; one is reused while it has at least 5 minutes left. */
+const LINK_SECONDS = 3600
+const photoLinks = new Map<string, { url: string; until: number }>()
+
+/** Upload the image into the person's own folder, then save the row. A refused save takes the image back out. */
+export async function uploadPhoto(input: { shiftId: Uuid; userId: Uuid; file: Blob }): Promise<Photo> {
+  if (input.userId !== auth.userId) throw new Error('Photos can only be added to your own shift')
+  requireCanAddPhoto(input)
+  const path = `${input.userId}/${input.shiftId}/${crypto.randomUUID()}.jpg`
+  const bucket = sb().storage.from(PHOTO_BUCKET)
+  const { error } = await bucket.upload(path, input.file, { contentType: 'image/jpeg', upsert: false })
+  if (error) {
+    console.warn('[GymShift] Photo upload failed', error)
+    throw new Error('Not saved yet. Check your internet and try again.')
+  }
+  try {
+    return await write<Photo>('add_photo', { p_shift_id: input.shiftId, p_storage_path: path })
+  } catch (e) {
+    // Storage only lets this go while the image has no row, so a save that did land is never undone.
+    void bucket.remove([path])
+    throw e
+  }
+}
+
+/** A short-lived signed link to the image. null = removed, or not allowed to see it. */
+export async function photoUrl(photo: Photo): Promise<string | null> {
+  if (photo.removed_at !== null) return null
+  const cached = photoLinks.get(photo.storage_path)
+  if (cached && cached.until - performance.now() > 5 * 60_000) return cached.url
+  const { data, error } = await sb().storage.from(PHOTO_BUCKET).createSignedUrl(photo.storage_path, LINK_SECONDS)
+  if (error || !data) return null
+  photoLinks.set(photo.storage_path, { url: data.signedUrl, until: performance.now() + LINK_SECONDS * 1000 })
+  return data.signedUrl
+}
+
+/** Marks the row removed (it stays, with who and when), then deletes the image. */
+export async function removePhoto(input: { photoId: Uuid; userId: Uuid }): Promise<Photo> {
+  if (input.userId !== auth.userId) throw new Error('Only the manager can remove this photo')
+  const photo = await write<Photo>('remove_photo', { p_photo_id: input.photoId })
+  photoLinks.delete(photo.storage_path)
+  // If this fails the image stays in Storage, but nobody can open it: a removed photo gets no link.
+  const { error } = await sb().storage.from(PHOTO_BUCKET).remove([photo.storage_path])
+  if (error) console.warn('[GymShift] Removed photo image not deleted', error)
+  return photo
 }

@@ -11,6 +11,7 @@ import * as extensions from './extensions'
 import * as swaps from './swaps'
 import * as photos from './photos'
 import * as notes from './notes'
+import type { Photo } from '@/types'
 import { MODE, persist } from './store'
 
 type Live = typeof import('./live')
@@ -82,9 +83,13 @@ export { getSwaps } from './swaps'
 export const requestSwap = persisted(swaps.requestSwap)
 export const decideSwap = persisted(swaps.decideSwap)
 
-export { getPhotos, getPhotoUrl } from './photos'
-export const uploadPhoto = persisted(photos.uploadPhoto)
-export const removePhoto = persisted(photos.removePhoto)
+export { getPhotos } from './photos'
+/** Where to load a photo's image from: a short-lived signed link in the live app. null = no image. */
+export async function getPhotoUrl(photo: Photo): Promise<string | null> {
+  return MODE === 'live' ? (await import('./live')).photoUrl(photo) : photos.getPhotoUrl(photo)
+}
+export const uploadPhoto = persisted(photos.uploadPhoto, (l) => l.uploadPhoto)
+export const removePhoto = persisted(photos.removePhoto, (l) => l.removePhoto)
 
 export { getShiftRecord, getShiftRecords, getRecordPeople } from './records'
 export type { ShiftRecord } from './records'

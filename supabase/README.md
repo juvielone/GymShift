@@ -15,9 +15,10 @@ The database for GymShift. The app still runs on mock data (`src/data`); these m
 | `migrations/…07_notes.sql` | `add_note`, `mark_note_done`: notes for Carly (supplies low, something wrong, running late) and her marking them done. |
 | `migrations/…08_due_flags.sql` | `private.raise_due_flags()`, run every 5 minutes by pg_cron: possible no-show and missing clock-out flags. |
 | `migrations/…09_resolve_flag.sql` | `resolve_flag`: Carly resolves a flag (manager only). |
-| `tests/db.test.mjs` | Runs every migration in an in-memory Postgres and checks the rules. `npm run test:db` |
+| `migrations/…10_photos.sql` | The private `shift-photos` Storage bucket and its rules; `add_photo`, `remove_photo`. |
+| `tests/db.test.mjs` | Runs every migration in an in-memory Postgres (with small stand-ins for Supabase auth and Storage) and checks the rules. `npm run test:db` |
 
-Every write the app makes is a database function (RPC) that checks who is calling with `auth.uid()` and uses the database clock (`now()`), never the phone's. Clock in/out, the gym location, the roster, notes and flags (raised and resolved) are done; the rest (swaps, extensions, corrections, photos, staff) come next.
+Every write the app makes is a database function (RPC) that checks who is calling with `auth.uid()` and uses the database clock (`now()`), never the phone's. Clock in/out, the gym location, the roster, notes, flags (raised and resolved) and photos are done; the rest (swaps, extensions, corrections, staff, and deleting photos after 6 months) come next.
 
 ## Setting up the project (once)
 
