@@ -4,7 +4,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { Delete, LoaderCircle } from 'lucide-react'
 import { getDataMode, getDemoAccounts, getSettings, resetTrialData, signIn, SIGN_IN_MISMATCH, type DataMode, type DemoAccount } from '@/data'
-import { firstName, siteShortName } from '@/lib/format'
+import { shortName, siteShortName } from '@/lib/format'
 import { cn } from '@/lib/utils'
 
 const PIN_LENGTH = 6
@@ -277,7 +277,7 @@ export function SignIn({ onSignedIn }: { onSignedIn: () => void }) {
                 disabled={busy}
                 className="h-11 flex-1 rounded-[14px] border border-border bg-background text-[15px] font-semibold transition-colors hover:bg-muted active:bg-muted"
               >
-                {firstName(a.full_name)}
+                {shortName(a.full_name)}
               </button>
             ))}
           </div>

@@ -1,6 +1,7 @@
 export type * from './common'
 export type * from './roles'
 export type * from './users'
+export type * from './userContacts'
 export type * from './shifts'
 export type * from './clockEvents'
 export type * from './corrections'

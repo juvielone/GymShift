@@ -13,7 +13,7 @@ import { PhotoThumb } from '@/components/home/PhotosRow'
 import { FLAG_LABEL } from '@/components/manager/flagText'
 import { ShiftRecordSheet } from '@/components/records/ShiftRecordSheet'
 import { PickerSheet } from '@/components/common/PickerSheet'
-import { firstName, formatClock, formatDateShort, formatDuration } from '@/lib/format'
+import { shortName, formatClock, formatDateShort, formatDuration } from '@/lib/format'
 import { addDays } from '@/lib/rules'
 import { cn } from '@/lib/utils'
 
@@ -104,7 +104,7 @@ export function RecordsPage({ onBack }: { onBack: () => void }) {
           >
             <span>
               <span className="text-muted-foreground">Showing: </span>
-              <span className="font-semibold">{chosen ? firstName(chosen.full_name) : 'Everyone'}</span>
+              <span className="font-semibold">{chosen ? shortName(chosen.full_name) : 'Everyone'}</span>
             </span>
             <ChevronDown aria-hidden className="size-5 text-muted-foreground" />
           </button>
@@ -158,7 +158,7 @@ export function RecordsPage({ onBack }: { onBack: () => void }) {
 
       {records.length === 0 ? (
         <p className="border-b border-border px-1 py-3 text-[15px] text-muted-foreground">
-          {chosen ? `No shifts for ${firstName(chosen.full_name)} in this fortnight.` : 'No shifts in this fortnight yet.'}
+          {chosen ? `No shifts for ${shortName(chosen.full_name)} in this fortnight.` : 'No shifts in this fortnight yet.'}
         </p>
       ) : (
         days.map((day) => (
@@ -188,7 +188,7 @@ export function RecordsPage({ onBack }: { onBack: () => void }) {
         onPick={(v) => setPerson(v || null)}
         options={[
           { value: '', label: 'Everyone', detail: plural(all.length, 'shift'), disc: <Users /> },
-          ...people.map((p) => ({ value: p.id, label: firstName(p.full_name), detail: plural(countFor(p.id), 'shift'), disc: p.full_name[0] })),
+          ...people.map((p) => ({ value: p.id, label: shortName(p.full_name), detail: plural(countFor(p.id), 'shift'), disc: p.full_name[0] })),
         ]}
       />
       <PickerSheet
@@ -264,7 +264,7 @@ function RecordRow({
       )}
       <span className="min-w-0 flex-1">
         <span className="block text-base leading-snug font-medium">
-          {own ? `${type} shift` : firstName(user.full_name)}
+          {own ? `${type} shift` : shortName(user.full_name)}
           {!own && <span className="font-normal text-muted-foreground"> · {type}</span>}
         </span>
         <span className={cn('block text-sm leading-snug', missed ? 'text-warn' : 'text-muted-foreground')}>{line}</span>

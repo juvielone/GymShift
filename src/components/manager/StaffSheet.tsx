@@ -1,13 +1,14 @@
-// Add or change a staff member: name, username, role and who they report to. Carly only.
-// Adding someone or resetting their PIN shows the new PIN once, to pass on; it can't be looked up later.
+// Add or change a staff member: name, username, role, who they report to and an optional mobile. Carly only.
+// Adding, resetting or reactivating someone takes a PIN: the app fills one in and Carly can type her own.
+// It's shown once afterwards, to pass on; it can't be looked up later.
 // Deactivating never deletes anyone; the confirm step says what it means for shifts and groups.
 import { useEffect, useState } from 'react'
-import { Check, Copy, LoaderCircle } from 'lucide-react'
-import { createUser, getStaffImpact, resetPin, setUserActive, suggestUsername, updateUser } from '@/data'
+import { Check, Copy, LoaderCircle, RefreshCw } from 'lucide-react'
+import { createUser, getContact, getStaffImpact, makePin, pinProblem, resetPin, setUserActive, suggestUsername, updateUser } from '@/data'
 import type { StaffImpact } from '@/data'
 import type { RoleId, User, Uuid } from '@/types'
 import { Drawer, DrawerContent, DrawerDescription, DrawerFooter, DrawerHeader, DrawerTitle } from '@/components/ui/drawer'
-import { firstName } from '@/lib/format'
+import { formatPhone, shortName } from '@/lib/format'
 import { cn } from '@/lib/utils'
 
 const ROLE_CHOICES: { id: RoleId; label: string }[] = [
@@ -17,7 +18,7 @@ const ROLE_CHOICES: { id: RoleId; label: string }[] = [
 
 /** "Josh", "Josh and Kyle", "Josh, Kyle and Gino". */
 function listNames(people: User[]): string {
-  const names = people.map((p) => firstName(p.full_name))
+  const names = people.map((p) => shortName(p.full_name))
   return names.length <= 1 ? (names[0] ?? '') : `${names.slice(0, -1).join(', ')} and ${names.at(-1)}`
 }
 
@@ -25,7 +26,7 @@ const chip = (active: boolean) =>
   cn('min-h-12 rounded-xl border px-3 text-base font-medium transition-colors', active ? 'border-foreground bg-foreground text-background' : 'border-border bg-background active:bg-muted')
 
 const field = 'h-12 w-full rounded-xl border border-border bg-background px-3 text-base'
-const inkButton = 'flex h-14 items-center justify-center gap-2 rounded-[14px] bg-foreground text-lg font-semibold text-background active:bg-foreground/85'
+const inkButton = 'flex h-14 items-center justify-center gap-2 rounded-[14px] bg-foreground text-lg font-semibold text-background active:bg-foreground/85 disabled:bg-muted disabled:text-muted-foreground'
 const outlineButton = 'flex h-14 items-center justify-center gap-2 rounded-[14px] border border-border text-lg font-medium active:bg-muted'
 const quietButton = 'h-11 rounded-xl px-3 text-base font-medium text-muted-foreground active:bg-muted'
 
@@ -57,21 +58,34 @@ export function StaffSheet({ open, onOpenChange, person, users, me, onSaved }: P
   const [usernameEdited, setUsernameEdited] = useState(person !== null)
   const [role, setRole] = useState<RoleId>(person?.role ?? 'cleaner')
   const [leadId, setLeadId] = useState<Uuid | null>(person?.team_lead_id ?? null)
+  const [phone, setPhone] = useState('')
+  // Filled in for Carly; she can keep it or type her own.
+  const [pin, setPin] = useState(() => makePin())
   const [impact, setImpact] = useState<StaffImpact | null>(null)
-  const [step, setStep] = useState<'edit' | 'deactivate' | 'reset'>('edit')
+  const [step, setStep] = useState<'edit' | 'deactivate' | 'reset' | 'reactivate'>('edit')
   const [reveal, setReveal] = useState<Reveal | null>(null)
   const [copied, setCopied] = useState(false)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
-    if (person) void getStaffImpact(person.id).then(setImpact)
-  }, [person])
+    if (!person) return
+    void getStaffImpact(person.id).then(setImpact)
+    void getContact({ viewerId: me.id, userId: person.id }).then((c) => setPhone(c?.phone ? formatPhone(c.phone) : ''))
+  }, [person, me.id])
+
+  const pinError = pin.length === 6 ? pinProblem(pin) : null
+  const pinReady = pin.length === 6 && pinError === null
+  const openPinStep = (next: 'reset' | 'reactivate') => {
+    setPin(makePin())
+    setError(null)
+    setStep(next)
+  }
 
   const leads = users.filter((u) => u.role === 'team_lead' && u.active && u.id !== person?.id)
-  const managerName = firstName(me.full_name)
+  const managerName = shortName(me.full_name)
   const losesGroup = person?.role === 'team_lead' && role !== 'team_lead' && (impact?.group.length ?? 0) > 0
-  const groupLabel = (id: Uuid | null) => (id ? `${firstName(users.find((u) => u.id === id)?.full_name ?? '')}'s group` : `reporting to ${managerName}`)
+  const groupLabel = (id: Uuid | null) => (id ? `${shortName(users.find((u) => u.id === id)?.full_name ?? '')}'s group` : `reporting to ${managerName}`)
 
   // Closing the PIN screen (Done, swipe or tap outside) is when the staff page hears about the change.
   function changeOpen(next: boolean) {
@@ -97,27 +111,35 @@ export function StaffSheet({ open, onOpenChange, person, users, me, onSaved }: P
     }
   }
 
-  const details = { full_name: name, username, role, team_lead_id: role === 'cleaner' ? leadId : null }
+  const details = { full_name: name, username, role, team_lead_id: role === 'cleaner' ? leadId : null, phone: phone.trim() || null }
   const save = () =>
     run(async () => {
       if (!person) {
-        const { user: u, pin } = await createUser({ actorId: me.id, ...details })
-        const message = `${firstName(u.full_name)} added${u.role === 'cleaner' ? ` to ${groupLabel(u.team_lead_id)}` : ' as a team lead'}.`
-        return { name: firstName(u.full_name), username: u.username, pin, message }
+        const { user: u, pin: given } = await createUser({ actorId: me.id, ...details, pin })
+        const message = `${shortName(u.full_name)} added${u.role === 'cleaner' ? ` to ${groupLabel(u.team_lead_id)}` : ' as a team lead'}.`
+        return { name: shortName(u.full_name), username: u.username, pin: given, message }
       }
       const u = await updateUser({ actorId: me.id, userId: person.id, patch: details })
-      return `${firstName(u.full_name)} saved.`
+      return `${shortName(u.full_name)} saved.`
     })
-  const toggleActive = () =>
+  const deactivate = () =>
     run(async () => {
-      const u = await setUserActive({ actorId: me.id, userId: person!.id, active: !person!.active })
-      return u.active ? `${firstName(u.full_name)} is active again.` : `${firstName(u.full_name)} is deactivated. Their hours and records are kept.`
+      const u = await setUserActive({ actorId: me.id, userId: person!.id, active: false })
+      return `${shortName(u.full_name)} is deactivated. Their hours and records are kept.`
+    })
+  // Coming back: active again with a new PIN, in one step.
+  const reactivate = () =>
+    run(async () => {
+      const u = await setUserActive({ actorId: me.id, userId: person!.id, active: true })
+      const { pin: given } = await resetPin({ actorId: me.id, userId: u.id, pin })
+      const first = shortName(u.full_name)
+      return { name: first, username: u.username, pin: given, message: `${first} is active again, with a new PIN.` }
     })
   const newPin = () =>
     run(async () => {
-      const { pin } = await resetPin({ actorId: me.id, userId: person!.id })
-      const first = firstName(person!.full_name)
-      return { name: first, username: person!.username, pin, message: `${first} has a new PIN.` }
+      const { pin: given } = await resetPin({ actorId: me.id, userId: person!.id, pin })
+      const first = shortName(person!.full_name)
+      return { name: first, username: person!.username, pin: given, message: `${first} has a new PIN.` }
     })
 
   async function copyPin() {
@@ -130,23 +152,53 @@ export function StaffSheet({ open, onOpenChange, person, users, me, onSaved }: P
     }
   }
 
-  const first = person ? firstName(person.full_name) : ''
+  const first = person ? shortName(person.full_name) : ''
   const title = reveal
     ? `${reveal.name}'s PIN`
     : step === 'deactivate'
       ? `Deactivate ${first}?`
       : step === 'reset'
         ? `Reset ${first}'s PIN?`
-        : (person?.full_name ?? 'Add person')
+        : step === 'reactivate'
+          ? `Reactivate ${first}?`
+          : (person?.full_name ?? 'Add person')
   const description = reveal
     ? `Shown only now. Tell ${reveal.name} in person or send it by message.`
     : step === 'deactivate'
       ? "They won't be able to sign in or be put on the roster. Their hours, photos and notes are kept."
       : step === 'reset'
-        ? "Their old PIN stops working. You'll see the new PIN once, to pass on."
-        : person && !person.active
-          ? 'No longer active. Their hours and records are kept.'
-          : 'Only you can add people or change roles.'
+        ? 'Their old PIN stops working. Keep this new one or type your own.'
+        : step === 'reactivate'
+          ? 'They can sign in and be rostered again, with a new PIN. Keep this one or type your own.'
+          : person && !person.active
+            ? 'No longer active. Their hours and records are kept.'
+            : 'Only you can add people or change roles.'
+
+  const pinField = (
+    <div className="block">
+      <label htmlFor="staff-pin" className="text-sm font-medium text-muted-foreground">
+        PIN
+      </label>
+      <div className="mt-1 flex gap-2">
+        <input
+          id="staff-pin"
+          value={pin}
+          onChange={(e) => setPin(e.target.value.replace(/\D/g, '').slice(0, 6))}
+          inputMode="numeric"
+          autoComplete="off"
+          aria-invalid={pinError !== null}
+          aria-describedby="staff-pin-hint"
+          className={cn(field, 'flex-1 text-lg font-semibold tracking-[0.12em] tabular-nums')}
+        />
+        <button type="button" onClick={() => setPin(makePin())} aria-label="Make a new PIN" className="flex size-12 shrink-0 items-center justify-center rounded-xl border border-border active:bg-muted">
+          <RefreshCw aria-hidden className="size-5" />
+        </button>
+      </div>
+      <span id="staff-pin-hint" className={cn('mt-1 block text-sm', pinError ? 'font-medium text-warn' : 'text-muted-foreground')}>
+        {pinError ?? (pin.length < 6 ? '6 digits.' : 'Keep this one or type your own. You’ll see it once more after saving.')}
+      </span>
+    </div>
+  )
 
   return (
     <Drawer open={open} onOpenChange={changeOpen}>
@@ -174,7 +226,9 @@ export function StaffSheet({ open, onOpenChange, person, users, me, onSaved }: P
             {impact.clockedIn && <li className="rounded-xl bg-warn-soft px-3 py-2.5 text-warn">They're clocked in now. Their time is still saved.</li>}
             {impact.group.length > 0 && <li className="rounded-xl bg-muted px-3 py-2.5">{listNames(impact.group)} will report to {managerName}.</li>}
           </ul>
-        ) : step === 'reset' ? null : (
+        ) : step === 'reset' || step === 'reactivate' ? (
+          <div className="px-4">{pinField}</div>
+        ) : (
           <div className="space-y-5 overflow-y-auto px-4 pb-2">
             <div className="space-y-3">
               <label className="block">
@@ -183,11 +237,12 @@ export function StaffSheet({ open, onOpenChange, person, users, me, onSaved }: P
                   value={name}
                   onChange={(e) => {
                     setName(e.target.value)
-                    if (!usernameEdited) setUsername(suggestUsername(e.target.value))
+                    if (!usernameEdited) setUsername(suggestUsername(e.target.value, users.filter((u) => u.id !== person?.id).map((u) => u.username)))
                   }}
                   autoComplete="off"
                   className={`${field} mt-1`}
                 />
+                <span className="mt-1 block text-sm text-muted-foreground">First name and surname, so two Joshes can be told apart.</span>
               </label>
               <label className="block">
                 <span className="text-sm font-medium text-muted-foreground">Username</span>
@@ -204,6 +259,20 @@ export function StaffSheet({ open, onOpenChange, person, users, me, onSaved }: P
                   className={`${field} mt-1`}
                 />
                 <span className="mt-1 block text-sm text-muted-foreground">They type this to sign in, with their PIN.</span>
+              </label>
+              {!person && pinField}
+              <label className="block">
+                <span className="text-sm font-medium text-muted-foreground">Mobile (optional)</span>
+                <input
+                  value={phone}
+                  onChange={(e) => setPhone(e.target.value)}
+                  type="tel"
+                  inputMode="tel"
+                  autoComplete="off"
+                  placeholder="0412 345 678"
+                  className={`${field} mt-1`}
+                />
+                <span className="mt-1 block text-sm text-muted-foreground">To contact them. Only you and they can see it. Not used to sign in.</span>
               </label>
             </div>
 
@@ -225,7 +294,7 @@ export function StaffSheet({ open, onOpenChange, person, users, me, onSaved }: P
                 <div className="mt-1.5 flex flex-wrap gap-2">
                   {leads.map((l) => (
                     <button key={l.id} type="button" aria-pressed={leadId === l.id} onClick={() => setLeadId(l.id)} className={chip(leadId === l.id)}>
-                      {firstName(l.full_name)}
+                      {shortName(l.full_name)}
                     </button>
                   ))}
                   <button type="button" aria-pressed={leadId === null} onClick={() => setLeadId(null)} className={chip(leadId === null)}>
@@ -261,7 +330,7 @@ export function StaffSheet({ open, onOpenChange, person, users, me, onSaved }: P
             </>
           ) : step === 'deactivate' ? (
             <>
-              <button type="button" onClick={() => void toggleActive()} disabled={busy} className={inkButton}>
+              <button type="button" onClick={() => void deactivate()} disabled={busy} className={inkButton}>
                 {busy && <LoaderCircle aria-hidden className="size-5 animate-spin" />}
                 Deactivate
               </button>
@@ -269,23 +338,22 @@ export function StaffSheet({ open, onOpenChange, person, users, me, onSaved }: P
                 Keep {first}
               </button>
             </>
-          ) : step === 'reset' ? (
+          ) : step === 'reset' || step === 'reactivate' ? (
             <>
-              <button type="button" onClick={() => void newPin()} disabled={busy} className={inkButton}>
+              <button type="button" onClick={() => void (step === 'reset' ? newPin() : reactivate())} disabled={busy || !pinReady} className={inkButton}>
                 {busy && <LoaderCircle aria-hidden className="size-5 animate-spin" />}
-                Reset PIN
+                {step === 'reset' ? 'Reset PIN' : 'Reactivate'}
               </button>
               <button type="button" onClick={() => setStep('edit')} className={outlineButton}>
-                Keep current PIN
+                {step === 'reset' ? 'Keep current PIN' : 'Cancel'}
               </button>
             </>
           ) : (
             <>
-              {!person && <p className="text-center text-sm text-muted-foreground">You'll get a PIN to give them.</p>}
               <button
                 type="button"
                 onClick={() => void save()}
-                disabled={busy || !name.trim() || !username.trim()}
+                disabled={busy || !name.trim() || !username.trim() || (!person && !pinReady)}
                 className="flex h-14 items-center justify-center gap-2 rounded-[14px] bg-brand text-lg font-semibold text-brand-foreground transition-colors active:bg-brand-press disabled:bg-muted disabled:text-muted-foreground"
               >
                 {busy && <LoaderCircle aria-hidden className="size-5 animate-spin" />}
@@ -294,11 +362,11 @@ export function StaffSheet({ open, onOpenChange, person, users, me, onSaved }: P
               {person && (
                 <div className="flex justify-center gap-2">
                   {person.active && (
-                    <button type="button" onClick={() => setStep('reset')} disabled={busy} className={quietButton}>
+                    <button type="button" onClick={() => openPinStep('reset')} disabled={busy} className={quietButton}>
                       Reset PIN
                     </button>
                   )}
-                  <button type="button" onClick={() => (person.active ? setStep('deactivate') : void toggleActive())} disabled={busy} className={quietButton}>
+                  <button type="button" onClick={() => (person.active ? setStep('deactivate') : openPinStep('reactivate'))} disabled={busy} className={quietButton}>
                     {person.active ? 'Deactivate' : 'Reactivate'}
                   </button>
                 </div>

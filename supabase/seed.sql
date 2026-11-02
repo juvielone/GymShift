@@ -106,6 +106,8 @@ begin
     (kyle, 'Kyle', 'kyle', 'cleaner', gladys),
     (gino, 'Gino', 'gino', 'cleaner', gladys),
     (angel, 'Angel', 'angel', 'cleaner', null);
+  -- Contact details are optional; Josh gave a mobile.
+  insert into public.user_contacts (user_id, phone, updated_by) values (josh, '+61412345678', carly);
 
   -- ---- Case 2: Kyle, D-2 morning. A tap at home, asked about at once (that closed it), then the real shift ----
   sh := pg_temp.shift(d - 2, 'morning', '07:00', '10:00', kyle);

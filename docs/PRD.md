@@ -53,7 +53,13 @@ Nine features, ordered by build priority. Each acceptance criterion is a test th
 
 - Carly creates accounts and assigns a role. There is no public sign-up.
 - Staff sign in with their username (first name, e.g. `josh`) and a 6-digit PIN, then stay signed in on the phone. Signing in happens about once per phone. *(Decided 1 Nov 2026: email links are unreliable on the free email tier, and nobody needs an inbox to get in.)*
-- Adding a person gives Carly a PIN, shown once, to pass on in person or by message. Carly can reset anyone's PIN from their staff sheet; that is also how a forgotten PIN is fixed. Nobody, Carly included, can look a PIN up later.
+- **Adding a person** *(decided 2 Nov 2026)*: full name, username, role or group, an optional mobile number, and a PIN.
+  - Full name, so two people with the same first name can be told apart (a surname initial is enough). The username starts as the first name (`josh`), then first name and surname initial (`joshl`) if that's taken. Carly can change it. A deactivated person keeps their username.
+  - Carly types the PIN or keeps the one the app makes. Easy PINs (one digit repeated, or a straight run like 123456) are refused. The PIN is shown once, to pass on in person or by message.
+  - The mobile number is contact information only. It is never used to sign in or verified, and only Carly and the person can see it.
+- Carly can reset anyone's PIN from their staff sheet, again typing one or keeping the app's; that is also how a forgotten PIN is fixed. Nobody, Carly included, can look a PIN up later.
+- People are never deleted. Someone who leaves is deactivated: they can't sign in, they leave the roster pickers, and their hours and records stay. Someone who comes back is reactivated and given a new PIN.
+- Names show as first names. When two active people share a first name, both show with their surname initial ("Josh L." and "Josh M."). Exports use full names.
 - Carly signs in with her username and a longer password instead of a PIN, because her account can correct hours and export pay.
 - The sign-in page asks for a typed username and never lists staff names, because its link will be shared.
 - Role permissions are enforced in the database (row-level security), not only in the UI.
@@ -198,6 +204,7 @@ These are deferred until after the trial, and added only if the trial shows a re
 A username and PIN suit the trial. If the team moves to a paid arrangement, these are proposed as an extra layer:
 
 - **Own email sign-in** for each person (magic link or password), with a proper email service.
+- **Authenticator app for Carly** (a 6-digit code from an app such as Google Authenticator at sign-in). Free in Supabase; parked 2 Nov 2026 to keep the trial simple.
 - **One phone per person.** Each sign-in records the phone; signing in on a new phone flags it for Carly and signs the old one out. A clock-in from a phone last used by someone else is flagged ("Josh clocked in from Gladys's phone"). This makes one coworker clocking in for another visible to Carly. It never blocks.
 - ~~**Early clock-in flag.**~~ Done in F6 (2 Nov 2026): a clock-in more than 30 minutes from the rostered start asks first and is flagged.
 - **Clock-out reminder.** A notification at the shift's end ("Still at work? Tap to clock out") would stop most forgotten clock-outs. A web app can only send one when it's added to the home screen. Out of scope for v1 (no push).
@@ -224,7 +231,7 @@ How it would work:
 - **Security:** permissions are enforced with database row-level security. Photos are in private storage and served through short-lived signed links.
 - **Audit trail:** attendance events are append-only. Roster changes, approvals and corrections are logged with who, when, old value and new value.
 - **Data protection:** a nightly database backup to a separate location, plus Carly's fortnightly CSV export as her own copy of hours.
-- **Privacy:** location is captured only at clock-in and clock-out. Staff can see their own recorded location. An in-app notice explains what is collected and why.
+- **Privacy:** location is captured only at clock-in and clock-out. Staff can see their own recorded location. A mobile number, if given, is seen only by Carly and the person. An in-app notice explains what is collected and why.
 - **Workplace surveillance (NSW):** staff must receive written notice at least 14 days before location capture starts. The employer gives this notice; the app's privacy notice supports it.
 - **Performance:** clock-in completes within 5 seconds on mobile data, including the location lookup.
 - **Cost:** runs on free tiers during the trial.

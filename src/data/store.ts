@@ -10,6 +10,7 @@
 //   is a read cache of what the person's role may see (live.ts), and writes go to database functions.
 import * as seed from '@/mocks'
 import type { Role, User, Uuid } from '@/types'
+import { setTeamNames } from '@/lib/format'
 
 export type DataMode = 'demo' | 'trial' | 'live'
 
@@ -23,6 +24,7 @@ export const MODE: DataMode =
 const fresh = () => ({
   roles: structuredClone(seed.roles),
   users: structuredClone(seed.users),
+  userContacts: structuredClone(seed.userContacts),
   /** Stand-in for Supabase auth.users passwords. Internal to src/data; never returned to the UI. */
   credentials: structuredClone(seed.credentials),
   settings: structuredClone(seed.settings),
@@ -57,6 +59,7 @@ interface Saved {
 /** Live mode before anything is loaded: no records (the seed settings only give the site name on sign-in). */
 export const emptyTables = (): Omit<Db, 'settings' | 'roles'> => ({
   users: [],
+  userContacts: [],
   credentials: [],
   availability: [],
   shifts: [],
@@ -89,7 +92,11 @@ function load(): Db {
       e.assumed_time ??= null
     }
     // Saves from before sign-in by username: give each person their first name, lowercased.
-    for (const u of loaded.users) u.username ??= u.full_name.split(' ')[0].toLowerCase().replace(/[^a-z0-9]/g, '')
+    for (const u of loaded.users) {
+      u.username ??= u.full_name.split(' ')[0].toLowerCase().replace(/[^a-z0-9]/g, '')
+      // Saves from before contact details moved out of users.
+      delete (u as { email?: unknown }).email
+    }
     return loaded
   } catch {
     return base
@@ -97,6 +104,12 @@ function load(): Db {
 }
 
 export const db: Db = load()
+
+/** After people are added, renamed, (de)activated or reloaded: lets shortName() tell same first names apart. */
+export function syncTeamNames(): void {
+  setTeamNames(db.users.filter((u) => u.active).map((u) => u.full_name))
+}
+syncTeamNames()
 
 let saveQueued = false
 

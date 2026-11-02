@@ -1,6 +1,6 @@
-import type { Role, RoleId, User, Uuid } from '@/types'
+import type { Role, RoleId, User, UserContact, Uuid } from '@/types'
 import { CARLY, GLADYS, JOSH } from '@/mocks'
-import { auth, copy, db, MODE, newId, requireUser, roleOf, serverNow } from './store'
+import { auth, copy, db, MODE, newId, requireUser, roleOf, serverNow, syncTeamNames } from './store'
 import { localDate } from '@/lib/rules'
 import { openClockIn } from './attendance'
 
@@ -96,27 +96,58 @@ export async function getPermissions(userId: Uuid): Promise<Role> {
   return copy(roleOf(requireUser(userId)))
 }
 
-// Staff management: manager only (PRD "Manage users and site settings"). People are never deleted;
-// deactivating keeps their hours and records and only drops them from pickers.
+// Staff management: manager only (PRD F1 and "Manage users and site settings"). People are never deleted;
+// deactivating keeps their hours and records and only drops them from pickers. Same checks and wording as
+// supabase/migrations/…13_staff.sql and the staff Edge Function (supabase/functions/staff).
 
 /** Roles Carly can give in the app. v1 keeps a single manager, so Manager isn't offered. */
 export const ASSIGNABLE_ROLES: RoleId[] = ['cleaner', 'team_lead']
 
 const USERNAME_RE = /^[a-z][a-z0-9]{1,19}$/
 
-/** A first-name username to start from: "Josh Lagos" → "josh". Carly can change it before saving. */
-export function suggestUsername(fullName: string): string {
-  return fullName.trim().split(/\s+/)[0].toLowerCase().replace(/[^a-z0-9]/g, '').slice(0, 20)
+const usernamePart = (s: string) => s.toLowerCase().replace(/[^a-z0-9]/g, '')
+const tidyName = (s: string) => s.trim().replace(/\s+/g, ' ')
+const firstOf = (fullName: string) => tidyName(fullName).split(' ')[0].toLowerCase()
+
+/**
+ * A username to start from: the first name ("josh"), then first name and surname initial ("joshl") if that's
+ * taken, then a number ("josh2"). Carly can change it before saving.
+ */
+export function suggestUsername(fullName: string, taken: string[]): string {
+  const [first = '', ...rest] = tidyName(fullName).split(' ')
+  const base = usernamePart(first).slice(0, 18)
+  if (!base) return ''
+  const used = new Set(taken)
+  const initial = usernamePart(rest.join(''))[0] ?? ''
+  for (const candidate of [base, base + initial]) if (!used.has(candidate)) return candidate
+  for (let n = 2; ; n++) if (!used.has(`${base}${n}`)) return `${base}${n}`
 }
 
-/** A random 6-digit PIN, never an easy one (all the same digit, or a straight run like 123456). */
-function newPin(): string {
+/** Why a PIN can't be used, or null. Same rule as private.pin_problem() in …13_staff.sql. */
+export function pinProblem(pin: string): string | null {
+  if (!/^\d{6}$/.test(pin)) return 'A PIN is 6 digits'
+  const d = Array.from(pin, Number)
+  if (d.every((x) => x === d[0])) return "Pick a PIN that isn't one digit repeated"
+  const run = (step: number) => d.every((x, i) => i === 0 || x - d[i - 1] === step)
+  if (run(1) || run(-1)) return "Pick a PIN that isn't a straight run like 123456"
+  return null
+}
+
+/** A random 6-digit PIN that passes pinProblem(), for Carly to keep or type over. */
+export function makePin(): string {
   for (;;) {
-    const digits = Array.from(crypto.getRandomValues(new Uint8Array(6)), (b) => b % 10)
-    const same = digits.every((d) => d === digits[0])
-    const run = digits.every((d, i) => i === 0 || d - digits[i - 1] === 1) || digits.every((d, i) => i === 0 || digits[i - 1] - d === 1)
-    if (!same && !run) return digits.join('')
+    const pin = Array.from(crypto.getRandomValues(new Uint8Array(6)), (b) => b % 10).join('')
+    if (pinProblem(pin) === null) return pin
   }
+}
+
+/** "0412 345 678", "+61 412 345 678" → "+61412345678"; blank → null. Same rule as private.normalise_phone(). */
+export function normalisePhone(input: string | null): string | null {
+  const digits = (input ?? '').replace(/[\s\-().]/g, '')
+  if (!digits) return null
+  const local = digits.startsWith('+61') ? digits.slice(3) : digits.startsWith('61') && digits.length === 11 ? digits.slice(2) : digits.replace(/^0/, '')
+  if (!/^4\d{8}$/.test(local)) throw new Error('Use an Australian mobile number, like 0412 345 678')
+  return `+61${local}`
 }
 
 function setSecret(userId: Uuid, secret: string): void {
@@ -125,16 +156,37 @@ function setSecret(userId: Uuid, secret: string): void {
   else db.credentials.push({ user_id: userId, secret })
 }
 
+/** Carly's PIN if she typed one (checked), else a new one. */
+function choosePin(typed: string | undefined): string {
+  const pin = typed?.trim() ?? ''
+  if (!pin) return makePin()
+  const problem = pinProblem(pin)
+  if (problem) throw new Error(problem)
+  return pin
+}
+
 function requireManager(actorId: Uuid): User {
   const actor = requireUser(actorId)
   if (!roleOf(actor).can_manage_users) throw new Error('Only the manager can manage staff')
   return actor
 }
 
-type Details = { full_name: string; username: string; role: RoleId; team_lead_id: Uuid | null }
+type Details = { full_name: string; username: string; role: RoleId; team_lead_id: Uuid | null; phone: string | null }
+
+/** Name rules shared by saving and reactivating: two active people with one first name need surnames to tell apart. */
+function checkName(fullName: string, selfId?: Uuid): void {
+  const name = tidyName(fullName)
+  if (!name) throw new Error('Add their name')
+  const twins = db.users.filter((u) => u.id !== selfId && u.active && firstOf(u.full_name) === firstOf(name))
+  // Someone with the very same name first, if there is one.
+  const twin = twins.find((u) => tidyName(u.full_name).toLowerCase() === name.toLowerCase()) ?? twins[0]
+  if (!twin) return
+  if (!name.includes(' ')) throw new Error(`${twin.full_name} is also on the team. Add a surname or initial.`)
+  if (tidyName(twin.full_name).toLowerCase() === name.toLowerCase()) throw new Error(`Someone is already called ${twin.full_name}. Add more of the surname.`)
+}
 
 function checkDetails(input: Details, selfId?: Uuid): void {
-  if (!input.full_name.trim()) throw new Error('Add their name')
+  checkName(input.full_name, selfId)
   const username = input.username.trim().toLowerCase()
   if (!USERNAME_RE.test(username)) throw new Error('Use a username of 2 to 20 letters or numbers, starting with a letter')
   const taken = db.users.find((u) => u.id !== selfId && u.username === username)
@@ -144,6 +196,15 @@ function checkDetails(input: Details, selfId?: Uuid): void {
     const lead = requireUser(input.team_lead_id)
     if (lead.role !== 'team_lead' || !lead.active || lead.id === selfId) throw new Error('Choose an active team lead')
   }
+  normalisePhone(input.phone)
+}
+
+function saveContact(userId: Uuid, phone: string | null, actorId: Uuid): void {
+  const normal = normalisePhone(phone)
+  const row = db.userContacts.find((c) => c.user_id === userId)
+  if (row) {
+    if (row.phone !== normal) Object.assign(row, { phone: normal, updated_by: actorId, updated_at: serverNow() })
+  } else if (normal) db.userContacts.push({ user_id: userId, phone: normal, updated_by: actorId, updated_at: serverNow() })
 }
 
 /** A team lead who stops leading (new role or deactivated) hands their group to the manager. */
@@ -151,24 +212,32 @@ function releaseGroup(leadId: Uuid): void {
   for (const u of db.users) if (u.team_lead_id === leadId) u.team_lead_id = null
 }
 
-/** Adds the person with a new PIN. The PIN is returned once, for Carly to pass on, and never again. */
-export async function createUser(input: { actorId: Uuid } & Details): Promise<{ user: User; pin: string }> {
+/** Someone's contact details: the manager and the person themselves only (like the user_contacts RLS). */
+export async function getContact(input: { viewerId: Uuid; userId: Uuid }): Promise<UserContact | null> {
+  const viewer = requireUser(input.viewerId)
+  if (viewer.id !== input.userId && !roleOf(viewer).can_manage_users) return null
+  return copy(db.userContacts.find((c) => c.user_id === input.userId) ?? null)
+}
+
+/** Adds the person with Carly's PIN, or a new one. The PIN is returned once, for Carly to pass on, and never again. */
+export async function createUser(input: { actorId: Uuid; pin?: string } & Details): Promise<{ user: User; pin: string }> {
   requireManager(input.actorId)
   const team_lead_id = input.role === 'cleaner' ? input.team_lead_id : null
   checkDetails({ ...input, team_lead_id })
+  const pin = choosePin(input.pin)
   const row: User = {
     id: newId('user'),
-    full_name: input.full_name.trim(),
+    full_name: tidyName(input.full_name),
     username: input.username.trim().toLowerCase(),
-    email: null,
     role: input.role,
     team_lead_id,
     active: true,
     created_at: serverNow(),
   }
   db.users.push(row)
-  const pin = newPin()
   setSecret(row.id, pin)
+  saveContact(row.id, input.phone, input.actorId)
+  syncTeamNames()
   return { user: copy(row), pin }
 }
 
@@ -179,17 +248,19 @@ export async function updateUser(input: { actorId: Uuid; userId: Uuid; patch: De
   const team_lead_id = input.patch.role === 'cleaner' ? input.patch.team_lead_id : null
   checkDetails({ ...input.patch, team_lead_id }, user.id)
   if (user.role === 'team_lead' && input.patch.role !== 'team_lead') releaseGroup(user.id)
-  Object.assign(user, { full_name: input.patch.full_name.trim(), username: input.patch.username.trim().toLowerCase(), role: input.patch.role, team_lead_id })
+  Object.assign(user, { full_name: tidyName(input.patch.full_name), username: input.patch.username.trim().toLowerCase(), role: input.patch.role, team_lead_id })
+  saveContact(user.id, input.patch.phone, actor.id)
+  syncTeamNames()
   return copy(user)
 }
 
-/** Manager only. The old PIN stops working; the new one is returned once, for Carly to pass on. */
-export async function resetPin(input: { actorId: Uuid; userId: Uuid }): Promise<{ pin: string }> {
+/** Manager only. The old PIN stops working; the new one (Carly's, or made here) is returned once, to pass on. */
+export async function resetPin(input: { actorId: Uuid; userId: Uuid; pin?: string }): Promise<{ pin: string }> {
   const actor = requireManager(input.actorId)
   const user = requireUser(input.userId)
-  if (user.id === actor.id || user.role === 'manager') throw new Error("The manager signs in with a password, not a PIN")
+  if (user.id === actor.id || user.role === 'manager') throw new Error('The manager signs in with a password, not a PIN')
   if (!user.active) throw new Error('Reactivate them first')
-  const pin = newPin()
+  const pin = choosePin(input.pin)
   setSecret(user.id, pin)
   return { pin }
 }
@@ -198,10 +269,13 @@ export async function setUserActive(input: { actorId: Uuid; userId: Uuid; active
   const actor = requireManager(input.actorId)
   const user = requireUser(input.userId)
   if (user.id === actor.id || user.role === 'manager') throw new Error("The manager's own account can't be deactivated")
+  // Coming back while someone else now has their first name: add a surname first.
+  if (input.active && !user.active) checkName(user.full_name, user.id)
   if (!input.active && user.role === 'team_lead') releaseGroup(user.id)
   // A cleaner coming back whose team lead has since gone reports to the manager.
   if (input.active && user.team_lead_id && !requireUser(user.team_lead_id).active) user.team_lead_id = null
   user.active = input.active
+  syncTeamNames()
   return copy(user)
 }
 

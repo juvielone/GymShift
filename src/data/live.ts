@@ -3,7 +3,7 @@
 // Reads: refresh() loads everything row-level security lets this person see into the store, so the
 // read functions in the other modules work unchanged. Writes: database functions (RPC), then refresh().
 // Writes without a database function yet are refused in index.ts with NOT_LIVE_YET.
-import { createClient, type SupabaseClient } from '@supabase/supabase-js'
+import { createClient, FunctionsFetchError, FunctionsHttpError, type SupabaseClient } from '@supabase/supabase-js'
 import type {
   Availability,
   ClockEvent,
@@ -27,12 +27,13 @@ import type {
   TimeString,
   Timestamp,
   User,
+  UserContact,
   Uuid,
 } from '@/types'
 import { AlreadyClockedInError, type ClockLocation, type ClockResult } from './clockEvents'
 import { requireCanAddPhoto } from './photos'
 import { SIGN_IN_MISMATCH } from './users'
-import { auth, copy, db, emptyTables, requireUser } from './store'
+import { auth, copy, db, emptyTables, requireUser, syncTeamNames } from './store'
 
 const LOGIN_DOMAIN = 'staff.gymshift.invalid'
 const USERNAME_RE = /^[a-z][a-z0-9]{1,19}$/
@@ -87,10 +88,11 @@ let refreshApplied = 0
 /** Reload everything this person may see. Small on purpose: about 7 people and a few fortnights. */
 async function refresh(): Promise<void> {
   const started = ++refreshesStarted
-  const [roles, users, settings, availability, shifts, shiftChanges, clockEvents, corrections, clockVoids, correctionRequests, flags, extensions, swaps, photos, notes] =
+  const [roles, users, userContacts, settings, availability, shifts, shiftChanges, clockEvents, corrections, clockVoids, correctionRequests, flags, extensions, swaps, photos, notes] =
     await Promise.all([
     rows<RoleRow>('roles'),
     rows<User>('users'),
+    rows<UserContact>('user_contacts'),
     rows<SiteSettings>('site_settings'),
     rows<Availability>('availability'),
     rows<Shift>('shifts'),
@@ -112,6 +114,7 @@ async function refresh(): Promise<void> {
   Object.assign(db, {
     roles: roles.map((r) => ({ ...r, can_publish_roster: r.can_publish_roster ?? false, can_approve_swaps: r.can_approve_swaps ?? false })),
     users,
+    userContacts,
     settings: site ? { ...site, default_morning_start: hhmm(site.default_morning_start), default_night_start: hhmm(site.default_night_start) } : db.settings,
     availability,
     shifts: shifts.map(toShift),
@@ -126,6 +129,7 @@ async function refresh(): Promise<void> {
     photos,
     notes,
   })
+  syncTeamNames()
 }
 
 let pulling: Promise<void> | null = null
@@ -142,6 +146,7 @@ export function pull(): Promise<void> {
 function clear(): void {
   photoLinks.clear()
   Object.assign(db, emptyTables())
+  syncTeamNames()
   auth.signedIn = false
 }
 
@@ -181,6 +186,74 @@ export async function signIn(input: { username: string; secret: string }): Promi
 export async function signOut(): Promise<void> {
   await sb().auth.signOut()
   clear()
+}
+
+// ---- Staff (database functions update_staff, set_staff_active; Edge Function `staff` for sign-ins) ----
+
+type StaffDetails = { full_name: string; username: string; role: User['role']; team_lead_id: Uuid | null; phone: string | null }
+
+const staffArgs = (d: StaffDetails) => ({ full_name: d.full_name, username: d.username, role: d.role, team_lead_id: d.role === 'cleaner' ? d.team_lead_id : null, phone: d.phone })
+
+/** The Edge Function that makes logins and sets PINs (supabase/functions/staff), then a reload. */
+async function staffFunction<T>(body: Record<string, unknown>): Promise<T> {
+  const { data, error } = await sb().functions.invoke('staff', { body })
+  if (error) {
+    console.warn('[GymShift] Staff function failed', error)
+    if (error instanceof FunctionsHttpError) {
+      const res = error.context as Response
+      // Not deployed to this project yet.
+      if (res.status === 404) throw new Error("This isn't set up in the database yet (the staff function isn't deployed).")
+      const message = await res
+        .json()
+        .then((b: { error?: string }) => b.error)
+        .catch(() => undefined)
+      throw new Error(message ?? 'Not saved yet. Try again.')
+    }
+    if (error instanceof FunctionsFetchError) throw new Error('Not saved yet. Check your internet and try again.')
+    throw new Error('Not saved yet. Try again.')
+  }
+  await refresh().catch(() => {})
+  return data as T
+}
+
+function requireManagerSelf(actorId: Uuid): void {
+  if (actorId !== auth.userId) throw new Error('Only the manager can manage staff')
+}
+
+export async function createUser(input: { actorId: Uuid; pin?: string } & StaffDetails): Promise<{ user: User; pin: string }> {
+  requireManagerSelf(input.actorId)
+  const { user, pin } = await staffFunction<{ user: User; pin: string }>({ action: 'create', ...staffArgs(input), pin: input.pin ?? null })
+  return { user: copy(db.users.find((u) => u.id === user.id) ?? user), pin }
+}
+
+/** A new username renames the login too, so it goes through the Edge Function; anything else is a database function. */
+export async function updateUser(input: { actorId: Uuid; userId: Uuid; patch: StaffDetails }): Promise<User> {
+  requireManagerSelf(input.actorId)
+  const renamed = input.patch.username.trim().toLowerCase() !== requireUser(input.userId).username
+  if (renamed) await staffFunction({ action: 'rename', user_id: input.userId, ...staffArgs(input.patch) })
+  else {
+    const args = staffArgs(input.patch)
+    await write('update_staff', {
+      p_user_id: input.userId,
+      p_full_name: args.full_name,
+      p_username: args.username,
+      p_role: args.role,
+      p_team_lead_id: args.team_lead_id,
+      p_phone: args.phone,
+    })
+  }
+  return copy(requireUser(input.userId))
+}
+
+export async function resetPin(input: { actorId: Uuid; userId: Uuid; pin?: string }): Promise<{ pin: string }> {
+  requireManagerSelf(input.actorId)
+  return staffFunction<{ pin: string }>({ action: 'reset_pin', user_id: input.userId, pin: input.pin ?? null })
+}
+
+export async function setUserActive(input: { actorId: Uuid; userId: Uuid; active: boolean }): Promise<User> {
+  requireManagerSelf(input.actorId)
+  await write('set_staff_active', { p_user_id: input.userId, p_active: input.active })
+  return copy(requireUser(input.userId))
 }
 
 // ---- Clock in / out (database functions public.clock_in / public.clock_out) ----

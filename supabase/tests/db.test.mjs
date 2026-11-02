@@ -21,7 +21,7 @@ const AUTH_STUB = `
   create role anon nologin;
   create role authenticated nologin;
   create schema auth;
-  create table auth.users (id uuid primary key);
+  create table auth.users (id uuid primary key, email text);
   create function auth.uid() returns uuid language sql stable as $$
     select nullif(current_setting('request.jwt.claims', true)::jsonb ->> 'sub', '')::uuid
   $$;
@@ -793,6 +793,98 @@ test('forgotten clock-out: closed at the rostered end two hours after it, labell
     await one(CARLY, `select * from public.decide_correction_request($1, true)`, [corr.id])
     assert.equal(await truthy(`select private.session_min($1, $2) = 120`, [gladysIn, gladysOut.id]), true)
     assert.equal((await db.query(`select reason from corrections where clock_event_id = $1`, [gladysOut.id])).rows[0].reason, 'Gladys: Left early, felt sick')
+  } finally {
+    db = shared
+  }
+})
+
+test('staff: Carly adds, changes and deactivates people; the phone is private; nobody is deleted', async () => {
+  const shared = db
+  db = await freshDb()
+  try {
+    const NEW = '00000000-0000-4000-8000-000000000010'
+    /** The login the Edge Function would make first. */
+    const login = (id, username) => db.query(`insert into auth.users (id, email) values ($1, $2)`, [id, `${username}@staff.gymshift.invalid`])
+    const add = (who, id, name, username, role = 'cleaner', lead = null, phone = null) =>
+      call(who, `select * from public.add_staff($1, $2, $3, $4, $5, $6)`, [id, name, username, role, lead, phone]).then((r) => r[0])
+    const check = (who, id, name, username, role = 'cleaner', lead = null, phone = null) =>
+      call(who, `select public.check_staff($1, $2, $3, $4, $5, $6)`, [id, name, username, role, lead, phone])
+    const update = (who, id, name, username, role = 'cleaner', lead = null, phone = null) =>
+      call(who, `select * from public.update_staff($1, $2, $3, $4, $5, $6)`, [id, name, username, role, lead, phone]).then((r) => r[0])
+    const setActive = (who, id, active) => call(who, `select * from public.set_staff_active($1, $2)`, [id, active]).then((r) => r[0])
+
+    // Only Carly, and the same checks as the app.
+    await rejects(check(GLADYS, null, 'Gino Rossi', 'gino'), /Only the manager can manage staff/)
+    await rejects(check(JOSH, null, 'Gino Rossi', 'gino'), /Only the manager can manage staff/)
+    await rejects(check(null, null, 'Gino Rossi', 'gino'), /permission denied/)
+    await rejects(check(CARLY, null, '  ', 'gino'), /Add their name/)
+    await rejects(check(CARLY, null, 'Josh', 'joshm'), /Josh Lagos is also on the team. Add a surname or initial/)
+    await rejects(check(CARLY, null, 'josh  lagos', 'joshm'), /Someone is already called Josh Lagos/)
+    await rejects(check(CARLY, null, 'Gino Rossi', 'G'), /2 to 20 letters/)
+    await rejects(check(CARLY, null, 'Gino Rossi', 'josh'), /Josh Lagos already uses that username/)
+    await rejects(check(CARLY, null, 'Gino Rossi', 'gino', 'manager'), /Choose Cleaner or Team lead/)
+    await rejects(check(CARLY, null, 'Gino Rossi', 'gino', 'cleaner', KYLE), /Choose an active team lead/)
+    await rejects(check(CARLY, null, 'Gino Rossi', 'gino', 'cleaner', null, '02 9876 5432'), /Australian mobile number/)
+    await check(CARLY, null, 'Josh Mendoza', 'joshm', 'cleaner', GLADYS, '0412 345 678')
+
+    // The staff row needs the login for that very username, made first by the Edge Function.
+    await rejects(add(CARLY, NEW, 'Josh Mendoza', 'joshm'), /sign-in wasn't made/)
+    await login(NEW, 'joshm')
+    await rejects(add(CARLY, NEW, 'Josh Mendoza', 'joshx'), /sign-in wasn't made/)
+    const added = await add(CARLY, NEW, '  Josh   Mendoza ', 'JoshM', 'cleaner', GLADYS, '+61 412 345 678')
+    assert.equal(added.full_name, 'Josh Mendoza')
+    assert.equal(added.username, 'joshm')
+    assert.equal(added.team_lead_id, GLADYS)
+    await rejects(add(CARLY, NEW, 'Josh Mendoza', 'joshm'), /Someone is already called Josh Mendoza/)
+
+    // The phone: Carly and the person, nobody else, and only through the functions.
+    const phoneAs = (who) => call(who, `select phone from user_contacts where user_id = $1`, [NEW])
+    assert.deepEqual(await phoneAs(CARLY), [{ phone: '+61412345678' }])
+    assert.deepEqual(await phoneAs(NEW), [{ phone: '+61412345678' }])
+    assert.deepEqual(await phoneAs(GLADYS), [])
+    assert.deepEqual(await phoneAs(JOSH), [])
+    await rejects(call(CARLY, `update user_contacts set phone = null where user_id = $1`, [NEW]), /permission denied/)
+    await rejects(call(CARLY, `select email from users`), /column "email" does not exist/)
+
+    // Changing someone: the username only once their login was renamed.
+    await rejects(update(CARLY, CARLY, 'Carly B', 'carly', 'team_lead'), /manager's own account/)
+    await rejects(update(GLADYS, NEW, 'Josh Mendoza', 'joshm'), /Only the manager/)
+    await rejects(update(CARLY, NEW, 'Josh Mendoza', 'jmendoza'), /sign-in name wasn't changed/)
+    await db.query(`update auth.users set email = 'jmendoza@staff.gymshift.invalid' where id = $1`, [NEW])
+    const renamed = await update(CARLY, NEW, 'Josh Mendoza', 'jmendoza', 'cleaner', null, '')
+    assert.equal(renamed.username, 'jmendoza')
+    assert.equal(renamed.team_lead_id, null)
+    assert.deepEqual(await phoneAs(CARLY), [{ phone: null }])
+
+    // A team lead who stops leading hands their group to Carly.
+    const leadAgain = await update(CARLY, GLADYS, 'Gladys', 'gladys', 'cleaner', null)
+    assert.equal(leadAgain.role, 'cleaner')
+    const group = (await db.query(`select count(*)::int as n from users where team_lead_id = $1`, [GLADYS])).rows[0].n
+    assert.equal(group, 0)
+
+    // PIN resets: active staff other than the manager.
+    await rejects(call(CARLY, `select public.check_pin_reset($1)`, [CARLY]), /password, not a PIN/)
+    await rejects(call(GLADYS, `select public.check_pin_reset($1)`, [JOSH]), /Only the manager/)
+    await call(CARLY, `select public.check_pin_reset($1)`, [JOSH])
+
+    // Deactivating: kept, signed out of everything; reactivating checks the name against who's there now.
+    await rejects(setActive(CARLY, CARLY, false), /can't be deactivated/)
+    const off = await setActive(CARLY, JOSH, false)
+    assert.equal(off.active, false)
+    await rejects(call(CARLY, `select public.check_pin_reset($1)`, [JOSH]), /Reactivate them first/)
+    assert.deepEqual(await call(JOSH, `select id from users`), [])
+    const SECOND = '00000000-0000-4000-8000-000000000011'
+    await login(SECOND, 'josh2')
+    await add(CARLY, SECOND, 'Josh Lagos', 'josh2')
+    await rejects(setActive(CARLY, JOSH, true), /Someone is already called Josh Lagos/)
+    await setActive(CARLY, SECOND, false)
+    const back = await setActive(CARLY, JOSH, true)
+    assert.equal(back.active, true)
+    // His lead (Gladys) is no longer a team lead, so he reports to Carly now.
+    assert.equal(back.team_lead_id, null)
+
+    await rejects(db.query(`delete from users where id = $1`, [SECOND]), /never|not allowed|forbid/i)
+    await rejects(db.query(`delete from user_contacts where user_id = $1`, [NEW]), /never|not allowed|forbid/i)
   } finally {
     db = shared
   }

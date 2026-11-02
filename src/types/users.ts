@@ -4,11 +4,10 @@ import type { RoleId } from './roles'
 
 export interface User {
   id: Uuid
+  /** Full name, so two people with the same first name can be told apart ("Josh L" is enough). */
   full_name: string
   /** What they type to sign in: lowercase letters and digits, unique (e.g. "josh"). */
   username: string
-  /** Optional. Sign-in uses username + PIN; email is kept for a later email sign-in. */
-  email: string | null
   role: RoleId
   /** The team lead whose group this user belongs to. null = reports to the manager directly. */
   team_lead_id: Uuid | null

@@ -2,7 +2,7 @@
 import { Check, ChevronRight } from 'lucide-react'
 import type { AttendanceSession } from '@/data'
 import type { Shift, SiteSettings, Timestamp, User } from '@/types'
-import { firstName, formatClock, formatDuration, formatTime, formatTimeRange, zonedTimestamp } from '@/lib/format'
+import { shortName, formatClock, formatDuration, formatTime, formatTimeRange, zonedTimestamp } from '@/lib/format'
 import { compareTs, minutesBetween, noShowDueAt } from '@/lib/rules'
 import { cn } from '@/lib/utils'
 
@@ -61,7 +61,7 @@ export function TodayPanel({ rows, settings, now, onOpen }: { rows: TodayRow[]; 
                 >
                   <span className="min-w-0 flex-1">
                     <span className="block text-base font-medium">
-                      {firstName(user.full_name)} <span className="font-normal text-pass-muted">· {shift.type === 'morning' ? 'Morning' : 'Night'}</span>
+                      {shortName(user.full_name)} <span className="font-normal text-pass-muted">· {shift.type === 'morning' ? 'Morning' : 'Night'}</span>
                     </span>
                     <span className="block text-sm text-pass-muted">{line}</span>
                   </span>

@@ -53,8 +53,33 @@ export function formatDuration(min: number): string {
   return m === 0 ? `${h}h` : `${h}h ${m}m`
 }
 
-/** "Josh Lagos" → "Josh" */
-export const firstName = (fullName: string) => fullName.split(' ')[0]
+/** "Josh Lagos" → "Josh". For greeting the person themselves; other people are named with shortName(). */
+export const firstName = (fullName: string) => fullName.trim().split(/\s+/)[0]
+
+// Active people's full names, kept current by src/data, so shortName() can tell two Joshes apart.
+let teamNames: string[] = []
+
+export function setTeamNames(fullNames: string[]): void {
+  teamNames = fullNames
+}
+
+const surnameOf = (fullName: string) => fullName.trim().split(/\s+/).slice(1).join(' ')
+
+/**
+ * How a person is named on screen: "Josh", or "Josh L." when another active person is also Josh
+ * (the whole surname if the initials match too). Exports use full names instead.
+ */
+export function shortName(fullName: string): string {
+  const first = firstName(fullName)
+  const surname = surnameOf(fullName)
+  const others = teamNames.filter((n) => n.trim() !== fullName.trim() && firstName(n).toLowerCase() === first.toLowerCase())
+  if (others.length === 0 || !surname) return first
+  const initialTaken = others.some((n) => surnameOf(n)[0]?.toLowerCase() === surname[0].toLowerCase())
+  return initialTaken ? `${first} ${surname}` : `${first} ${surname[0].toUpperCase()}.`
+}
+
+/** "+61412345678" → "0412 345 678" */
+export const formatPhone = (phone: string) => (/^\+614\d{8}$/.test(phone) ? `0${phone.slice(3, 6)} ${phone.slice(6, 9)} ${phone.slice(9)}` : phone)
 
 /** "2026-10-31", "07:00" → "Sat 31 Oct, 7:00 am" */
 export const shiftLabel = (date: DateString, start: TimeString) => `${formatDateShort(date)}, ${formatTime(start)}`

@@ -2,6 +2,7 @@
 export * from './ids'
 export { roles } from './roles'
 export { users } from './users'
+export { userContacts } from './userContacts'
 export { credentials } from './credentials'
 export type { Credential } from './credentials'
 export { settings } from './settings'

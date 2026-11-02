@@ -8,7 +8,7 @@ import type { DateString, Shift, ShiftChange, ShiftType, User } from '@/types'
 import type { Roster } from '@/hooks/useRoster'
 import { Drawer, DrawerContent, DrawerDescription, DrawerHeader, DrawerTitle } from '@/components/ui/drawer'
 import { smallButton } from '@/components/common/listStyles'
-import { firstName, formatClock, formatDateShort, formatTime, formatTimeRange } from '@/lib/format'
+import { shortName, formatClock, formatDateShort, formatTime, formatTimeRange } from '@/lib/format'
 import { defaultEndTime, localDate } from '@/lib/rules'
 import { cn } from '@/lib/utils'
 
@@ -57,7 +57,7 @@ export function ShiftSheet({ slot, shift, roster, onOpenChange, onChanged }: Pro
 
   const published = shift?.status === 'published'
   const timesDirty = shift !== null && (start !== shift.start_time || end !== shift.end_time)
-  const nameOf = (id: string) => firstName(users.find((u) => u.id === id)?.full_name ?? 'Someone')
+  const nameOf = (id: string) => shortName(users.find((u) => u.id === id)?.full_name ?? 'Someone')
   const history = shift ? changes.filter((c) => c.shift_id === shift.id) : []
   const label = `${formatDateShort(slot.date)} · ${TYPE_LABEL[slot.type]}`
 
@@ -81,7 +81,7 @@ export function ShiftSheet({ slot, shift, roster, onOpenChange, onChanged }: Pro
     void run(user.id, async () => {
       if (shift) await updateShift({ shiftId: shift.id, changedBy: me.id, patch: { assigned_user_id: user.id } })
       else await createShift({ date: slot.date, type: slot.type, assignedUserId: user.id, createdBy: me.id, start_time: start, end_time: end })
-      return `${firstName(user.full_name)} is on ${label}.`
+      return `${shortName(user.full_name)} is on ${label}.`
     })
   }
 

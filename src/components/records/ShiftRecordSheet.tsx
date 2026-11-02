@@ -12,7 +12,7 @@ import { PhotoThumb } from '@/components/home/PhotosRow'
 import { FLAG_ICON } from '@/components/manager/flagIcons'
 import { FLAG_LABEL } from '@/components/manager/flagText'
 import { ClockFixForm, type ClockFix } from '@/components/manager/ClockFixForm'
-import { firstName, formatClock, formatDateShort, formatDuration, formatTimeRange, localDay, zonedTimestamp } from '@/lib/format'
+import { shortName, formatClock, formatDateShort, formatDuration, formatTimeRange, localDay, zonedTimestamp } from '@/lib/format'
 import { compareTs, isOffSite } from '@/lib/rules'
 import { cn } from '@/lib/utils'
 
@@ -56,7 +56,7 @@ export function ShiftRecordSheet({ record, settings, now, onOpenChange, fixer, o
   const [fixing, setFixing] = useState<{ mode: ClockFix; event: EffectiveClockEvent } | null>(null)
   const { shift, user, session, photos, notes, flags } = record
   const tz = settings.timezone
-  const name = firstName(user.full_name)
+  const name = shortName(user.full_name)
   const started = compareTs(now, zonedTimestamp(shift.date, shift.start_time, tz)) >= 0
   const fixButton = 'h-11 rounded-[14px] border border-border px-3.5 text-[15px] font-medium hover:bg-muted active:bg-muted'
 

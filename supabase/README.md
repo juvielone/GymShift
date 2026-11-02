@@ -18,10 +18,12 @@ The database for GymShift. The app still runs on mock data (`src/data`); these m
 | `migrations/…10_photos.sql` | The private `shift-photos` Storage bucket and its rules; `add_photo`, `remove_photo`. |
 | `migrations/…11_attendance_enums.sql` | New enum values for the next file (a new enum value can't be used in the transaction that adds it). |
 | `migrations/…12_attendance_fixes.sql` | PRD F6 fixes: `clock_voids` and `correction_requests` (append-only / decided once); `request_void`, `request_end_time`, `decide_correction_request`, `void_clock_in`, `correct_clock_time`, `request_extension`, `decide_extension`; `clock_in` refuses a second open clock-in and flags off-start; `clock_out` flags very short sessions; the scheduled job also closes forgotten sessions at the approved end (`private.close_forgotten_sessions()`). Voided events count nowhere. |
+| `migrations/…13_staff.sql` | Staff (PRD F1): `user_contacts` (optional mobile, readable only by Carly and the person; `users.email` dropped); `update_staff`, `set_staff_active`; and `check_staff`, `check_pin_reset`, `add_staff`, which the staff Edge Function calls as Carly around its login changes. Nobody is ever deleted. |
+| `functions/staff/index.ts` | Edge Function: the only code that makes logins, sets PINs and renames logins. Holds the service-role key (a Supabase secret, never in the app); asks the database first. |
 | `seed.sql` | Local test data only (`npm run db:reset`): six sign-ins with known PINs, a fortnight around today, and one case for each attendance fix. Never run it against the real project. |
 | `tests/db.test.mjs` | Runs every migration in an in-memory Postgres (with small stand-ins for Supabase auth and Storage) and checks the rules. `npm run test:db` |
 
-Every write the app makes is a database function (RPC) that checks who is calling with `auth.uid()` and uses the database clock (`now()`), never the phone's. Clock in/out, the gym location, the roster, notes, flags (raised and resolved), photos, extensions, corrections and voids are done; the rest (swaps, staff, and deleting photos after 6 months) come next.
+Every write the app makes is a database function (RPC) that checks who is calling with `auth.uid()` and uses the database clock (`now()`), never the phone's. Clock in/out, the gym location, the roster, notes, flags (raised and resolved), photos, extensions, corrections, voids and staff are done; the rest (swaps, and deleting photos after 6 months) come next.
 
 ## Local database (for testing)
 
@@ -31,7 +33,8 @@ Needs Docker Desktop running. The Supabase CLI is a dev dependency (`npx supabas
 2. `npm run db:reset` applies every migration, then `seed.sql`. Run it again any time for a clean database.
 3. Copy the local publishable key from `npx supabase status` into `.env.localdb.local` as `VITE_SUPABASE_PUBLISHABLE_KEY=…`, then `npm run dev:localdb`.
 4. Sign in with the usernames and PINs at the top of `seed.sql`. The local dashboard is at http://127.0.0.1:54323.
-5. `npm run db:stop` when done.
+5. To try the Staff screen (adding people, PINs): `npx supabase functions serve staff` in another terminal. It gets the local keys by itself.
+6. `npm run db:stop` when done.
 
 ## Setting up the project (once)
 
@@ -40,9 +43,13 @@ Needs Docker Desktop running. The Supabase CLI is a dev dependency (`npx supabas
 3. Apply the migrations in order, either by pasting each file into the SQL Editor, or with the CLI:
    `npx supabase link --project-ref <ref>` then `npx supabase db push`.
 4. Put the project URL and the **anon** key in `.env.local` (not committed). Never put the `service_role` key in the app.
+5. Deploy the staff function: `npx supabase functions deploy staff`. Supabase gives it the project URL and keys itself; nothing to paste.
+6. Make Carly's account once, by hand: Authentication → Add user with `carly@staff.gymshift.invalid`, her password and "Auto confirm", then insert her `users` row (role `manager`). Everyone else is added by Carly from the Staff screen.
 
 ## Sign-in (PRD F1)
 
 Staff sign in with a username and a 6-digit PIN; Carly with her username and a password. Supabase signs people in by email and password, so each username maps to a hidden address, `<username>@staff.gymshift.invalid` (`.invalid` can never receive mail), and the PIN is the password. Staff never see the address.
 
-Creating a person and resetting a PIN set someone else's password, which only the server may do. That will be a small Edge Function called from the Staff screen; until it exists, create accounts in the dashboard (Authentication → Add user, with the hidden address and the PIN) and insert their `users` row.
+Creating a person, resetting a PIN and changing a username change someone else's login, which only the server may do: the `staff` Edge Function does it. It runs `check_staff` / `check_pin_reset` as the caller first (manager only), then changes the login with the service-role key, then saves the staff row with `add_staff` / `update_staff`, which only accept a login that matches the username. If that last step fails, the login change is undone. Carly types the PIN or keeps the one the app makes; easy PINs (111111, 123456) are refused. A PIN never goes into our tables.
+
+An optional mobile number is kept in `user_contacts`, readable only by Carly and the person. It is contact information: never used to sign in and never verified (so no SMS costs).

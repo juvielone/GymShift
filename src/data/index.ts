@@ -39,15 +39,31 @@ function persisted<A extends unknown[], R>(write: (...args: A) => Promise<R>, li
   }
 }
 
-export { getCurrentUser, isSignedIn, getDemoAccounts, getUsers, getUser, getRoles, getPermissions, getStaffImpact, suggestUsername, ASSIGNABLE_ROLES, SIGN_IN_MISMATCH } from './users'
+export {
+  getCurrentUser,
+  isSignedIn,
+  getDemoAccounts,
+  getUsers,
+  getUser,
+  getRoles,
+  getPermissions,
+  getStaffImpact,
+  getContact,
+  suggestUsername,
+  pinProblem,
+  makePin,
+  normalisePhone,
+  ASSIGNABLE_ROLES,
+  SIGN_IN_MISMATCH,
+} from './users'
 export type { StaffImpact, DemoAccount } from './users'
 export const signIn = persisted(users.signIn, (l) => l.signIn)
 export const setMockCurrentUser = persisted(users.setMockCurrentUser)
 export const signOut = persisted(users.signOut, (l) => l.signOut)
-export const createUser = persisted(users.createUser)
-export const updateUser = persisted(users.updateUser)
-export const resetPin = persisted(users.resetPin)
-export const setUserActive = persisted(users.setUserActive)
+export const createUser = persisted(users.createUser, (l) => l.createUser)
+export const updateUser = persisted(users.updateUser, (l) => l.updateUser)
+export const resetPin = persisted(users.resetPin, (l) => l.resetPin)
+export const setUserActive = persisted(users.setUserActive, (l) => l.setUserActive)
 
 export { getSettings, RADIUS_MIN_M, RADIUS_MAX_M } from './settings'
 export const updateSiteLocation = persisted(settings.updateSiteLocation, (l) => l.updateSiteLocation)

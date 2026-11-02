@@ -10,7 +10,7 @@ import { Drawer, DrawerContent, DrawerDescription, DrawerFooter, DrawerHeader, D
 import { Textarea } from '@/components/ui/textarea'
 import { FLAG_LABEL } from '@/components/manager/flagText'
 import { ClockFixForm } from '@/components/manager/ClockFixForm'
-import { firstName, formatClock, formatDateShort, formatTimeRange, localDay, localTime, zonedTimestamp } from '@/lib/format'
+import { shortName, formatClock, formatDateShort, formatTimeRange, localDay, localTime, zonedTimestamp } from '@/lib/format'
 import { compareTs, isOffSite } from '@/lib/rules'
 import { cn } from '@/lib/utils'
 
@@ -67,7 +67,7 @@ export function FlagSheet({ view, viewer, settings, onOpenChange, onChanged }: P
 
   if (!view) return null
   const { flag, user, shift } = view
-  const name = firstName(user.full_name)
+  const name = shortName(user.full_name)
   const quickReasons = ['Forgot to clock on time', 'Phone problem', `Checked with ${name}`]
 
   async function run(action: () => Promise<unknown>, close: boolean) {

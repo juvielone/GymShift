@@ -20,7 +20,7 @@ import { GymLocationSheet } from '@/components/manager/GymLocationSheet'
 import { RosterRow } from '@/components/roster/RosterRow'
 import { RecordsRow } from '@/components/records/RecordsRow'
 import { ShiftRecordSheet } from '@/components/records/ShiftRecordSheet'
-import { firstName, formatClock, formatDateLong, formatDateShort, formatDuration, localDay, siteShortName } from '@/lib/format'
+import { firstName, shortName, formatClock, formatDateLong, formatDateShort, formatDuration, localDay, siteShortName } from '@/lib/format'
 import { addDays, localDate } from '@/lib/rules'
 import { cn } from '@/lib/utils'
 
@@ -228,7 +228,7 @@ export function ManagerDashboard({
                           <Disc tone="warn">{FLAG_ICON[v.flag.kind]}</Disc>
                           <span className="min-w-0 flex-1">
                             <span className="block text-base leading-snug font-medium">
-                              {firstName(v.user.full_name)} · {FLAG_LABEL[v.flag.kind]}
+                              {shortName(v.user.full_name)} · {FLAG_LABEL[v.flag.kind]}
                             </span>
                             <span className="line-clamp-1 text-sm leading-snug text-muted-foreground lg:line-clamp-none">
                               {formatClock(v.flag.created_at, tz)} · {v.flag.detail}
@@ -244,7 +244,7 @@ export function ManagerDashboard({
                         <div className="min-w-0 flex-1">
                           <p className="text-base leading-snug">{s.note.body}</p>
                           <p className="text-sm text-muted-foreground">
-                            {s.user ? firstName(s.user.full_name) : 'Staff'} · {s.note.tag === 'issue' ? 'something wrong' : 'supplies'} · {formatClock(s.note.created_at, tz)}
+                            {s.user ? shortName(s.user.full_name) : 'Staff'} · {s.note.tag === 'issue' ? 'something wrong' : 'supplies'} · {formatClock(s.note.created_at, tz)}
                           </p>
                         </div>
                         <button type="button" onClick={() => void done(s.note.id)} className={smallButton.outline}>

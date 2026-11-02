@@ -7,7 +7,7 @@ import type { RoleId, User } from '@/types'
 import { Disc } from '@/components/common/ListParts'
 import { rowClass, smallButton } from '@/components/common/listStyles'
 import { StaffSheet } from '@/components/manager/StaffSheet'
-import { firstName } from '@/lib/format'
+import { shortName } from '@/lib/format'
 import { cn } from '@/lib/utils'
 
 type Data = { me: User; users: User[]; roleLabel: Record<RoleId, string> }
@@ -48,8 +48,8 @@ export function StaffPage({ onBack }: { onBack: () => void }) {
 
   const groups: { id: string; title: string; people: User[] }[] = [
     { id: 'leads', title: 'Manager and team leads', people: [me, ...leads] },
-    ...leads.map((l) => ({ id: l.id, title: `${firstName(l.full_name)}'s group`, people: cleaners.filter((c) => c.team_lead_id === l.id).sort(byName) })),
-    { id: 'direct', title: `Reports to ${firstName(me.full_name)}`, people: cleaners.filter((c) => c.team_lead_id === null).sort(byName) },
+    ...leads.map((l) => ({ id: l.id, title: `${shortName(l.full_name)}'s group`, people: cleaners.filter((c) => c.team_lead_id === l.id).sort(byName) })),
+    { id: 'direct', title: `Reports to ${shortName(me.full_name)}`, people: cleaners.filter((c) => c.team_lead_id === null).sort(byName) },
   ].filter((g) => g.people.length > 0)
 
   const row = (u: User) => {

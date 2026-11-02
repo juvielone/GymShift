@@ -10,7 +10,7 @@ import type { CorrectionReason, Timestamp, User } from '@/types'
 import type { RequestItem } from '@/hooks/requests'
 import { Disc } from '@/components/common/ListParts'
 import { rowClass, smallButton } from '@/components/common/listStyles'
-import { firstName, formatClock, formatDateShort, formatDistance, formatTimeRange, localDay } from '@/lib/format'
+import { shortName, formatClock, formatDateShort, formatDistance, formatTimeRange, localDay } from '@/lib/format'
 
 const UNDO_MS = 5000
 
@@ -105,7 +105,7 @@ export function RequestList({ items, viewer, tz, now, onChanged }: Props) {
       {shown.map((item) => {
         const p = pending[item.id]
         const done = settled[item.id]?.p
-        const who = firstName(item.requester.full_name)
+        const who = shortName(item.requester.full_name)
         let shiftText = item.shift
           ? `${formatDateShort(item.shift.date)} · ${item.shift.type === 'morning' ? 'Morning' : 'Night'} ${formatTimeRange(item.shift.start_time, item.shift.end_time)}`
           : 'Not rostered'
@@ -146,7 +146,7 @@ export function RequestList({ items, viewer, tz, now, onChanged }: Props) {
           asked = askedAt(r.created_at)
         } else {
           icon = item.swap.kind === 'swap' ? <ArrowLeftRight /> : <UserRound />
-          const other = item.other ? firstName(item.other.full_name) : null
+          const other = item.other ? shortName(item.other.full_name) : null
           title = item.swap.kind === 'swap' ? `${who} ↔ ${other} · swap` : other ? `${who} → ${other} · cover` : `${who} · needs cover`
           reason = item.swap.reason
           asked = askedAt(item.swap.created_at)

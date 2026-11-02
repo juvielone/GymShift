@@ -9,7 +9,7 @@ import type { DateString, Shift, ShiftType } from '@/types'
 import { initialFortnight, useRoster, type Roster } from '@/hooks/useRoster'
 import { ShiftSheet, type Slot } from '@/components/roster/ShiftSheet'
 import { smallButton } from '@/components/common/listStyles'
-import { firstName, formatDateShort, formatTimeRange } from '@/lib/format'
+import { shortName, formatDateShort, formatTimeRange } from '@/lib/format'
 import { addDays, fortnightStartOf, localDate } from '@/lib/rules'
 import { cn } from '@/lib/utils'
 
@@ -74,7 +74,7 @@ function RosterView({ roster, onMove, refresh }: { roster: Roster; onMove: (star
   const emptySlots = days.length * TYPES.length - shifts.length
   const at = (date: DateString, type: ShiftType) => shifts.find((s) => s.date === date && s.type === type) ?? null
   const changedIds = new Set(changes.map((c) => c.shift_id))
-  const nameOf = (id: string) => firstName(roster.users.find((u) => u.id === id)?.full_name ?? 'Someone')
+  const nameOf = (id: string) => shortName(roster.users.find((u) => u.id === id)?.full_name ?? 'Someone')
 
   const status =
     shifts.length === 0
