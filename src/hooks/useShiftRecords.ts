@@ -14,6 +14,8 @@ export interface RecordsData {
   /** Fortnight starts that still hold records, newest (the current one) first. */
   fortnights: string[]
   scope: Scope
+  /** Carly: may correct and void from the shift sheet. */
+  canFix: boolean
   people: User[]
   /** Every visible shift in the chosen fortnight, newest first. */
   records: ShiftRecord[]
@@ -42,7 +44,7 @@ export function useShiftRecords() {
         getRecordPeople(me.id),
         getShiftRecords({ viewerId: me.id, from, to }),
       ])
-      setData({ me, settings, now, today, fortnights, scope: role.view_records_scope, people, records })
+      setData({ me, settings, now, today, fortnights, scope: role.view_records_scope, canFix: role.can_correct_attendance, people, records })
       setError(false)
     } catch {
       setError(true)

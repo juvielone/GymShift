@@ -1,7 +1,8 @@
 // Pure business rules from docs/PRD.md. No data access, no side effects — reusable by the
 // mock data layer now and by Supabase functions/RLS helpers later.
 // Every threshold comes from SiteSettings; never hardcode 150 m, 3h, 3.5h, etc.
-import type { Extension, SiteSettings, Timestamp } from '@/types'
+import type { Extension, Shift, SiteSettings, Timestamp } from '@/types'
+import { zonedTimestamp } from './format'
 
 /** Whole minutes between two timestamps. Never clamps or rounds down to the rostered length. */
 export function minutesBetween(start: Timestamp, end: Timestamp): number {
@@ -64,6 +65,15 @@ export function photoWindowClosesAt(clockOut: Timestamp | null, settings: SiteSe
   return clockOut === null ? null : plusMinutes(clockOut, settings.photo_upload_window_min)
 }
 
+/**
+ * Where the photo window counts from: the latest of the clock-out's effective time, when it was really made,
+ * and when it was answered. After an automatic close at the rostered end, the window opens when the cleaner hears
+ * about it, not hours earlier. Mirrors private.photo_window_from().
+ */
+export function photoWindowStart(clockOut: { server_time: Timestamp; effective_time: Timestamp }, answeredAt: Timestamp | null): Timestamp {
+  return [clockOut.server_time, clockOut.effective_time, ...(answeredAt ? [answeredAt] : [])].reduce((a, b) => (compareTs(a, b) >= 0 ? a : b))
+}
+
 /** The cleaner can remove their own photo for a short time after adding it (a mistake, not a review). */
 export function canRemoveOwnPhoto(uploadedAt: Timestamp, now: Timestamp, settings: SiteSettings): boolean {
   return compareTs(now, plusMinutes(uploadedAt, settings.photo_remove_window_min)) < 0
@@ -77,6 +87,54 @@ export function canRemoveOwnPhoto(uploadedAt: Timestamp, now: Timestamp, setting
 export function noShowDueAt(shiftStart: Timestamp, arriveBy: Timestamp | null, settings: SiteSettings): Timestamp {
   const from = arriveBy !== null && compareTs(arriveBy, shiftStart) > 0 ? arriveBy : shiftStart
   return plusMinutes(from, settings.no_show_after_min)
+}
+
+/** When a shift starts, as a timestamp in the site timezone. */
+export function shiftStartAt(shift: Pick<Shift, 'date' | 'start_time'>, settings: SiteSettings): Timestamp {
+  return zonedTimestamp(shift.date, shift.start_time, settings.timezone)
+}
+
+/** When a shift ends. One ending at or before its start ends the next day (private.shift_end_at()). */
+export function shiftEndAt(shift: Pick<Shift, 'date' | 'start_time' | 'end_time'>, settings: SiteSettings): Timestamp {
+  const nextDay = shift.end_time <= shift.start_time
+  return zonedTimestamp(nextDay ? addDays(shift.date, 1) : shift.date, shift.end_time, settings.timezone)
+}
+
+/** Minutes from the rostered start to a clock-in: negative = early. */
+export function minutesFromStart(clockIn: Timestamp, shiftStart: Timestamp): number {
+  return minutesBetween(shiftStart, clockIn)
+}
+
+/**
+ * A clock-in this far from the rostered start, early or late, is flagged (and the phone asks first).
+ * Flag only: it always saves. Mirrors clock_in() in 12_attendance_fixes.sql.
+ */
+export function isOffStart(clockIn: Timestamp, shiftStart: Timestamp, settings: SiteSettings): boolean {
+  return Math.abs(minutesFromStart(clockIn, shiftStart)) > settings.start_mismatch_min
+}
+
+/** Before clocking in, ask once: no rostered shift to link to today, or far from its start. An on-time clock-in is one tap. */
+export function needsClockInConfirm(shiftStart: Timestamp | null, now: Timestamp, settings: SiteSettings): boolean {
+  return shiftStart === null || isOffStart(now, shiftStart, settings)
+}
+
+/** A clock-out within a minute or two of clocking in is flagged (a tap straight after the other). Flag only. */
+export function isShortSession(workedMin: number, settings: SiteSettings): boolean {
+  return workedMin < settings.short_session_flag_min
+}
+
+/**
+ * Where a forgotten session is closed: the shift's approved end (its end plus approved extra time); unscheduled,
+ * or clocked in after that end, clock-in plus the standard length. Nothing measured is cut: no end was measured.
+ * Mirrors private.close_forgotten_sessions(); keep them in step.
+ */
+export function assumedEnd(clockIn: Timestamp, approvedEnd: Timestamp | null, settings: SiteSettings): Timestamp {
+  return approvedEnd !== null && compareTs(approvedEnd, clockIn) > 0 ? approvedEnd : plusMinutes(clockIn, settings.standard_shift_min)
+}
+
+/** When a session still open is closed automatically: auto_close_after_min after its assumed end. */
+export function autoCloseDueAt(end: Timestamp, settings: SiteSettings): Timestamp {
+  return plusMinutes(end, settings.auto_close_after_min)
 }
 
 /** Oldest day still kept in the records: photos and reports are deleted after the retention period. */

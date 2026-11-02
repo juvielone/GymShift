@@ -2,6 +2,7 @@
 // Reads only through '@/data'; the time always comes from the server clock, never the phone.
 import { useCallback, useEffect, useState } from 'react'
 import {
+  getCorrectionRequests,
   getCurrentUser,
   getEffectiveClockEvents,
   getExtensions,
@@ -15,7 +16,7 @@ import {
   serverNow,
 } from '@/data'
 import type { EffectiveClockEvent } from '@/data'
-import type { Extension, Note, Photo, Shift, SiteSettings, Timestamp, User } from '@/types'
+import type { CorrectionRequest, Extension, Note, Photo, Shift, SiteSettings, Timestamp, User } from '@/types'
 import { approvedShiftMinutes, compareTs, localDate, minutesBetween } from '@/lib/rules'
 import { getLocationPermission } from '@/lib/geolocation'
 
@@ -41,6 +42,17 @@ export interface Session {
   extensions: Extension[]
   /** Standard length plus approved extra time, never beyond the maximum. */
   approvedMin: number
+  /** The latest "This was a mistake" on the clock-in, if asked. */
+  voidRequest: CorrectionRequest | null
+  /** The latest "When did you finish?" on the clock-out, if asked. */
+  endRequest: CorrectionRequest | null
+}
+
+/** What happened to a "This was a mistake" today, for the row that answers it. */
+export interface VoidNotice {
+  request: CorrectionRequest
+  /** When the clock-in it is about was made. */
+  clockInAt: Timestamp
 }
 
 export interface CleanerHome {
@@ -56,6 +68,10 @@ export interface CleanerHome {
   photos: Photo[]
   /** This person's notes on that shift, newest first. */
   notes: Note[]
+  /** Today's latest "This was a mistake" and what Carly did with it. null = none today. */
+  voidNotice: VoidNotice | null
+  /** The latest session the job closed for them that they haven't answered yet, with its shift's photos. */
+  autoClosed: { session: Session; photos: Photo[] } | null
 }
 
 async function loadHome(): Promise<CleanerHome> {
@@ -63,12 +79,20 @@ async function loadHome(): Promise<CleanerHome> {
   const now = serverNow()
   const today = localDate(now, settings)
 
-  const [todayShifts, events, upcomingAll, permission] = await Promise.all([
+  const [todayShifts, allEvents, upcomingAll, permission, requests] = await Promise.all([
     getShifts({ userId: user.id, status: 'published', from: today, to: today }),
-    getEffectiveClockEvents({ userId: user.id }),
+    getEffectiveClockEvents({ userId: user.id, includeVoided: true }),
     getUpcomingShifts(user.id, 8),
     getLocationPermission(),
+    getCorrectionRequests({ userId: user.id }),
   ])
+  // Voided events count nowhere: after a void they're back to "not clocked in".
+  const events = allEvents.filter((e) => !e.voided)
+
+  /** The latest request of that kind on an event (requests come oldest first). */
+  const requestOn = (eventId: string, kind: CorrectionRequest['kind']) => requests.filter((r) => r.clock_event_id === eventId && r.kind === kind).at(-1) ?? null
+  // A clock-in waiting on "This was a mistake" doesn't hold the shift: they can clock in properly meanwhile.
+  const setAside = (e: EffectiveClockEvent) => requestOn(e.id, 'void')?.status === 'pending'
 
   const buildSession = async (shift: Shift | null, clockIn: EffectiveClockEvent, clockOut: EffectiveClockEvent | null): Promise<Session> => {
     const extensions = shift ? await getExtensions({ shiftId: shift.id }) : []
@@ -79,6 +103,8 @@ async function loadHome(): Promise<CleanerHome> {
       workedMin: minutesBetween(clockIn.effective_time, clockOut?.effective_time ?? now),
       extensions,
       approvedMin: approvedShiftMinutes(extensions, settings),
+      voidRequest: requestOn(clockIn.id, 'void'),
+      endRequest: clockOut ? requestOn(clockOut.id, 'end_time') : null,
     }
   }
 
@@ -94,10 +120,11 @@ async function loadHome(): Promise<CleanerHome> {
   const doneIds = new Set<string>()
   for (const shift of todayShifts) {
     const att = await getShiftAttendance(shift.id)
-    if (att?.clock_in && att.clock_out) {
+    const clockIn = att?.clock_in && !setAside(att.clock_in) ? att.clock_in : null
+    if (clockIn && att?.clock_out) {
       doneIds.add(shift.id)
-      lastDone = await buildSession(shift, att.clock_in, att.clock_out)
-    } else if (!phase && !att?.clock_in) {
+      lastDone = await buildSession(shift, clockIn, att.clock_out)
+    } else if (!phase && !clockIn) {
       phase = { kind: 'before', shift }
     }
   }
@@ -105,8 +132,29 @@ async function loadHome(): Promise<CleanerHome> {
     // A just-finished unscheduled session today still counts as "done" for the screen.
     const lastOut = last?.kind === 'out' && localDate(last.effective_time, settings) === today ? last : null
     const lastIn = lastOut ? events.findLast((e) => e.kind === 'in' && compareTs(e.effective_time, lastOut.effective_time) <= 0) : undefined
-    if (!lastDone && lastOut && lastIn && lastIn.shift_id === null) lastDone = await buildSession(null, lastIn, lastOut)
+    if (!lastDone && lastOut && lastIn && lastIn.shift_id === null && !setAside(lastIn)) lastDone = await buildSession(null, lastIn, lastOut)
     phase = lastDone ? { kind: 'done', session: lastDone } : { kind: 'no_shift', lastDone: null }
+  }
+
+  // Today's latest "This was a mistake", asked or answered today.
+  const touched = (r: CorrectionRequest) => (r.decided_at && compareTs(r.decided_at, r.created_at) > 0 ? r.decided_at : r.created_at)
+  const todayVoid = requests
+    .filter((r) => r.kind === 'void' && localDate(touched(r), settings) === today)
+    .sort((a, b) => compareTs(touched(a), touched(b)))
+    .at(-1)
+  const voidedIn = todayVoid && allEvents.find((e) => e.id === todayVoid.clock_event_id)
+  const voidNotice = todayVoid && voidedIn ? { request: todayVoid, clockInAt: voidedIn.effective_time } : null
+
+  // The latest session the job closed that they haven't answered: "Is 10:00 pm right?"
+  const autoOut = events.findLast((e) => e.kind === 'out' && e.source === 'auto' && !requests.some((r) => r.clock_event_id === e.id))
+  const autoIn = autoOut && events.findLast((e) => e.kind === 'in' && compareTs(e.server_time, autoOut.server_time) < 0)
+  let autoClosed: CleanerHome['autoClosed'] = null
+  if (autoOut && autoIn) {
+    const autoShift = autoOut.shift_id ? ((await getShifts({ userId: user.id })).find((s) => s.id === autoOut.shift_id) ?? null) : null
+    autoClosed = {
+      session: await buildSession(autoShift, autoIn, autoOut),
+      photos: autoShift ? await getPhotos({ shiftId: autoShift.id }) : [],
+    }
   }
 
   const shownId = phase.kind === 'before' ? phase.shift.id : phase.kind === 'on' || phase.kind === 'done' ? phase.session.shift?.id : undefined
@@ -129,7 +177,7 @@ async function loadHome(): Promise<CleanerHome> {
     ? await Promise.all([getPhotos({ shiftId: recordShift.id }), getNotes({ shiftId: recordShift.id, userId: user.id })])
     : [[], []]
 
-  return { user, settings, now, phase, upcoming, locationAccess, recordShift, photos, notes }
+  return { user, settings, now, phase, upcoming, locationAccess, recordShift, photos, notes, voidNotice, autoClosed }
 }
 
 /** Refreshes every 30 s so worked time and the progress line keep up with the server clock. */

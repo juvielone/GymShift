@@ -4,8 +4,32 @@
 // read functions in the other modules work unchanged. Writes: database functions (RPC), then refresh().
 // Writes without a database function yet are refused in index.ts with NOT_LIVE_YET.
 import { createClient, type SupabaseClient } from '@supabase/supabase-js'
-import type { Availability, ClockEvent, Correction, DateString, Extension, Flag, Note, NoteTag, Photo, Role, Scope, Shift, ShiftChange, ShiftType, SiteSettings, Swap, TimeString, Timestamp, User, Uuid } from '@/types'
-import type { ClockLocation, ClockResult } from './clockEvents'
+import type {
+  Availability,
+  ClockEvent,
+  ClockVoid,
+  Correction,
+  CorrectionReason,
+  CorrectionRequest,
+  DateString,
+  Extension,
+  Flag,
+  Note,
+  NoteTag,
+  Photo,
+  Role,
+  Scope,
+  Shift,
+  ShiftChange,
+  ShiftType,
+  SiteSettings,
+  Swap,
+  TimeString,
+  Timestamp,
+  User,
+  Uuid,
+} from '@/types'
+import { AlreadyClockedInError, type ClockLocation, type ClockResult } from './clockEvents'
 import { requireCanAddPhoto } from './photos'
 import { SIGN_IN_MISMATCH } from './users'
 import { auth, copy, db, emptyTables, requireUser } from './store'
@@ -63,7 +87,8 @@ let refreshApplied = 0
 /** Reload everything this person may see. Small on purpose: about 7 people and a few fortnights. */
 async function refresh(): Promise<void> {
   const started = ++refreshesStarted
-  const [roles, users, settings, availability, shifts, shiftChanges, clockEvents, corrections, flags, extensions, swaps, photos, notes] = await Promise.all([
+  const [roles, users, settings, availability, shifts, shiftChanges, clockEvents, corrections, clockVoids, correctionRequests, flags, extensions, swaps, photos, notes] =
+    await Promise.all([
     rows<RoleRow>('roles'),
     rows<User>('users'),
     rows<SiteSettings>('site_settings'),
@@ -72,6 +97,8 @@ async function refresh(): Promise<void> {
     rows<ShiftChange>('shift_changes'),
     rows<ClockEvent>('clock_events'),
     rows<Correction>('corrections'),
+    rows<ClockVoid>('clock_voids'),
+    rows<CorrectionRequest>('correction_requests'),
     rows<Flag>('flags'),
     rows<Extension>('extensions'),
     rows<Swap>('swaps'),
@@ -91,6 +118,8 @@ async function refresh(): Promise<void> {
     shiftChanges,
     clockEvents,
     corrections,
+    clockVoids,
+    correctionRequests,
     flags,
     extensions,
     swaps,
@@ -156,15 +185,21 @@ export async function signOut(): Promise<void> {
 
 // ---- Clock in / out (database functions public.clock_in / public.clock_out) ----
 
+/** Where the phone is, as the clock functions take it. */
+const locationArgs = (location: ClockLocation) =>
+  'status' in location
+    ? { p_location_status: location.status }
+    : { p_location_status: 'ok', p_lat: location.lat, p_lng: location.lng, p_accuracy_m: location.accuracy_m }
+
 async function clock(kind: 'in' | 'out', userId: Uuid, location: ClockLocation): Promise<ClockResult> {
   // The database clocks in whoever is signed in; this only guards against a screen passing someone else.
   if (userId !== auth.userId) throw new Error('You can only clock yourself in or out')
-  const args =
-    'status' in location
-      ? { p_location_status: location.status }
-      : { p_location_status: 'ok', p_lat: location.lat, p_lng: location.lng, p_accuracy_m: location.accuracy_m }
-  const { data, error } = await sb().rpc(`clock_${kind}`, args)
-  if (error) throw new Error(error.message === 'Sign in first' ? 'Sign in again, then try once more.' : 'Not saved yet. Check your internet and try again.')
+  const { data, error } = await sb().rpc(`clock_${kind}`, locationArgs(location))
+  if (error) {
+    // clock_in() refuses a second open clock-in; details carries when the open one started.
+    if (error.code === 'GS409') throw new AlreadyClockedInError(error.details, error.message)
+    throw new Error(error.message === 'Sign in first' ? 'Sign in again, then try once more.' : 'Not saved yet. Check your internet and try again.')
+  }
   // Saved by now. If the reload fails the screen shows the last view until the next one.
   await refresh().catch(() => {})
   return data as ClockResult
@@ -318,4 +353,65 @@ export async function removePhoto(input: { photoId: Uuid; userId: Uuid }): Promi
   const { error } = await sb().storage.from(PHOTO_BUCKET).remove([photo.storage_path])
   if (error) console.warn('[GymShift] Removed photo image not deleted', error)
   return photo
+}
+
+// ---- Fixing attendance (database functions request_void, request_end_time, decide_correction_request,
+// void_clock_in, correct_clock_time; request_extension, decide_extension) ----
+
+export async function requestVoid(input: {
+  clockEventId: Uuid
+  userId: Uuid
+  reasonCode: CorrectionReason
+  note?: string
+  location?: ClockLocation
+}): Promise<{ request: CorrectionRequest; clockOut: ClockResult | null }> {
+  if (input.userId !== auth.userId) throw new Error('You can only ask about your own clock-in')
+  const result = await write<{ request: CorrectionRequest; clock_out: ClockResult | null }>('request_void', {
+    p_clock_event_id: input.clockEventId,
+    p_reason_code: input.reasonCode,
+    p_note: input.note ?? null,
+    ...(input.location ? locationArgs(input.location) : {}),
+  })
+  return { request: result.request, clockOut: result.clock_out }
+}
+
+export async function requestEndTime(input: {
+  clockEventId: Uuid
+  userId: Uuid
+  reasonCode: CorrectionReason
+  requestedTime?: Timestamp
+  note?: string
+}): Promise<CorrectionRequest> {
+  if (input.userId !== auth.userId) throw new Error('You can only ask about your own clock-out')
+  return write<CorrectionRequest>('request_end_time', {
+    p_clock_event_id: input.clockEventId,
+    p_reason_code: input.reasonCode,
+    p_requested_time: input.requestedTime ?? null,
+    p_note: input.note ?? null,
+  })
+}
+
+export async function decideCorrectionRequest(input: { requestId: Uuid; decidedBy: Uuid; approve: boolean }): Promise<CorrectionRequest> {
+  if (input.decidedBy !== auth.userId) throw new Error('Only the manager can decide corrections')
+  return write<CorrectionRequest>('decide_correction_request', { p_request_id: input.requestId, p_approve: input.approve })
+}
+
+export async function voidClockIn(input: { clockEventId: Uuid; voidedBy: Uuid; reason: string }): Promise<ClockVoid> {
+  if (input.voidedBy !== auth.userId) throw new Error('Only the manager can void a clock-in')
+  return write<ClockVoid>('void_clock_in', { p_clock_event_id: input.clockEventId, p_reason: input.reason })
+}
+
+export async function addCorrection(input: { clockEventId: Uuid; newTime: Timestamp; reason: string; correctedBy: Uuid }): Promise<Correction> {
+  if (input.correctedBy !== auth.userId) throw new Error('Only the manager can correct attendance')
+  return write<Correction>('correct_clock_time', { p_clock_event_id: input.clockEventId, p_new_time: input.newTime, p_reason: input.reason })
+}
+
+export async function requestExtension(input: { shiftId: Uuid; requestedBy: Uuid; minutes: number; reason: string }): Promise<Extension> {
+  if (input.requestedBy !== auth.userId) throw new Error('Only the assigned cleaner can request an extension')
+  return write<Extension>('request_extension', { p_shift_id: input.shiftId, p_minutes: input.minutes, p_reason: input.reason })
+}
+
+export async function decideExtension(input: { extensionId: Uuid; decidedBy: Uuid; approve: boolean }): Promise<Extension> {
+  if (input.decidedBy !== auth.userId) throw new Error('Only the manager can approve extensions')
+  return write<Extension>('decide_extension', { p_extension_id: input.extensionId, p_approve: input.approve })
 }

@@ -14,6 +14,10 @@ export type FlagKind =
   | 'missing_clock_out'
   /** worked longer than the standard shift without an approved extension */
   | 'over_without_extension'
+  /** clocked out within short_session_flag_min of clocking in */
+  | 'short_session'
+  /** clocked in more than start_mismatch_min before or after the rostered start */
+  | 'off_start'
 
 export interface Flag {
   id: Uuid

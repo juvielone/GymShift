@@ -1,7 +1,8 @@
 import type { Role, RoleId, User, Uuid } from '@/types'
 import { CARLY, GLADYS, JOSH } from '@/mocks'
 import { auth, copy, db, MODE, newId, requireUser, roleOf, serverNow } from './store'
-import { compareTs, localDate } from '@/lib/rules'
+import { localDate } from '@/lib/rules'
+import { openClockIn } from './attendance'
 
 // Mock session (held in the store so trial mode remembers it). Replaced by Supabase auth later:
 // username + 6-digit PIN for staff, username + password for the manager (PRD F1, 1 Nov 2026).
@@ -207,7 +208,7 @@ export async function setUserActive(input: { actorId: Uuid; userId: Uuid; active
 export interface StaffImpact {
   /** Published shifts from today on that are assigned to them. */
   upcomingShifts: number
-  /** Their latest clock event is a clock-in. */
+  /** They are clocked in now (an open clock-in that still counts). */
   clockedIn: boolean
   /** Active people whose team lead they are. */
   group: User[]
@@ -216,10 +217,9 @@ export interface StaffImpact {
 /** What changes for others if this person is deactivated or stops being a team lead. */
 export async function getStaffImpact(userId: Uuid): Promise<StaffImpact> {
   const today = localDate(serverNow(), db.settings)
-  const events = db.clockEvents.filter((e) => e.user_id === userId).sort((a, b) => compareTs(a.server_time, b.server_time))
   return copy({
     upcomingShifts: db.shifts.filter((s) => s.assigned_user_id === userId && s.status === 'published' && s.date >= today).length,
-    clockedIn: events.at(-1)?.kind === 'in',
+    clockedIn: openClockIn(userId) !== null,
     group: db.users.filter((u) => u.team_lead_id === userId && u.active),
   })
 }

@@ -1,10 +1,12 @@
-// Pending extra-time and swap/cover requests with inline Approve / Decline.
+// Pending extra-time, swap/cover and attendance-correction requests with inline Approve / Decline.
 // A request is decided once, so each tap waits 5 seconds with Undo before it is saved; once saved,
 // the row folds away and never offers Approve / Decline again, even before the list reloads.
+// Corrections and after-the-fact extensions show where the phone was at the clock-out, so Carly can judge.
 import { useEffect, useRef, useState } from 'react'
-import { ArrowLeftRight, Check, Plus, UserRound, X } from 'lucide-react'
-import { decideExtension, decideSwap } from '@/data'
-import type { Timestamp, User } from '@/types'
+import { ArrowLeftRight, Check, Clock, Plus, Undo2, UserRound, X } from 'lucide-react'
+import { decideCorrectionRequest, decideExtension, decideSwap } from '@/data'
+import type { EffectiveClockEvent } from '@/data'
+import type { CorrectionReason, Timestamp, User } from '@/types'
 import type { RequestItem } from '@/hooks/requests'
 import { Disc } from '@/components/common/ListParts'
 import { rowClass, smallButton } from '@/components/common/listStyles'
@@ -13,6 +15,22 @@ import { firstName, formatClock, formatDateShort, formatTimeRange, localDay } fr
 const UNDO_MS = 5000
 
 type Pending = { approve: boolean; coveredBy?: string }
+
+const REASON: Record<CorrectionReason, string> = {
+  accidental_tap: 'Tapped it by accident',
+  wrong_time: 'Wrong time',
+  forgot_clock_out: 'Forgot to clock out',
+  confirm_auto_close: "That's right",
+  other: 'Something else',
+}
+
+/** Where the phone was at a clock event: "at the gym (40 m)", "4.2 km from the gym", "no location". */
+function whereText(e: EffectiveClockEvent): string {
+  if (e.source === 'auto') return 'closed automatically'
+  if (e.location_status !== 'ok' || e.distance_m === null) return 'no location'
+  const d = e.distance_m < 1000 ? `${e.distance_m} m` : `${(e.distance_m / 1000).toFixed(1)} km`
+  return `${d} from the gym`
+}
 
 interface Props {
   items: RequestItem[]
@@ -40,6 +58,7 @@ export function RequestList({ items, viewer, tz, now, onChanged }: Props) {
     queued.current.delete(item.id)
     try {
       if (item.kind === 'extension') await decideExtension({ extensionId: item.id, decidedBy: viewer.id, approve: p.approve })
+      else if (item.kind === 'correction') await decideCorrectionRequest({ requestId: item.id, decidedBy: viewer.id, approve: p.approve })
       else await decideSwap({ swapId: item.id, decidedBy: viewer.id, approve: p.approve, coveredBy: p.coveredBy })
       const at = items.findIndex((i) => i.id === item.id)
       if (!window.matchMedia('(prefers-reduced-motion: reduce)').matches) setSettled((x) => ({ ...x, [item.id]: { item, p, at } }))
@@ -88,16 +107,44 @@ export function RequestList({ items, viewer, tz, now, onChanged }: Props) {
         const p = pending[item.id]
         const done = settled[item.id]?.p
         const who = firstName(item.requester.full_name)
-        const shiftText = `${formatDateShort(item.shift.date)} · ${item.shift.type === 'morning' ? 'Morning' : 'Night'} ${formatTimeRange(item.shift.start_time, item.shift.end_time)}`
+        let shiftText = item.shift
+          ? `${formatDateShort(item.shift.date)} · ${item.shift.type === 'morning' ? 'Morning' : 'Night'} ${formatTimeRange(item.shift.start_time, item.shift.end_time)}`
+          : 'Not rostered'
 
         let icon = <Plus />
         let title: string
         let reason: string | null
         let asked: string
+        let approveLabel = 'Approve'
+        let declineLabel = 'Decline'
         if (item.kind === 'extension') {
           title = `${who} · extra ${item.ext.minutes} min`
           reason = item.ext.reason
           asked = askedAt(item.ext.created_at)
+          approveLabel = `Approve ${item.ext.minutes} min`
+          if (item.clockedOut) shiftText += ` · asked after clocking out at ${formatClock(item.clockedOut.server_time, tz)}, ${whereText(item.clockedOut)}`
+        } else if (item.kind === 'correction') {
+          const r = item.request
+          const inAt = item.clockIn ? formatClock(item.clockIn.effective_time, tz) : null
+          if (r.kind === 'void') {
+            icon = <Undo2 />
+            title = `${who} · clock-in${inAt ? ` at ${inAt}` : ''} was a mistake`
+            const out = item.clockOut ? ` · out ${formatClock(item.clockOut.effective_time, tz)}` : ''
+            shiftText = `${item.shift ? shiftText : 'Not rostered'} · in ${item.clockIn ? whereText(item.clockIn) : ''}${out}`
+            approveLabel = 'Remove clock-in'
+            declineLabel = 'Keep it'
+          } else {
+            icon = <Clock />
+            const said = r.requested_time ? formatClock(r.requested_time, tz) : ''
+            title = r.reason_code === 'confirm_auto_close' ? `${who} · confirms finish at ${said}` : `${who} · finished at ${said}`
+            if (item.clockOut) {
+              shiftText += item.clockOut.source === 'auto' ? ` · closed automatically at ${formatClock(item.clockOut.effective_time, tz)}` : ` · clocked out ${formatClock(item.clockOut.server_time, tz)}, ${whereText(item.clockOut)}`
+            }
+            approveLabel = r.reason_code === 'confirm_auto_close' ? 'Confirm' : `Set ${said}`
+            declineLabel = 'Keep as is'
+          }
+          reason = [REASON[r.reason_code], r.note].filter(Boolean).join(': ')
+          asked = askedAt(r.created_at)
         } else {
           icon = item.swap.kind === 'swap' ? <ArrowLeftRight /> : <UserRound />
           const other = item.other ? firstName(item.other.full_name) : null
@@ -175,11 +222,11 @@ export function RequestList({ items, viewer, tz, now, onChanged }: Props) {
               </div>
               <div className="mt-2.5 flex gap-2 lg:mt-0 lg:shrink-0">
                 <button type="button" onClick={() => decide(item, false)} className={smallButton.outline}>
-                  Decline
+                  {declineLabel}
                 </button>
                 {!blocked && (
                   <button type="button" onClick={() => decide(item, true)} disabled={needsPerson && !chosen} className={smallButton.ink}>
-                    {item.kind === 'extension' ? `Approve ${item.ext.minutes} min` : 'Approve'}
+                    {approveLabel}
                   </button>
                 )}
               </div>

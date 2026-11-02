@@ -1,11 +1,11 @@
 // Cleaner home: today's shift as a pass, one docked clock button, location and extra time, next shifts.
 // Clocking always saves; location problems and unscheduled clock-ins are flagged for Carly, never blocked.
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { LoaderCircle, MessageSquare, X } from 'lucide-react'
-import { clockIn, clockOut } from '@/data'
+import { Check, CircleAlert, Clock, Hourglass, LoaderCircle, MessageSquare, Undo2, X } from 'lucide-react'
+import { AlreadyClockedInError, clockIn, clockOut } from '@/data'
 import type { ClockLocation, ClockResult } from '@/data'
 import type { FlagKind, Photo } from '@/types'
-import { useCleanerHome, type CleanerHome as HomeData } from '@/hooks/useCleanerHome'
+import { useCleanerHome, type CleanerHome as HomeData, type Session, type VoidNotice } from '@/hooks/useCleanerHome'
 import { ShiftPass } from '@/components/home/ShiftPass'
 import { ExtensionRow, LocationRow, StatusRow } from '@/components/home/StatusRows'
 import { PhotosRow } from '@/components/home/PhotosRow'
@@ -17,14 +17,18 @@ import { UpcomingShifts } from '@/components/home/UpcomingShifts'
 import { TeamSwaps } from '@/components/home/TeamSwaps'
 import { ExtensionSheet } from '@/components/home/ExtensionSheet'
 import { ClockOutConfirm } from '@/components/home/ClockOutConfirm'
+import { ClockInConfirm } from '@/components/home/ClockInConfirm'
+import { AlreadyClockedInSheet } from '@/components/home/AlreadyClockedInSheet'
+import { MistakeSheet } from '@/components/home/MistakeSheet'
+import { FinishTimeSheet, type FinishMode } from '@/components/home/FinishTimeSheet'
 import { LocationFailSheet } from '@/components/home/LocationFailSheet'
 import { LocationHelpSheet } from '@/components/home/LocationHelpSheet'
 import { AccountButton } from '@/components/common/AccountButton'
 import { RosterRow } from '@/components/roster/RosterRow'
 import { RecordsRow } from '@/components/records/RecordsRow'
-import { firstName, formatClock, formatDateLong, formatDuration, shiftLabel, siteShortName } from '@/lib/format'
+import { firstName, formatClock, formatDateLong, formatDateShort, formatDuration, formatTime, shiftLabel, siteShortName } from '@/lib/format'
 import { getClockLocation } from '@/lib/geolocation'
-import { localDate, minutesBetween } from '@/lib/rules'
+import { compareTs, localDate, minutesBetween, needsClockInConfirm, shiftStartAt } from '@/lib/rules'
 import { cn } from '@/lib/utils'
 
 type Step = 'idle' | 'locating' | 'saving' | 'saved'
@@ -39,6 +43,8 @@ function receiptFor(kind: 'in' | 'out', result: ClockResult, name: string, worke
   if (kinds.has('off_site')) notes.push('Your phone was outside the gym')
   if (kinds.has('unscheduled')) notes.push("You're not on the roster today")
   if (kinds.has('over_without_extension')) notes.push('You worked past your approved time')
+  if (kinds.has('off_start')) notes.push("It's a while from your shift's start")
+  if (kinds.has('short_session')) notes.push('That was a very short session')
   const detail = notes.length ? `${notes.join('. ')}, so Carly will check it. Your time is saved.` : undefined
   const title =
     kind === 'in' ? `You're clocked in, ${name}.` : `Nice work, ${name}. You worked ${formatDuration(workedMin ?? 0)}.`
@@ -90,7 +96,7 @@ function Home({
   onOpenRoster?: () => void
   onOpenRecords: () => void
 }) {
-  const { user, settings, now, phase, upcoming, recordShift, photos, notes } = data
+  const { user, settings, now, phase, upcoming, recordShift, photos, notes, voidNotice, autoClosed } = data
   const name = firstName(user.full_name)
   const tz = settings.timezone
   const session = phase.kind === 'on' || phase.kind === 'done' ? phase.session : null
@@ -107,12 +113,24 @@ function Home({
   const [photoPromptOpen, setPhotoPromptOpen] = useState(false)
   const [openPhoto, setOpenPhoto] = useState<Photo | null>(null)
   const [noteOpen, setNoteOpen] = useState(false)
+  const [inConfirmOpen, setInConfirmOpen] = useState(false)
+  const [alreadySince, setAlreadySince] = useState<string | null>(null)
+  const [mistakeOpen, setMistakeOpen] = useState(false)
+  const [finish, setFinish] = useState<{ mode: FinishMode; session: Session } | null>(null)
   const receiptTimer = useRef<number | undefined>(undefined)
   const refreshQuietly = useCallback(() => void refresh(), [refresh])
   const uploads = usePhotoUploads({
     shiftId: photoShiftId,
     userId: user.id,
     room: settings.max_photos_per_shift - photos.length,
+    onSaved: refreshQuietly,
+  })
+  // Photos for a shift closed automatically: they can still add them once they've answered.
+  const autoShiftId = autoClosed?.session.shift?.id ?? null
+  const autoUploads = usePhotoUploads({
+    shiftId: autoShiftId,
+    userId: user.id,
+    room: settings.max_photos_per_shift - (autoClosed?.photos.length ?? 0),
     onSaved: refreshQuietly,
   })
 
@@ -126,6 +144,8 @@ function Home({
 
   async function clock(kind: 'in' | 'out') {
     setConfirmOpen(false)
+    setInConfirmOpen(false)
+    setAlreadySince(null)
     setPhotoPromptOpen(false)
     setFailed(false)
     setReceipt(null)
@@ -159,9 +179,18 @@ function Home({
       // The button itself confirms with one drawn tick before settling into its next state.
       setStep('saved')
       window.setTimeout(() => setStep('idle'), 1400)
-    } catch {
-      setFailed(true)
+      // Past the approved finish: ask once what happened (stayed, or forgot to clock out).
+      if (kind === 'out' && session && worked !== null && worked > session.approvedMin) {
+        const out = { ...result.event, effective_time: result.event.server_time, corrected: false, voided: null }
+        setFinish({ mode: 'late', session: { ...session, clockOut: out, workedMin: worked } })
+      }
+    } catch (e) {
       setStep('idle')
+      // Already clocked in (another phone, or a stale screen): nothing saved; offer to clock out.
+      if (e instanceof AlreadyClockedInError) {
+        setAlreadySince(e.since)
+        void refresh()
+      } else setFailed(true)
     }
   }
 
@@ -173,7 +202,24 @@ function Home({
       if (photoShiftId && photos.length === 0 && uploads.queue.length === 0) setPhotoPromptOpen(true)
       else if (early) setConfirmOpen(true)
       else void clock('out')
+    } else if (needsClockInConfirm(phase.kind === 'before' ? shiftStartAt(phase.shift, settings) : null, now, settings)) {
+      // No shift today, or far from its start: ask once. On time stays one tap.
+      setInConfirmOpen(true)
     } else void clock('in')
+  }
+
+  const mistakeSent = () => {
+    void refresh()
+    showReceipt({ tone: 'ok', title: 'Sent to Carly.', detail: session?.clockOut ? 'She can remove the clock-in.' : "You're clocked out. Clock in again when you start." })
+  }
+
+  const finishSent = (message: { title: string; detail: string }) => {
+    const answered = finish
+    void refresh()
+    const r: Receipt = { tone: 'ok', ...message }
+    // An automatic close with no photos: they can add them now (the window counts from this answer).
+    if (answered?.mode === 'auto' && autoShiftId && autoClosed?.photos.length === 0) r.action = { label: 'Add photos', onClick: autoUploads.pick }
+    showReceipt(r)
   }
 
   const noteSent = ({ tag, arriveBy }: NoteSent) => {
@@ -216,6 +262,16 @@ function Home({
       </div>
 
       <div className="mt-2">
+        {autoClosed && autoClosed.session.clockOut && (
+          <StatusRow
+            icon={<CircleAlert />}
+            tone="warn"
+            title="You didn't clock out"
+            detail={`We closed your ${autoClosed.session.shift ? `${formatDateShort(autoClosed.session.shift.date)} shift` : 'session'} at ${formatClock(autoClosed.session.clockOut.effective_time, tz)}. Is that right?`}
+            onClick={() => setFinish({ mode: 'auto', session: autoClosed.session })}
+          />
+        )}
+        {voidNotice && <VoidNoticeRow notice={voidNotice} tz={tz} />}
         <LocationRow phase={phase} settings={settings} access={data.locationAccess} onHelp={() => setHelpOpen(true)} />
         {photoShiftId && session && (
           <PhotosRow
@@ -231,6 +287,7 @@ function Home({
           />
         )}
         {session && <ExtensionRow session={session} settings={settings} tz={tz} onAsk={() => setExtOpen(true)} />}
+        {session && <FinishRow session={session} tz={tz} onAsk={() => setFinish({ mode: 'late', session })} />}
         {recordShift && (
           <StatusRow
             icon={<MessageSquare />}
@@ -245,6 +302,16 @@ function Home({
             }
             onClick={() => setNoteOpen(true)}
           />
+        )}
+        {session && !session.voidRequest && (
+          <button
+            type="button"
+            onClick={() => setMistakeOpen(true)}
+            className="mt-1 flex min-h-12 w-full items-center gap-2 px-1 text-left text-[15px] text-muted-foreground transition-colors active:text-foreground"
+          >
+            <Undo2 aria-hidden className="size-4" />
+            This clock-in was a mistake
+          </button>
         )}
       </div>
 
@@ -359,6 +426,44 @@ function Home({
         />
       )}
       <LocationHelpSheet open={helpOpen} onOpenChange={setHelpOpen} onFixed={() => void refresh()} />
+      <ClockInConfirm
+        open={inConfirmOpen}
+        onOpenChange={setInConfirmOpen}
+        startLabel={phase.kind === 'before' ? formatTime(phase.shift.start_time) : null}
+        onConfirm={() => void clock('in')}
+      />
+      {alreadySince && (
+        <AlreadyClockedInSheet
+          open
+          onOpenChange={(o) => !o && setAlreadySince(null)}
+          sinceLabel={formatClock(alreadySince, tz)}
+          onClockOut={() => void clock('out')}
+        />
+      )}
+      {session && (
+        <MistakeSheet
+          key={session.clockIn.id}
+          open={mistakeOpen}
+          onOpenChange={setMistakeOpen}
+          clockIn={session.clockIn}
+          stillOpen={!session.clockOut}
+          userId={user.id}
+          settings={settings}
+          onSent={mistakeSent}
+        />
+      )}
+      {finish && finish.session.clockOut && (
+        <FinishTimeSheet
+          key={`${finish.mode}-${finish.session.clockOut.id}`}
+          open
+          onOpenChange={(o) => !o && setFinish(null)}
+          mode={finish.mode}
+          session={finish.session}
+          userId={user.id}
+          settings={settings}
+          onSent={finishSent}
+        />
+      )}
       {session && session.shift && (
         <ExtensionSheet
           open={extOpen}
@@ -373,6 +478,48 @@ function Home({
         />
       )}
     </main>
+  )
+}
+
+/** What became of today's "This was a mistake". */
+function VoidNoticeRow({ notice, tz }: { notice: VoidNotice; tz: string }) {
+  const at = formatClock(notice.clockInAt, tz)
+  if (notice.request.status === 'pending') {
+    return <StatusRow icon={<Hourglass />} tone="neutral" title="Sent to Carly" detail={`Your ${at} clock-in was a mistake. She'll check it.`} />
+  }
+  return notice.request.status === 'approved' ? (
+    <StatusRow icon={<Check strokeWidth={3} />} tone="ok" title={`Carly removed your ${at} clock-in`} detail="It doesn't count as worked time." />
+  ) : (
+    <StatusRow icon={<Undo2 />} tone="neutral" title={`Carly kept your ${at} clock-in`} detail="It counts as worked time. Ask her if that's wrong." />
+  )
+}
+
+/** After clocking out past the approved finish: tell Carly what happened, then what she decided. */
+function FinishRow({ session, tz, onAsk }: { session: Session; tz: string; onAsk: () => void }) {
+  const out = session.clockOut
+  if (!out) return null
+  const request = session.endRequest
+  if (request?.status === 'pending') {
+    const said = request.reason_code === 'confirm_auto_close' ? 'You confirmed' : 'You said you finished at'
+    return <StatusRow icon={<Hourglass />} tone="neutral" title="Sent to Carly" detail={`${said} ${formatClock(request.requested_time ?? out.effective_time, tz)}.`} />
+  }
+  if (request?.status === 'approved') {
+    return <StatusRow icon={<Check strokeWidth={3} />} tone="ok" title="Carly approved your finish time" detail={`Your shift ends at ${formatClock(out.effective_time, tz)}.`} />
+  }
+  if (request?.status === 'declined') {
+    return <StatusRow icon={<Clock />} tone="neutral" title="Carly kept your clock-out time" detail={`Your shift ends at ${formatClock(out.effective_time, tz)}.`} />
+  }
+  // Asked for the extra time after clocking out: the extra-time row shows that.
+  const askedAfter = session.extensions.some((e) => compareTs(e.created_at, out.server_time) >= 0)
+  if (out.source !== 'phone' || session.workedMin <= session.approvedMin || askedAfter) return null
+  return (
+    <StatusRow
+      icon={<Clock />}
+      tone="warn"
+      title={`You clocked out ${formatDuration(session.workedMin - session.approvedMin)} late`}
+      detail="Tell Carly what happened."
+      onClick={onAsk}
+    />
   )
 }
 

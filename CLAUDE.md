@@ -14,6 +14,7 @@ Mobile-first roster and attendance web app for the World Gym Macquarie Park clea
 - `npm run build`: typecheck (`tsc -b`) and production build
 - `npm run lint`: oxlint
 - `npm run test:db`: applies `supabase/migrations` to an in-memory Postgres (PGlite) and tests the database rules (see `supabase/README.md`)
+- Local Supabase (Docker Desktop running): `npm run db:start`, then `npm run db:reset` (migrations + `supabase/seed.sql` test cases), then `npm run dev:localdb` (local publishable key from `npx supabase status` in `.env.localdb.local`). `npm run db:stop` when done.
 - `npx shadcn@latest add <component>`: add a UI component
 
 ## Structure
@@ -28,8 +29,10 @@ Mobile-first roster and attendance web app for the World Gym Macquarie Park clea
 
 1. **All data access goes through `src/data` (`import … from '@/data'`).** Components, hooks and pages never import from `@/mocks`, the store or a Supabase client. When Supabase arrives, only `src/data` changes.
 2. **Never overwrite or delete records.**
-   - `clock_events` is append-only.
-   - Attendance time changes are new `corrections` rows: who, when, old value, new value, and a required reason. The effective time is the latest correction.
+   - `clock_events` is append-only. A forgotten session is closed by a new `out` event with `source = 'auto'` and an `assumed_time` (the approved end).
+   - Attendance time changes are new `corrections` rows: who, when, old value, new value, and a required reason. The effective time is the latest correction, else `assumed_time`, else `server_time`.
+   - A clock-in made by mistake is voided with an append-only `clock_voids` row (its clock-out too). Voided events count nowhere (sessions, hours, export, home) but stay on record.
+   - A cleaner's "This was a mistake" / "When did you finish?" is a `correction_requests` row, decided once by the manager.
    - Edits to a published shift append to `shift_changes`.
    - A draft shift nobody has seen may be deleted. A published shift is never deleted: it is set to `cancelled` and logged. A shift someone has clocked into can't be cancelled or reassigned (its hours belong to the assignee).
    - A swap or extension request is decided once (pending → approved/declined, recording `decided_by`/`decided_at`) and is never re-decided.
@@ -48,12 +51,14 @@ Mobile-first roster and attendance web app for the World Gym Macquarie Park clea
    - Cleaner: own records only.
    - Only the manager approves extensions, corrects attendance, resolves flags and exports hours.
    - The checks in `src/data` mirror the planned RLS policies. UI checks are a convenience only.
-7. **Business rule numbers come from `SiteSettings`** (`getSettings()`): radius, the 15/30-min flag windows, 180/210-min shift lengths, the 30-min extension request, 10 photos, 6-month retention, and the fortnight anchor date (`roster_anchor_date`). Never hardcode them.
+7. **Business rule numbers come from `SiteSettings`** (`getSettings()`): radius, the 15/30-min flag windows, 180/210-min shift lengths, the 30-min extension request, 10 photos, 6-month retention, the fortnight anchor date (`roster_anchor_date`), the 30-min start mismatch, the 2-min short session and the 120-min automatic close. Never hardcode them.
 8. **Types mirror the schema.** Change a `src/types` file together with its table, mock and data functions. Use the `Timestamp` / `DateString` / `TimeString` aliases. Timezone is `Australia/Sydney`.
 9. **Mobile-first.** Every staff action takes three taps or fewer on a phone. Test at phone width.
 10. **Build UI only when asked.** Screens so far: sign in (`src/pages/SignIn.tsx`: username + 6-digit PIN keypad, password for Carly, demo accounts helper while on mock data), cleaner home (with location help), manager dashboard (gym location under the avatar menu's "Manage"), staff (`src/pages/StaffPage.tsx`, Carly only: add with a one-time PIN, reset PIN, change role or group, deactivate; never delete), roster (`src/pages/RosterPage.tsx`, for Carly and Gladys). On the cleaner home: work photos row (`PhotosRow`, upload queue in `usePhotoUploads`, compression in `src/lib/image.ts`), "Add your photos first?" on clock-out (`PhotoPrompt`), photo view/remove (`PhotoSheet`), and "Note for Carly" (`NoteSheet`, incl. Running late before clock-in). Carly's dashboard lists Supplies low and Something wrong notes under "Notes"; running late shows only on her Today pass. Past shifts: `src/pages/RecordsPage.tsx` ("Shift records" for Carly and Gladys with a person picker, "My past shifts" for cleaners; one fortnight at a time with ‹ › arrows), and the read-only shift sheet `src/components/records/ShiftRecordSheet.tsx`, opened from the records list and from rows on Carly's Today pass. Records come from `getShiftRecord(s)` in `src/data/records.ts`, scoped by the role's `view_records_scope`.
 
 ## Notes
-- `no_show` and `missing_clock_out` flags depend on elapsed time and come from a scheduled job: `private.raise_due_flags()` in `supabase/migrations/…08_due_flags.sql`, run every 5 minutes by pg_cron (live app only; seeded in mocks, not generated in demo or trial). Its no-show time mirrors `noShowDueAt()` in `src/lib/rules.ts` (a "running late" note's time plus the no-show window); keep the two in step.
+- `no_show` and `missing_clock_out` flags depend on elapsed time and come from a scheduled job: `private.raise_due_flags()` in `supabase/migrations/…08_due_flags.sql` (replaced in `…12_attendance_fixes.sql`), run every 5 minutes by pg_cron (live app only; seeded in mocks, not generated in demo or trial). Its no-show time mirrors `noShowDueAt()` in `src/lib/rules.ts` (a "running late" note's time plus the no-show window); keep the two in step.
+- The same job then runs `private.close_forgotten_sessions()`: the automatic close mirrors `assumedEnd()` / `autoCloseDueAt()` in `src/lib/rules.ts`; keep them in step. Trial mode runs its stand-in (`src/data/dueJobs.ts`) on start and on each refresh; demo mode shows seeded cases only.
+- Attendance fixes (F6): `src/data/attendanceFixes.ts` (requests, voids) mirrors `…12_attendance_fixes.sql`. Cleaner home: "Clock in now?" (`ClockInConfirm`), "Already clocked in" (`AlreadyClockedInSheet`), "This was a mistake" (`MistakeSheet`), late or automatic clock-out (`FinishTimeSheet`). Carly: "Corrections" chip on the dashboard (`RequestList`), Correct / Void in the shift sheet and flag sheet (`ClockFixForm`), "Show voided" on Shift records.
 - Staff (from the client): Carly (manager), Gladys (team lead, also works shifts), cleaners Josh, Kyle, Gino and Angel. Josh, Kyle and Gino are in Gladys's group; Angel reports to Carly.
 - Placeholders still to confirm (PRD open questions): gym coordinates and radius (seeded in `src/mocks/settings.ts`; Carly sets the real ones from her dashboard via `updateSiteLocation`), trial start date.

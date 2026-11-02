@@ -32,6 +32,7 @@ export function RecordsPage({ onBack }: { onBack: () => void }) {
   const [person, setPerson] = useState<string | null>(null)
   const [open, setOpen] = useState<ShiftRecord | null>(null)
   const [picking, setPicking] = useState<'person' | 'fortnight' | null>(null)
+  const [showVoided, setShowVoided] = useState(false)
   const { data, error, reload, fortnight, setFortnight } = useShiftRecords()
 
   const header = (
@@ -66,7 +67,7 @@ export function RecordsPage({ onBack }: { onBack: () => void }) {
     )
   }
 
-  const { settings, now, today, fortnights, scope, people, records: all } = data
+  const { me, settings, now, today, fortnights, scope, canFix, people, records: all } = data
   const tz = settings.timezone
   const own = scope === 'own'
   const shown = fortnight ?? fortnights[0]
@@ -75,7 +76,9 @@ export function RecordsPage({ onBack }: { onBack: () => void }) {
   const chosen = people.find((p) => p.id === person) ?? null
   const records = chosen ? all.filter((r) => r.user.id === chosen.id) : all
   const done = records.filter((r) => r.session.worked_min !== null)
-  const workedMin = done.reduce((sum, r) => sum + (r.session.worked_min ?? 0), 0)
+  // Every counting session on the shift, as the hours export counts them. Voided ones never count.
+  const workedMin = records.reduce((sum, r) => sum + [r.session, ...r.other_sessions].reduce((s, x) => s + (x.worked_min ?? 0), 0), 0)
+  const voidedCount = records.reduce((n, r) => n + r.voided.length, 0)
   const noPhotos = records.filter((r) => r.session.clock_in && r.photos.length === 0).length
   const days = [...new Set(records.map((r) => r.shift.date))]
   const countFor = (id: string) => all.filter((r) => r.user.id === id).length
@@ -135,6 +138,22 @@ export function RecordsPage({ onBack }: { onBack: () => void }) {
           {own && ' worked'}
           {noPhotos > 0 && <span className="text-warn"> · {noPhotos} with no photos</span>}
         </p>
+        {voidedCount > 0 && (
+          // Hidden by default: a voided clock-in counts nowhere. Shown, it stays struck through on its shift.
+          <div className="mt-2 flex justify-center">
+            <button
+              type="button"
+              aria-pressed={showVoided}
+              onClick={() => setShowVoided((v) => !v)}
+              className={cn(
+                'flex h-9 items-center rounded-full border px-3 text-sm font-medium transition-colors',
+                showVoided ? 'border-foreground bg-foreground text-background' : 'border-border bg-background hover:bg-muted active:bg-muted',
+              )}
+            >
+              Show voided ({voidedCount})
+            </button>
+          </div>
+        )}
       </div>
 
       {records.length === 0 ? (
@@ -152,7 +171,7 @@ export function RecordsPage({ onBack }: { onBack: () => void }) {
                 .filter((r) => r.shift.date === day)
                 .map((r) => (
                   <li key={r.shift.id}>
-                    <RecordRow record={r} own={own} tz={tz} now={now} today={today} onOpen={() => setOpen(r)} />
+                    <RecordRow record={r} own={own} tz={tz} now={now} today={today} showVoided={showVoided} onOpen={() => setOpen(r)} />
                   </li>
                 ))}
             </ul>
@@ -185,12 +204,39 @@ export function RecordsPage({ onBack }: { onBack: () => void }) {
           detail: i <= 1 ? rangeLabel(f) : undefined,
         }))}
       />
-      {open && <ShiftRecordSheet key={open.shift.id} record={open} settings={settings} now={now} onOpenChange={(o) => !o && setOpen(null)} />}
+      {open && (
+        <ShiftRecordSheet
+          key={open.shift.id}
+          record={open}
+          settings={settings}
+          now={now}
+          onOpenChange={(o) => !o && setOpen(null)}
+          fixer={canFix ? me : undefined}
+          onChanged={() => void reload()}
+          showVoided={showVoided}
+        />
+      )}
     </main>
   )
 }
 
-function RecordRow({ record, own, tz, now, today, onOpen }: { record: ShiftRecord; own: boolean; tz: string; now: string; today: string; onOpen: () => void }) {
+function RecordRow({
+  record,
+  own,
+  tz,
+  now,
+  today,
+  showVoided,
+  onOpen,
+}: {
+  record: ShiftRecord
+  own: boolean
+  tz: string
+  now: string
+  today: string
+  showVoided: boolean
+  onOpen: () => void
+}) {
   const { shift, user, session, photos, notes, flags } = record
   const type = shift.type === 'morning' ? 'Morning' : 'Night'
   const inAt = session.clock_in?.effective_time
@@ -234,8 +280,13 @@ function RecordRow({ record, own, tz, now, today, onOpen }: { record: ShiftRecor
           </span>
         )}
 
-        {(inAt && photos.length === 0) || openFlags.length > 0 || notes.length > 0 ? (
+        {(inAt && photos.length === 0) || openFlags.length > 0 || notes.length > 0 || (showVoided && record.voided.length > 0) ? (
           <span className="block">
+            {showVoided && record.voided.length > 0 && (
+              <span className={cn(tag, 'bg-muted text-muted-foreground line-through')}>
+                {record.voided.length === 1 ? `Voided in ${formatClock(record.voided[0].clock_in.effective_time, tz)}` : `${record.voided.length} voided`}
+              </span>
+            )}
             {inAt && photos.length === 0 && (
               <span className={cn(tag, 'bg-warn-soft text-warn')}>
                 <Camera aria-hidden />

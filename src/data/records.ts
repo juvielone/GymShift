@@ -2,10 +2,10 @@
 // shift sheet and records screen, Gladys's group, and a cleaner's "My past shifts".
 // Who may see a record mirrors the planned RLS on photos/notes/hours: the role's view_records_scope
 // (manager all, team lead own group, cleaner own).
-import type { DateString, Flag, Note, Photo, Shift, Timestamp, User, Uuid } from '@/types'
+import type { CorrectionRequest, DateString, Extension, Flag, Note, Photo, Shift, Timestamp, User, Uuid } from '@/types'
 import { approvedShiftMinutes, compareTs } from '@/lib/rules'
 import { zonedTimestamp } from '@/lib/format'
-import { shiftSession, type AttendanceSession } from './attendance'
+import { isVoided, shiftSession, shiftSessions, voidedSessions, type AttendanceSession, type VoidedSession } from './attendance'
 import { canActOn, copy, db, requireUser, roleOf, serverNow } from './store'
 
 export interface ShiftRecord {
@@ -13,6 +13,14 @@ export interface ShiftRecord {
   /** The assignee: hours, photos and notes on a shift belong to them. */
   user: User
   session: AttendanceSession
+  /** Other counting sessions on the shift (e.g. a clock-in Carly kept after a void request), oldest first. */
+  other_sessions: AttendanceSession[]
+  /** Voided sessions, for "Show voided". They count nowhere. */
+  voided: VoidedSession[]
+  /** Requests about this shift's clock events (void and end time), oldest first. */
+  requests: CorrectionRequest[]
+  /** Extension requests on the shift, oldest first (after the fact ones too). */
+  extensions: Extension[]
   /** Standard length plus approved extra time, never beyond the maximum. */
   approved_min: number
   /** Shown photos, oldest first. */
@@ -29,10 +37,22 @@ function canView(viewer: User, userId: Uuid): boolean {
 
 function build(shift: Shift): ShiftRecord {
   const byOldest = <T>(rows: T[], ts: (r: T) => Timestamp) => [...rows].sort((a, b) => compareTs(ts(a), ts(b)))
+  const session = shiftSession(shift)
+  const eventIds = new Set(db.clockEvents.filter((e) => e.shift_id === shift.id).map((e) => e.id))
   return {
     shift,
     user: requireUser(shift.assigned_user_id),
-    session: shiftSession(shift),
+    session,
+    other_sessions: shiftSessions(shift).filter((s) => s.clock_in?.id !== session.clock_in?.id || s.clock_out?.id !== session.clock_out?.id),
+    voided: voidedSessions({ shiftId: shift.id }),
+    requests: byOldest(
+      db.correctionRequests.filter((r) => eventIds.has(r.clock_event_id)),
+      (r) => r.created_at,
+    ),
+    extensions: byOldest(
+      db.extensions.filter((e) => e.shift_id === shift.id),
+      (e) => e.created_at,
+    ),
     approved_min: approvedShiftMinutes(
       db.extensions.filter((e) => e.shift_id === shift.id),
       db.settings,
@@ -74,7 +94,7 @@ export async function getShiftRecords(input: { viewerId: Uuid; from: DateString;
       s.date <= input.to &&
       (input.userId === undefined || s.assigned_user_id === input.userId) &&
       canView(viewer, s.assigned_user_id) &&
-      (compareTs(zonedTimestamp(s.date, s.start_time, db.settings.timezone), now) <= 0 || db.clockEvents.some((e) => e.shift_id === s.id)),
+      (compareTs(zonedTimestamp(s.date, s.start_time, db.settings.timezone), now) <= 0 || db.clockEvents.some((e) => e.shift_id === s.id && !isVoided(e.id))),
   )
   return copy(
     shifts

@@ -93,6 +93,17 @@ async function addShift({ date, type, user, start = '19:00', end = '22:00', publ
   })
 }
 
+/** Today's date (Sydney) and a start time `minutesAgo` before now, for a shift that starts on time. */
+async function startingAgo(minutesAgo = 0) {
+  const { rows } = await db.query(
+    `select (t at time zone 'Australia/Sydney')::date::text as date, to_char(t at time zone 'Australia/Sydney', 'HH24:MI') as start,
+            to_char((t + interval '3 hours') at time zone 'Australia/Sydney', 'HH24:MI') as end
+     from (select now() - make_interval(mins => $1) as t) x`,
+    [minutesAgo],
+  )
+  return rows[0]
+}
+
 const clock = (who, kind, loc) =>
   as(who, async (tx) => (await tx.query(`select public.clock_${kind}($1, $2, $3, $4) as r`, [loc.status ?? 'ok', loc.lat ?? null, loc.lng ?? null, loc.accuracy ?? null])).rows[0].r)
 
@@ -112,8 +123,8 @@ before(async () => {
 })
 
 test('clock-in at the gym links to today’s shift, with the server’s time and no flags', async () => {
-  const { today } = await days()
-  const shift = await addShift({ date: today, type: 'night', user: JOSH })
+  const t = await startingAgo(5)
+  const shift = await addShift({ date: t.date, type: 'night', user: JOSH, start: t.start, end: t.end })
   const r = await clock(JOSH, 'in', { lat: GYM.lat, lng: GYM.lng, accuracy: 12 })
   assert.equal(r.event.shift_id, shift)
   assert.equal(r.event.distance_m, 0)
@@ -125,9 +136,10 @@ test('clock-in at the gym links to today’s shift, with the server’s time and
 test('clock-out away from the gym saves and raises an off-site flag', async () => {
   const r = await clock(JOSH, 'out', { lat: -33.8, lng: 151.1203, accuracy: 20 })
   assert.equal(r.event.kind, 'out')
-  assert.equal(r.flags.length, 1)
-  assert.equal(r.flags[0].kind, 'off_site')
-  assert.match(r.flags[0].detail, /^Clock-out \d+ m from gym \(±20 m\)$/)
+  // Straight after clocking in, so it is also a short session.
+  assert.deepEqual(r.flags.map((f) => f.kind).sort(), ['off_site', 'short_session'])
+  assert.match(r.flags.find((f) => f.kind === 'off_site').detail, /^Clock-out \d+ m from gym \(±20 m\)$/)
+  assert.equal(r.flags.find((f) => f.kind === 'short_session').detail, 'Clocked out 0 min after clocking in')
 })
 
 test('poor accuracy alone never flags', async () => {
@@ -355,10 +367,10 @@ test('the trial path: Carly rosters a cleaner for today, publishes, and their cl
   const shared = db
   db = await freshDb()
   try {
-    const { today } = await days()
-    const fortnight = (await db.query(`select private.fortnight_start_of($1::date)::text as f`, [today])).rows[0].f
+    const t = await startingAgo(0)
+    const fortnight = (await db.query(`select private.fortnight_start_of($1::date)::text as f`, [t.date])).rows[0].f
 
-    const shift = await createShift(CARLY, today, 'night', JOSH)
+    const shift = await createShift(CARLY, t.date, 'night', JOSH, t.start, t.end)
     assert.equal((await call(JOSH, `select id from shifts where id = $1`, [shift.id])).length, 0, 'a draft stays hidden')
     await call(CARLY, `select * from public.publish_fortnight($1)`, [fortnight])
     assert.equal((await call(JOSH, `select id from shifts where id = $1`, [shift.id])).length, 1, 'published: the cleaner sees it')
@@ -579,6 +591,208 @@ test('photos: upload into your own folder, saved by add_photo with the rules; re
     await upload(JOSH, late)
     await owner(null, (tx) => tx.query(`insert into clock_events (user_id, shift_id, kind, server_time, location_status) values ($1, $2, 'out', now() - interval '181 minutes', 'denied')`, [JOSH, shift]))
     await rejects(add(JOSH, late), /Photos for this shift have closed/)
+  } finally {
+    db = shared
+  }
+})
+
+// ---- Attendance fixes (12_attendance_fixes): voids, late clock-outs, forgotten clock-outs ----
+
+/** Insert a clock event as the database owner, `minutesAgo` before now. Returns its id. */
+const clockAgo = (user, shift, kind, minutesAgo) =>
+  owner(null, (tx) =>
+    tx.query(`insert into clock_events (user_id, shift_id, kind, server_time, location_status) values ($1, $2, $3, now() - make_interval(mins => $4), 'denied') returning id`, [user, shift, kind, minutesAgo]),
+  ).then((r) => r.rows[0].id)
+
+const one = (who, sql, params) => call(who, sql, params).then((r) => r[0])
+const truthy = async (sql, params) => Object.values((await db.query(sql, params)).rows[0])[0] === true
+
+test('void: an accidental clock-in is asked about, closed at once, and voided only by Carly; nothing is deleted', async () => {
+  const shared = db
+  db = await freshDb()
+  try {
+    const t = await startingAgo(-45)
+    const shift = await addShift({ date: t.date, type: 'night', user: JOSH, start: t.start, end: t.end })
+
+    // 45 minutes early: saved and linked, with an off-start flag.
+    const first = await clock(JOSH, 'in', { lat: GYM.lat, lng: GYM.lng, accuracy: 10 })
+    assert.equal(first.event.shift_id, shift)
+    assert.match(first.flags.find((f) => f.kind === 'off_start').detail, /^Clock-in 0h 4[45]m before the \d{1,2}:\d{2} [ap]m start$/)
+
+    // Never two open clock-ins.
+    await assert.rejects(clock(JOSH, 'in', { status: 'denied' }), (e) => {
+      assert.equal(e.code, 'GS409')
+      assert.match(e.message, /^You're already clocked in since \d{1,2}:\d{2} [ap]m$/)
+      assert.ok(!Number.isNaN(Date.parse(e.detail)))
+      return true
+    })
+
+    const ask = (who, event, reason, note = null) =>
+      one(who, `select public.request_void($1, $2, $3, 'ok', $4, $5, 10) as r`, [event, reason, note, GYM.lat, GYM.lng]).then((r) => r.r)
+    await rejects(ask(KYLE, first.event.id, 'accidental_tap'), /only ask about your own clock-in/)
+    await rejects(ask(JOSH, first.event.id, 'other'), /Say what happened/)
+    await rejects(ask(JOSH, first.event.id, 'forgot_clock_out'), /Pick what happened/)
+
+    // Asking closes the open session, so Josh is clocked out and can clock in properly; the new one takes the shift.
+    const asked = await ask(JOSH, first.event.id, 'accidental_tap')
+    assert.equal(asked.request.status, 'pending')
+    assert.equal(asked.clock_out.event.kind, 'out')
+    assert.ok(!asked.clock_out.flags.some((f) => f.kind === 'short_session'), 'no length flags on the closing clock-out')
+    await rejects(ask(JOSH, first.event.id, 'accidental_tap'), /Carly already has this to check/)
+    const second = await clock(JOSH, 'in', { lat: GYM.lat, lng: GYM.lng, accuracy: 10 })
+    assert.equal(second.event.shift_id, shift)
+
+    // Only Carly decides, once.
+    const decide = (who, id, approve) => one(who, `select * from public.decide_correction_request($1, $2)`, [id, approve])
+    await rejects(decide(GLADYS, asked.request.id, true), /Only the manager can decide corrections/)
+    await rejects(decide(JOSH, asked.request.id, true), /Only the manager can decide corrections/)
+    const approved = await decide(CARLY, asked.request.id, true)
+    assert.equal(approved.status, 'approved')
+    assert.equal(approved.decided_by, CARLY)
+    await rejects(decide(CARLY, asked.request.id, false), /already decided/)
+
+    // The clock-in and the clock-out it got are voided (with who, why, and the request); their flags resolved.
+    const voids = (await db.query(`select clock_event_id, reason, voided_by, correction_request_id from clock_voids`)).rows
+    assert.deepEqual(new Set(voids.map((v) => v.clock_event_id)), new Set([first.event.id, asked.clock_out.event.id]))
+    assert.ok(voids.every((v) => v.reason === 'Josh: accidental tap' && v.voided_by === CARLY && v.correction_request_id === asked.request.id))
+    assert.equal((await db.query(`select count(*)::int as n from flags where clock_event_id = $1 and resolved_at is null`, [first.event.id])).rows[0].n, 0)
+    assert.equal((await db.query(`select count(*)::int as n from clock_events where id = $1`, [first.event.id])).rows[0].n, 1, 'the event stays')
+
+    // Voids are append-only; the app can't write them or the requests directly.
+    await rejects(db.query(`update clock_voids set reason = 'x'`), /clock_voids rows are never updated/)
+    await rejects(db.query(`delete from clock_voids`), /clock_voids rows are never deleted/)
+    await rejects(db.query(`delete from correction_requests`), /correction_requests rows are never deleted/)
+    await rejects(call(JOSH, `insert into clock_voids (clock_event_id, old_time, reason, voided_by) values ($1, now(), 'x', $2)`, [second.event.id, JOSH]), /permission denied/)
+    await rejects(call(JOSH, `update correction_requests set status = 'approved'`), /permission denied/)
+    await rejects(call(JOSH, `update clock_events set shift_id = null`), /permission denied/)
+
+    // Records scope: Gladys (his team lead) and Carly see Josh's voids; Kyle doesn't.
+    assert.equal((await call(GLADYS, `select 1 from clock_voids`)).length, 2)
+    assert.equal((await call(KYLE, `select 1 from clock_voids`)).length, 0)
+
+    // A rejected request: the session stands, and he can't ask again.
+    const again = await ask(JOSH, second.event.id, 'wrong_time')
+    assert.equal((await decide(CARLY, again.request.id, false)).status, 'declined')
+    assert.equal(await truthy(`select not private.is_voided($1)`, [second.event.id]), true)
+    await rejects(ask(JOSH, second.event.id, 'accidental_tap'), /Carly kept this clock-in/)
+
+    // Carly voids directly, with a reason.
+    const voidIt = (who, id, reason) => one(who, `select * from public.void_clock_in($1, $2)`, [id, reason])
+    await rejects(voidIt(GLADYS, second.event.id, 'Tapped at home'), /Only the manager can void a clock-in/)
+    await rejects(voidIt(CARLY, second.event.id, '  '), /A void needs a reason/)
+    await rejects(voidIt(CARLY, asked.clock_out.event.id, 'x'), /Only a clock-in can be voided/)
+    assert.equal((await voidIt(CARLY, second.event.id, 'Clocked in from home')).voided_by, CARLY)
+    await rejects(voidIt(CARLY, second.event.id, 'again'), /already voided/)
+    await rejects(one(CARLY, `select * from public.correct_clock_time($1, now(), 'x')`, [second.event.id]), /voided clock event can't be corrected/)
+
+    // Only voided clock-ins on the shift: it can be cancelled.
+    assert.deepEqual(await call(CARLY, `select public.remove_shift($1) as r`, [shift]), [{ r: 'cancelled' }])
+  } finally {
+    db = shared
+  }
+})
+
+test('late clock-out: "forgot" becomes a correction once Carly approves; "stayed" becomes an extension', async () => {
+  const shared = db
+  db = await freshDb()
+  try {
+    // Josh: a 3-hour shift that ended 20 minutes ago; clocked in on time, out now.
+    const j = await startingAgo(200)
+    const joshShift = await addShift({ date: j.date, type: 'night', user: JOSH, start: j.start, end: j.end })
+    const joshIn = await clockAgo(JOSH, joshShift, 'in', 200)
+    const joshOut = await clock(JOSH, 'out', { lat: -33.8, lng: 151.1203, accuracy: 10 })
+    assert.equal(joshOut.flags.find((f) => f.kind === 'over_without_extension').detail, 'Recorded 3h 20m; approved 3h 0m')
+
+    const askEnd = (who, event, reason, minutesAgo, note = null) =>
+      one(who, `select * from public.request_end_time($1, $2, case when $3::int is null then null else now() - make_interval(mins => $3::int) end, $4)`, [event, reason, minutesAgo, note])
+    await rejects(askEnd(KYLE, joshOut.event.id, 'forgot_clock_out', 20), /only ask about your own clock-out/)
+    await rejects(askEnd(JOSH, joshIn, 'forgot_clock_out', 20), /can't be changed/)
+    await rejects(askEnd(JOSH, joshOut.event.id, 'confirm_auto_close', null), /Only an automatic clock-out can be confirmed/)
+    await rejects(askEnd(JOSH, joshOut.event.id, 'forgot_clock_out', 300), /between your clock-in and your clock-out/)
+    await rejects(askEnd(JOSH, joshOut.event.id, 'forgot_clock_out', -5), /between your clock-in and your clock-out/)
+    await rejects(askEnd(JOSH, joshOut.event.id, 'forgot_clock_out', null), /Pick when you finished/)
+    const req = await askEnd(JOSH, joshOut.event.id, 'forgot_clock_out', 20)
+    assert.equal(req.kind, 'end_time')
+
+    await one(CARLY, `select * from public.decide_correction_request($1, true)`, [req.id])
+    const fix = (await db.query(`select reason, corrected_by, abs(extract(epoch from new_time - (now() - interval '20 minutes'))) < 5 as near from corrections where clock_event_id = $1`, [joshOut.event.id])).rows
+    assert.deepEqual(fix, [{ reason: 'Josh: forgot to clock out', corrected_by: CARLY, near: true }])
+    assert.equal(await truthy(`select private.session_min($1, $2) = 180`, [joshIn, joshOut.event.id]), true)
+    assert.equal((await db.query(`select resolved_by from flags where clock_event_id = $1 and kind = 'over_without_extension'`, [joshOut.event.id])).rows[0].resolved_by, CARLY)
+    // Within the approved length now: nothing more to ask.
+    await rejects(askEnd(JOSH, joshOut.event.id, 'forgot_clock_out', 30), /after your finish time/)
+
+    // Kyle: stayed 30 minutes to finish, then asks for the extension after clocking out.
+    const k = await startingAgo(210)
+    const kyleShift = await addShift({ date: k.date, type: 'morning', user: KYLE, start: k.start, end: k.end })
+    await clockAgo(KYLE, kyleShift, 'in', 210)
+    const kyleOut = await clock(KYLE, 'out', { lat: GYM.lat, lng: GYM.lng, accuracy: 10 })
+    const askExt = (who, minutes, reason = 'Stayed to finish') => one(who, `select * from public.request_extension($1, $2, $3)`, [kyleShift, minutes, reason])
+    await rejects(askExt(JOSH, 30), /Only the assigned cleaner can request an extension/)
+    await rejects(askExt(KYLE, 31), /Extensions are 1–30 minutes/)
+    await rejects(askExt(KYLE, 30, ' '), /An extension needs a reason/)
+    const ext = await askExt(KYLE, 30)
+    const decideExt = (who, approve) => one(who, `select * from public.decide_extension($1, $2)`, [ext.id, approve])
+    await rejects(decideExt(GLADYS, true), /Only the manager can approve extensions/)
+    assert.equal((await decideExt(CARLY, true)).status, 'approved')
+    await rejects(decideExt(CARLY, false), /Extension already decided/)
+    assert.equal((await db.query(`select resolved_by from flags where clock_event_id = $1 and kind = 'over_without_extension'`, [kyleOut.event.id])).rows[0].resolved_by, CARLY)
+    // Never beyond 3.5h in total.
+    const more = await askExt(KYLE, 5)
+    await rejects(one(CARLY, `select * from public.decide_extension($1, true)`, [more.id]), /beyond 210 minutes/)
+  } finally {
+    db = shared
+  }
+})
+
+test('forgotten clock-out: closed at the rostered end two hours after it, labelled, and confirmed or corrected', async () => {
+  const shared = db
+  db = await freshDb()
+  try {
+    // Josh: ended 3 hours ago, never clocked out → closed. Kyle: ended 1 hour ago → not yet.
+    const j = await startingAgo(360)
+    const joshShift = await addShift({ date: j.date, type: 'night', user: JOSH, start: j.start, end: j.end })
+    const joshIn = await clockAgo(JOSH, joshShift, 'in', 355)
+    const k = await startingAgo(240)
+    const kyleShift = await addShift({ date: k.date, type: 'morning', user: KYLE, start: k.start, end: k.end })
+    await clockAgo(KYLE, kyleShift, 'in', 240)
+    // Gladys: unscheduled, 6 hours ago → closed at clock-in plus 3 hours.
+    const gladysIn = await clockAgo(GLADYS, null, 'in', 360)
+
+    const run = async () => (await db.query(`select private.close_forgotten_sessions() as n`)).rows[0].n
+    assert.equal(await run(), 2)
+    assert.equal(await run(), 0, 'closed once')
+    await rejects(call(CARLY, `select private.close_forgotten_sessions()`), /permission denied/)
+
+    const auto = async (user) => (await db.query(`select * from clock_events where user_id = $1 and source = 'auto'`, [user])).rows
+    const [joshOut] = await auto(JOSH)
+    assert.equal(joshOut.kind, 'out')
+    assert.equal(joshOut.shift_id, joshShift)
+    assert.equal(joshOut.location_status, 'unavailable')
+    assert.equal(await truthy(`select e.assumed_time = private.shift_end_at(sh, 'Australia/Sydney') from clock_events e, shifts sh where e.id = $1 and sh.id = $2`, [joshOut.id, joshShift]), true)
+    assert.equal(await truthy(`select private.effective_time($1) = assumed_time from clock_events where id = $1`, [joshOut.id]), true)
+    assert.equal((await auto(KYLE)).length, 0)
+    const [gladysOut] = await auto(GLADYS)
+    assert.equal(await truthy(`select private.session_min($1, $2) = 180`, [gladysIn, gladysOut.id]), true)
+
+    // Carly hears about it (missing clock-out), with no "no location" flag for the job's event.
+    const flagKinds = (await db.query(`select kind from flags where clock_event_id in ($1, $2)`, [joshIn, joshOut.id])).rows.map((f) => f.kind)
+    assert.deepEqual(flagKinds, ['missing_clock_out'])
+    // The job's events are append-only like any other.
+    await rejects(db.query(`update clock_events set assumed_time = now() where id = $1`, [joshOut.id]), /never updated/)
+
+    // Josh confirms: approved without a correction, and the flag is resolved.
+    const confirm = await one(JOSH, `select * from public.request_end_time($1, 'confirm_auto_close')`, [joshOut.id])
+    assert.equal(await truthy(`select requested_time = (select assumed_time from clock_events where id = $2) from correction_requests where id = $1`, [confirm.id, joshOut.id]), true)
+    await one(CARLY, `select * from public.decide_correction_request($1, true)`, [confirm.id])
+    assert.equal((await db.query(`select count(*)::int as n from corrections where clock_event_id = $1`, [joshOut.id])).rows[0].n, 0)
+    assert.equal((await db.query(`select resolved_by from flags where clock_event_id = $1`, [joshIn])).rows[0].resolved_by, CARLY)
+
+    // Gladys says she finished after 2 hours, not 3: a correction once approved.
+    const corr = await one(GLADYS, `select * from public.request_end_time($1, 'other', now() - interval '240 minutes', 'Left early, felt sick')`, [gladysOut.id])
+    await one(CARLY, `select * from public.decide_correction_request($1, true)`, [corr.id])
+    assert.equal(await truthy(`select private.session_min($1, $2) = 120`, [gladysIn, gladysOut.id]), true)
+    assert.equal((await db.query(`select reason from corrections where clock_event_id = $1`, [gladysOut.id])).rows[0].reason, 'Gladys: Left early, felt sick')
   } finally {
     db = shared
   }

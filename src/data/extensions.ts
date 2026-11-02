@@ -1,6 +1,10 @@
 // Extension requests. Up to 30 min per request; the manager alone approves; never beyond 3.5h total.
+// Also asked after clocking out late ("Stayed to finish"). Same checks and wording as request_extension() and
+// decide_extension() in 12_attendance_fixes.sql.
 import type { Extension, RequestStatus, Uuid } from '@/types'
 import { canApproveExtension, compareTs } from '@/lib/rules'
+import { isVoided } from './attendance'
+import { settleSessionFlags } from './attendanceFixes'
 import { copy, db, newId, requireUser, roleOf, serverNow } from './store'
 
 export async function getExtensions(filter: { shiftId?: Uuid; userId?: Uuid; status?: RequestStatus } = {}): Promise<Extension[]> {
@@ -18,7 +22,7 @@ export async function getExtensions(filter: { shiftId?: Uuid; userId?: Uuid; sta
 
 export async function requestExtension(input: { shiftId: Uuid; requestedBy: Uuid; minutes: number; reason: string }): Promise<Extension> {
   const shift = db.shifts.find((s) => s.id === input.shiftId)
-  if (!shift) throw new Error(`Unknown shift ${input.shiftId}`)
+  if (!shift) throw new Error('That shift is no longer on the roster')
   if (shift.assigned_user_id !== input.requestedBy) throw new Error('Only the assigned cleaner can request an extension')
   const reason = input.reason.trim()
   if (!reason) throw new Error('An extension needs a reason')
@@ -45,7 +49,7 @@ export async function decideExtension(input: { extensionId: Uuid; decidedBy: Uui
   const actor = requireUser(input.decidedBy)
   if (!roleOf(actor).can_approve_extensions) throw new Error('Only the manager can approve extensions')
   const ext = db.extensions.find((e) => e.id === input.extensionId)
-  if (!ext) throw new Error(`Unknown extension ${input.extensionId}`)
+  if (!ext) throw new Error('That request is no longer there')
   if (ext.status !== 'pending') throw new Error('Extension already decided')
   if (input.approve) {
     const others = db.extensions.filter((e) => e.shift_id === ext.shift_id && e.id !== ext.id)
@@ -56,5 +60,9 @@ export async function decideExtension(input: { extensionId: Uuid; decidedBy: Uui
   ext.status = input.approve ? 'approved' : 'declined'
   ext.decided_by = actor.id
   ext.decided_at = serverNow()
+  // A session the approved length now covers: its over-length (and missing clock-out) flags are settled.
+  if (input.approve) {
+    for (const out of db.clockEvents.filter((e) => e.shift_id === ext.shift_id && e.kind === 'out' && !isVoided(e.id))) settleSessionFlags(out, actor)
+  }
   return copy(ext)
 }

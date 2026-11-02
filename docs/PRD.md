@@ -107,9 +107,19 @@ Nine features, ordered by build priority. Each acceptance criterion is a test th
   - no clock-in 15 minutes after the shift starts (possible no-show)
   - no clock-out 30 minutes after the shift ends
   - shift over 3 hours without an approved extension
+  - clock-out within 2 minutes of clocking in (a very short session)
+  - clock-in more than 30 minutes before or after the rostered start
 - Carly can adjust a clock-in or clock-out time, and must enter a reason.
 - The original record is never overwritten. Every correction stores who changed it, when, the old and new value, and the reason.
 - Carly can mark a flag as resolved.
+- **Accidental clock-ins** *(decided 2 Nov 2026)*:
+  - Clock in asks once ("Clock in now?") when there's no shift today or it's more than 30 minutes from the rostered start. An on-time clock-in stays one tap.
+  - Clocking in while already clocked in saves nothing and shows "You're already clocked in since 6:02 pm" with Clock out or Cancel.
+  - A cleaner can tap "This was a mistake" on a clock-in and pick a reason. A clock-in still open is clocked out at the same time, so they can clock in properly. Carly approves (the clock-in is voided) or keeps it. Carly can also void a clock-in directly, with a reason.
+  - A voided clock-in, and its clock-out, stay on record (who voided it, when, why) but count nowhere: not in hours, Today, the export or the home screen. Shift records show them only with "Show voided".
+- **Late clock-out** (clocked out after the approved finish): the cleaner is asked what happened. "I stayed to finish" asks for the extra time as an extension (same limits). "I forgot to clock out" sends the time they left, which becomes a correction once Carly approves. Carly sees where the phone was at the clock-out.
+- **Forgotten clock-out**: a session still open 2 hours after its approved end is closed automatically at that end (the rostered end plus approved extra time; unscheduled, clock-in plus 3 hours). This doesn't cut hours: no end time was measured, so the rostered end stands in, labelled "Closed automatically". The cleaner is asked "Is that right?" next time they open the app ("That's right", or the time they finished), and their photo window opens from then. Carly approves, and the missing clock-out flag is resolved.
+- Location is still captured only when someone clocks in or out; nothing checks it at the end of a shift.
 
 ### F7. Work photos
 
@@ -159,6 +169,9 @@ Rules marked *confirmed* come from Carly. The rest are defaults to check during 
 | Gym geofence radius | 150 m, adjusted for GPS accuracy | Default |
 | No-show flag | No clock-in 15 min after shift start | Default |
 | Missing clock-out flag | No clock-out 30 min after shift end | Default |
+| Forgotten clock-out closed automatically | 2 hours after the approved end, at that end | Default (decided 2 Nov 2026) |
+| Clock-in far from the start (ask first, flag) | More than 30 min before or after | Default (decided 2 Nov 2026) |
+| Very short session flag | Clock-out within 2 min of clock-in | Default (decided 2 Nov 2026) |
 | Max photos per shift | 10 | From current WhatsApp practice |
 | Photo upload window | Until 3 hours after clock-out | Default (decided 30 Oct 2026) |
 | Remove own photo | Within 10 min of adding it | Default (decided 30 Oct 2026) |
@@ -186,7 +199,8 @@ A username and PIN suit the trial. If the team moves to a paid arrangement, thes
 
 - **Own email sign-in** for each person (magic link or password), with a proper email service.
 - **One phone per person.** Each sign-in records the phone; signing in on a new phone flags it for Carly and signs the old one out. A clock-in from a phone last used by someone else is flagged ("Josh clocked in from Gladys's phone"). This makes one coworker clocking in for another visible to Carly. It never blocks.
-- **Early clock-in flag.** Today a clock-in links to the person's shift any time that day. Flag a clock-in more than a set time before the shift starts (a SiteSettings value).
+- ~~**Early clock-in flag.**~~ Done in F6 (2 Nov 2026): a clock-in more than 30 minutes from the rostered start asks first and is flagged.
+- **Clock-out reminder.** A notification at the shift's end ("Still at work? Tap to clock out") would stop most forgotten clock-outs. A web app can only send one when it's added to the home screen. Out of scope for v1 (no push).
 
 ### Multiple sites (raised by Carly, 30 Oct 2026; follow-up after the MVP)
 

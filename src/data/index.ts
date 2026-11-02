@@ -6,6 +6,7 @@ import * as availability from './availability'
 import * as shifts from './shifts'
 import * as clockEvents from './clockEvents'
 import * as corrections from './corrections'
+import * as attendanceFixes from './attendanceFixes'
 import * as flags from './flags'
 import * as extensions from './extensions'
 import * as swaps from './swaps'
@@ -13,6 +14,7 @@ import * as photos from './photos'
 import * as notes from './notes'
 import type { Photo } from '@/types'
 import { MODE, persist } from './store'
+import { runDueJobs } from './trial'
 
 type Live = typeof import('./live')
 
@@ -61,23 +63,29 @@ export const removeShift = persisted(shifts.removeShift, (l) => l.removeShift)
 export const copyFortnight = persisted(shifts.copyFortnight, (l) => l.copyFortnight)
 export const publishFortnight = persisted(shifts.publishFortnight, (l) => l.publishFortnight)
 
-export { getClockEvents } from './clockEvents'
+export { getClockEvents, AlreadyClockedInError } from './clockEvents'
 export type { ClockLocation, ClockResult } from './clockEvents'
 export const clockIn = persisted(clockEvents.clockIn, (l) => l.clockIn)
 export const clockOut = persisted(clockEvents.clockOut, (l) => l.clockOut)
 
 export { getCorrections } from './corrections'
-export const addCorrection = persisted(corrections.addCorrection)
+export const addCorrection = persisted(corrections.addCorrection, (l) => l.addCorrection)
 
 export { getShiftAttendance, getEffectiveClockEvents, getFortnightHours } from './attendance'
-export type { AttendanceSession, EffectiveClockEvent, FortnightHours } from './attendance'
+export type { AttendanceSession, EffectiveClockEvent, FortnightHours, VoidedSession } from './attendance'
+
+export { getCorrectionRequests, getClockVoids, getVoidedSessions } from './attendanceFixes'
+export const requestVoid = persisted(attendanceFixes.requestVoid, (l) => l.requestVoid)
+export const requestEndTime = persisted(attendanceFixes.requestEndTime, (l) => l.requestEndTime)
+export const decideCorrectionRequest = persisted(attendanceFixes.decideCorrectionRequest, (l) => l.decideCorrectionRequest)
+export const voidClockIn = persisted(attendanceFixes.voidClockIn, (l) => l.voidClockIn)
 
 export { getFlags } from './flags'
 export const resolveFlag = persisted(flags.resolveFlag, (l) => l.resolveFlag)
 
 export { getExtensions } from './extensions'
-export const requestExtension = persisted(extensions.requestExtension)
-export const decideExtension = persisted(extensions.decideExtension)
+export const requestExtension = persisted(extensions.requestExtension, (l) => l.requestExtension)
+export const decideExtension = persisted(extensions.decideExtension, (l) => l.decideExtension)
 
 export { getSwaps } from './swaps'
 export const requestSwap = persisted(swaps.requestSwap)
@@ -100,10 +108,11 @@ export const markNoteDone = persisted(notes.markNoteDone, (l) => l.markNoteDone)
 
 /**
  * Fetch what other people have changed since (their clock-ins, notes, roster edits). Live mode reads
- * Supabase; demo and trial keep everything on this phone, so there is nothing to fetch. Never throws:
- * offline, the screen keeps showing the last view.
+ * Supabase; demo and trial keep everything on this phone, so there is nothing to fetch (trial mode closes
+ * forgotten sessions instead). Never throws: offline, the screen keeps showing the last view.
  */
 export async function refreshData(): Promise<void> {
+  runDueJobs()
   if (MODE !== 'live') return
   await (await import('./live')).pull().catch(() => {})
 }

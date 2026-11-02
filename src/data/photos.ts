@@ -3,8 +3,8 @@
 // photoFiles; the live app uses Supabase Storage (live.ts). The rows here are the record.
 // A removed photo keeps its row (who removed it, when); only the image goes.
 import type { Photo, Uuid } from '@/types'
-import { canRemoveOwnPhoto, compareTs, photoWindowClosesAt } from '@/lib/rules'
-import { effectiveTime } from './attendance'
+import { canRemoveOwnPhoto, compareTs, photoWindowClosesAt, photoWindowStart } from '@/lib/rules'
+import { effectiveTime, isVoided } from './attendance'
 import { deleteFile, fileUrl, putFile } from './photoFiles'
 import { copy, db, newId, requireUser, roleOf, serverNow } from './store'
 
@@ -28,13 +28,25 @@ export async function getPhotoUrl(photo: Photo): Promise<string | null> {
   return fileUrl(photo.storage_path)
 }
 
-/** The shift's clock-in and clock-out (corrected times), for the upload window. */
+/** The shift's counting clock-in, and where the upload window counts from after its last clock-out. */
 function attendanceOf(shiftId: Uuid) {
-  const events = db.clockEvents.filter((e) => e.shift_id === shiftId).sort((a, b) => compareTs(a.server_time, b.server_time))
+  const events = db.clockEvents.filter((e) => e.shift_id === shiftId && !isVoided(e.id)).sort((a, b) => compareTs(a.server_time, b.server_time))
   const clockIn = events.find((e) => e.kind === 'in')
   const clockOut = events.findLast((e) => e.kind === 'out')
-  return { clockIn: clockIn ? effectiveTime(clockIn) : null, clockOut: clockOut ? effectiveTime(clockOut) : null }
+  const answered = clockOut ? latestAnswer(clockOut.id) : null
+  return {
+    clockIn: clockIn ? effectiveTime(clockIn) : null,
+    clockOut: clockOut ? photoWindowStart({ server_time: clockOut.server_time, effective_time: effectiveTime(clockOut) }, answered) : null,
+  }
 }
+
+/** When the cleaner last answered about a clock-out (a correction request), if they have. */
+export const latestAnswer = (clockEventId: Uuid) =>
+  db.correctionRequests
+    .filter((r) => r.clock_event_id === clockEventId)
+    .map((r) => r.created_at)
+    .sort(compareTs)
+    .at(-1) ?? null
 
 /**
  * Own shift only, from clock-in until the upload window after clock-out closes, up to the shift's limit.

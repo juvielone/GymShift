@@ -1,5 +1,6 @@
 // One flag, with the facts Carly needs: the clock event, its location, past corrections.
 // Correcting appends a correction row (who, when, old, new, reason); the clock event is never edited.
+// Voiding a clock-in made by mistake appends a void (its clock-out goes with it) and resolves its flags.
 import { useEffect, useState } from 'react'
 import { LoaderCircle } from 'lucide-react'
 import { addCorrection, getCorrections, getEffectiveClockEvents, resolveFlag } from '@/data'
@@ -8,8 +9,9 @@ import type { Correction, Flag, Shift, SiteSettings, User } from '@/types'
 import { Drawer, DrawerContent, DrawerDescription, DrawerFooter, DrawerHeader, DrawerTitle } from '@/components/ui/drawer'
 import { Textarea } from '@/components/ui/textarea'
 import { FLAG_LABEL } from '@/components/manager/flagText'
+import { ClockFixForm } from '@/components/manager/ClockFixForm'
 import { firstName, formatClock, formatDateShort, formatTimeRange, localDay, localTime, zonedTimestamp } from '@/lib/format'
-import { isOffSite } from '@/lib/rules'
+import { compareTs, isOffSite } from '@/lib/rules'
 import { cn } from '@/lib/utils'
 
 export interface FlagView {
@@ -31,6 +33,9 @@ export function FlagSheet({ view, viewer, settings, onOpenChange, onChanged }: P
   const [event, setEvent] = useState<EffectiveClockEvent | null>(null)
   const [history, setHistory] = useState<Correction[]>([])
   const [correcting, setCorrecting] = useState(false)
+  // The clock-in a void would remove: the flagged one, or the one a flagged clock-out closed.
+  const [voidTarget, setVoidTarget] = useState<EffectiveClockEvent | null>(null)
+  const [voiding, setVoiding] = useState(false)
   const [time, setTime] = useState('')
   const [reason, setReason] = useState('')
   const [busy, setBusy] = useState(false)
@@ -44,12 +49,16 @@ export function FlagSheet({ view, viewer, settings, onOpenChange, onChanged }: P
     if (!eventId || !userId) return
     let live = true
     void (async () => {
-      const [events, corrections] = await Promise.all([getEffectiveClockEvents({ userId }), getCorrections({ clockEventId: eventId })])
+      const [events, corrections] = await Promise.all([getEffectiveClockEvents({ userId, includeVoided: true }), getCorrections({ clockEventId: eventId })])
       if (!live) return
       const e = events.find((x) => x.id === eventId) ?? null
       setEvent(e)
       setHistory(corrections)
       if (e) setTime(localTime(e.effective_time, tz))
+      if (e && !e.voided) {
+        const before = events.filter((x) => !x.voided && compareTs(x.server_time, e.server_time) < 0).sort((a, b) => compareTs(a.server_time, b.server_time)).at(-1)
+        setVoidTarget(e.kind === 'in' ? e : before?.kind === 'in' ? before : null)
+      }
     })()
     return () => {
       live = false
@@ -131,7 +140,23 @@ export function FlagSheet({ view, viewer, settings, onOpenChange, onChanged }: P
                 />
               )}
               {event && <Fact label="Location" value={location} />}
+              {event?.voided && <Fact label="Voided" value={formatClock(event.voided.voided_at, tz)} note={`“${event.voided.reason}”`} />}
             </dl>
+          )}
+
+          {voiding && voidTarget && (
+            <ClockFixForm
+              mode="void"
+              event={voidTarget}
+              name={name}
+              viewer={viewer}
+              settings={settings}
+              onDone={() => {
+                onChanged()
+                onOpenChange(false)
+              }}
+              onCancel={() => setVoiding(false)}
+            />
           )}
 
           {!event && <p className="mt-3 text-[15px] text-muted-foreground">There's no clock time to correct for this flag. Talk to {name}, then mark it resolved.</p>}
@@ -178,7 +203,7 @@ export function FlagSheet({ view, viewer, settings, onOpenChange, onChanged }: P
           )}
         </div>
 
-        <DrawerFooter>
+        <DrawerFooter className={voiding ? 'hidden' : undefined}>
           <p aria-live="polite" className="text-center text-sm text-warn empty:hidden">
             {error}
           </p>
@@ -208,9 +233,14 @@ export function FlagSheet({ view, viewer, settings, onOpenChange, onChanged }: P
                 {busy && <LoaderCircle aria-hidden className="size-5 animate-spin" />}
                 Mark resolved
               </button>
-              {event && (
+              {event && !event.voided && (
                 <button type="button" onClick={() => setCorrecting(true)} className="h-14 rounded-[14px] border border-border text-lg font-medium active:bg-muted">
                   Correct time
+                </button>
+              )}
+              {voidTarget && (
+                <button type="button" onClick={() => setVoiding(true)} className="h-11 rounded-xl text-base font-medium text-muted-foreground active:bg-muted">
+                  Void this clock-in ({formatClock(voidTarget.effective_time, tz)})
                 </button>
               )}
             </>

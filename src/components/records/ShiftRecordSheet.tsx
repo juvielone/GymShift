@@ -1,16 +1,18 @@
 // One shift's record: clock times (with location and corrections), worked time, photos, notes and
 // flags. Facts first, like the flag sheet. Tapping a photo shows it large inside the sheet, with
-// swipe and next/previous. Read-only: corrections and resolving stay in the flag sheet.
+// swipe and next/previous. For Carly (canFix), "Correct time" and "Void clock-in" fix the clock events in
+// place; resolving flags stays in the flag sheet. Voided sessions are listed only with "Show voided".
 import { useRef, useState, type ReactNode } from 'react'
 import { ChevronLeft, ChevronRight, CircleAlert, Clock, MessageSquare, Package } from 'lucide-react'
 import type { EffectiveClockEvent, ShiftRecord } from '@/data'
-import type { NoteTag, SiteSettings, Timestamp } from '@/types'
+import type { CorrectionRequest, NoteTag, SiteSettings, Timestamp, User } from '@/types'
 import { Drawer, DrawerContent, DrawerDescription, DrawerFooter, DrawerHeader, DrawerTitle } from '@/components/ui/drawer'
 import { Disc } from '@/components/common/ListParts'
 import { PhotoThumb } from '@/components/home/PhotosRow'
 import { FLAG_ICON } from '@/components/manager/flagIcons'
 import { FLAG_LABEL } from '@/components/manager/flagText'
-import { firstName, formatClock, formatDateShort, formatDuration, formatTimeRange, zonedTimestamp } from '@/lib/format'
+import { ClockFixForm, type ClockFix } from '@/components/manager/ClockFixForm'
+import { firstName, formatClock, formatDateShort, formatDuration, formatTimeRange, localDay, zonedTimestamp } from '@/lib/format'
 import { compareTs, isOffSite } from '@/lib/rules'
 import { cn } from '@/lib/utils'
 
@@ -27,19 +29,67 @@ const NOTE_LABEL: Record<NoteTag, string> = {
   running_late: 'Running late',
 }
 
+const REQUEST_LABEL: Record<CorrectionRequest['reason_code'], string> = {
+  accidental_tap: 'Asked to remove the clock-in: tapped by accident',
+  wrong_time: 'Asked to remove the clock-in: wrong time',
+  forgot_clock_out: 'Forgot to clock out',
+  confirm_auto_close: 'Confirmed the automatic clock-out',
+  other: 'Asked to fix this',
+}
+const STATUS_LABEL: Record<CorrectionRequest['status'], string> = { pending: 'waiting for Carly', approved: 'approved', declined: 'kept as recorded' }
+
 interface Props {
   record: ShiftRecord
   settings: SiteSettings
   now: Timestamp
   onOpenChange: (open: boolean) => void
+  /** Carly: correct and void from the sheet. Leave out for everyone else (read-only). */
+  fixer?: User
+  /** After a fix, so the screen reloads. */
+  onChanged?: () => void
+  /** List voided sessions too ("Show voided"). */
+  showVoided?: boolean
 }
 
-export function ShiftRecordSheet({ record, settings, now, onOpenChange }: Props) {
+export function ShiftRecordSheet({ record, settings, now, onOpenChange, fixer, onChanged, showVoided = false }: Props) {
   const [viewing, setViewing] = useState<number | null>(null)
+  const [fixing, setFixing] = useState<{ mode: ClockFix; event: EffectiveClockEvent } | null>(null)
   const { shift, user, session, photos, notes, flags } = record
   const tz = settings.timezone
   const name = firstName(user.full_name)
   const started = compareTs(now, zonedTimestamp(shift.date, shift.start_time, tz)) >= 0
+  const fixButton = 'h-11 rounded-[14px] border border-border px-3.5 text-[15px] font-medium hover:bg-muted active:bg-muted'
+
+  if (fixing && fixer) {
+    return (
+      <Drawer open onOpenChange={onOpenChange}>
+        <DrawerContent className="mx-auto max-w-[480px]">
+          <DrawerHeader className="text-left group-data-[vaul-drawer-direction=bottom]/drawer-content:text-left">
+            <DrawerTitle className="text-xl font-semibold">
+              {name} · {shift.type === 'morning' ? 'Morning' : 'Night'} shift
+            </DrawerTitle>
+            <DrawerDescription className="text-[15px]">
+              {formatDateShort(shift.date)} · {formatTimeRange(shift.start_time, shift.end_time)}
+            </DrawerDescription>
+          </DrawerHeader>
+          <div className="overflow-y-auto px-4 pb-4">
+            <ClockFixForm
+              mode={fixing.mode}
+              event={fixing.event}
+              name={name}
+              viewer={fixer}
+              settings={settings}
+              onDone={() => {
+                onChanged?.()
+                onOpenChange(false)
+              }}
+              onCancel={() => setFixing(null)}
+            />
+          </div>
+        </DrawerContent>
+      </Drawer>
+    )
+  }
 
   return (
     <Drawer open onOpenChange={onOpenChange}>
@@ -62,7 +112,71 @@ export function ShiftRecordSheet({ record, settings, now, onOpenChange }: Props)
               {session.clock_in && <ClockFact label="Clock-out" event={session.clock_out} settings={settings} missing="Still on shift" />}
               {session.worked_min !== null && <Fact label="Worked" value={formatDuration(session.worked_min)} />}
               {record.approved_min > settings.standard_shift_min && <Fact label="Approved up to" value={formatDuration(record.approved_min)} note="Extra time Carly approved" />}
+              {record.other_sessions.map((s, i) => (
+                <Fact
+                  key={s.clock_in?.id ?? s.clock_out?.id ?? i}
+                  label="Also clocked"
+                  value={`${s.clock_in ? formatClock(s.clock_in.effective_time, tz) : '?'} – ${s.clock_out ? formatClock(s.clock_out.effective_time, tz) : 'open'}`}
+                  note={s.worked_min !== null ? `${formatDuration(s.worked_min)} · counts as worked time` : 'Still open'}
+                />
+              ))}
             </dl>
+
+            {fixer && session.clock_in && (
+              <div className="mt-3 flex flex-wrap gap-2">
+                <button type="button" onClick={() => setFixing({ mode: 'correct', event: session.clock_in! })} className={fixButton}>
+                  Correct clock-in
+                </button>
+                {session.clock_out && (
+                  <button type="button" onClick={() => setFixing({ mode: 'correct', event: session.clock_out! })} className={fixButton}>
+                    Correct clock-out
+                  </button>
+                )}
+                <button type="button" onClick={() => setFixing({ mode: 'void', event: session.clock_in! })} className={fixButton}>
+                  Void clock-in
+                </button>
+              </div>
+            )}
+
+            {record.requests.length > 0 && (
+              <>
+                <h3 className="mt-5 mb-1 px-1 text-base font-semibold">Asked by {name}</h3>
+                <ul>
+                  {record.requests.map((r) => (
+                    <li key={r.id} className="border-b border-border px-1 py-2.5">
+                      <p className="text-[15px] leading-snug">
+                        {REQUEST_LABEL[r.reason_code]}
+                        {r.requested_time && r.reason_code !== 'confirm_auto_close' ? ` · finished ${formatClock(r.requested_time, tz)}` : ''}
+                      </p>
+                      <p className="text-[13px] text-muted-foreground">
+                        {formatClock(r.created_at, tz)} · {STATUS_LABEL[r.status]}
+                        {r.note ? ` · “${r.note}”` : ''}
+                      </p>
+                    </li>
+                  ))}
+                </ul>
+              </>
+            )}
+
+            {showVoided && record.voided.length > 0 && (
+              <>
+                <h3 className="mt-5 mb-1 px-1 text-base font-semibold">Voided</h3>
+                <ul>
+                  {record.voided.map((v) => (
+                    <li key={v.void.id} className="border-b border-border px-1 py-2.5">
+                      <p className="text-[15px] leading-snug text-muted-foreground line-through">
+                        In {formatClock(v.clock_in.effective_time, tz)}
+                        {v.clock_out ? ` · Out ${formatClock(v.clock_out.effective_time, tz)}` : ''}
+                        {v.worked_min !== null ? ` · ${formatDuration(v.worked_min)}` : ''}
+                      </p>
+                      <p className="text-[13px] text-muted-foreground">
+                        Voided {formatDateShort(localDay(v.void.voided_at, tz))} {formatClock(v.void.voided_at, tz)} · “{v.void.reason}” · not counted
+                      </p>
+                    </li>
+                  ))}
+                </ul>
+              </>
+            )}
 
             <h3 className="mt-5 mb-2 flex items-baseline justify-between px-1 text-base font-semibold">
               Photos
@@ -161,9 +275,15 @@ function ClockFact({ label, event, settings, missing }: { label: string; event: 
   const tz = settings.timezone
   const away = event.location_status === 'ok' && isOffSite(event.distance_m, event.accuracy_m, settings)
   const place =
-    event.location_status !== 'ok' ? 'No location' : away ? `Away from the gym · ${formatDistance(event.distance_m ?? 0)}` : 'At the gym'
+    event.source === 'auto'
+      ? 'Closed automatically · rostered end used'
+      : event.location_status !== 'ok'
+        ? 'No location'
+        : away
+          ? `Away from the gym · ${formatDistance(event.distance_m ?? 0)}`
+          : 'At the gym'
   const note = [place, event.corrected ? `Recorded ${formatClock(event.server_time, tz)}, corrected` : null].filter(Boolean).join(' · ')
-  return <Fact label={label} value={formatClock(event.effective_time, tz)} note={note} warn={event.location_status !== 'ok' || away} />
+  return <Fact label={label} value={formatClock(event.effective_time, tz)} note={note} warn={event.source === 'auto' || event.location_status !== 'ok' || away} />
 }
 
 /** A photo shown large inside the sheet. Swipe or use the arrows; "All photos" goes back to the grid. */

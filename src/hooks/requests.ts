@@ -1,7 +1,8 @@
 // Pending requests a viewer can decide, shaped for display. Shared by Carly's dashboard and the
 // Team section on a team lead's home. Reads only through '@/data'; decisions are made elsewhere.
-import { getAvailability, getExtensions, getPermissions, getShifts, getSwaps, getUsers } from '@/data'
-import type { Extension, Shift, SiteSettings, Swap, User } from '@/types'
+import { getAvailability, getCorrectionRequests, getEffectiveClockEvents, getExtensions, getPermissions, getShifts, getSwaps, getUsers } from '@/data'
+import type { EffectiveClockEvent } from '@/data'
+import type { CorrectionRequest, Extension, Shift, SiteSettings, Swap, Timestamp, User } from '@/types'
 import { approvedExtensionMinutes, canApproveExtension, compareTs } from '@/lib/rules'
 
 export type RequestItem =
@@ -13,6 +14,8 @@ export type RequestItem =
       requester: User
       /** null when it can be approved; otherwise why not (shown instead of Approve). */
       blocked: string | null
+      /** Asked after clocking out ("Stayed to finish"): that clock-out, with where the phone was. */
+      clockedOut: EffectiveClockEvent | null
     }
   | {
       kind: 'swap'
@@ -25,6 +28,20 @@ export type RequestItem =
       /** For an open cover: cleaners free that day who could take it. */
       candidates: User[]
     }
+  | {
+      /** "This was a mistake" or "When did you finish?", for the manager (Pending corrections). */
+      kind: 'correction'
+      id: string
+      request: CorrectionRequest
+      /** null = unscheduled session. */
+      shift: Shift | null
+      requester: User
+      clockIn: EffectiveClockEvent | null
+      clockOut: EffectiveClockEvent | null
+    }
+
+export const requestCreated = (i: RequestItem): Timestamp =>
+  i.kind === 'extension' ? i.ext.created_at : i.kind === 'swap' ? i.swap.created_at : i.request.created_at
 
 export async function loadRequests(viewer: User, settings: SiteSettings): Promise<RequestItem[]> {
   const role = await getPermissions(viewer.id)
@@ -32,6 +49,12 @@ export async function loadRequests(viewer: User, settings: SiteSettings): Promis
   const userById = new Map(users.map((u) => [u.id, u]))
   const shiftById = new Map(shifts.map((s) => [s.id, s]))
   const items: RequestItem[] = []
+  // A person's counting clock events, oldest first, loaded once per person.
+  const eventsOf = new Map<string, Promise<EffectiveClockEvent[]>>()
+  const events = (userId: string) => {
+    if (!eventsOf.has(userId)) eventsOf.set(userId, getEffectiveClockEvents({ userId }).then((es) => es.sort((a, b) => compareTs(a.server_time, b.server_time))))
+    return eventsOf.get(userId)!
+  }
 
   if (role.can_approve_extensions) {
     for (const ext of await getExtensions({ status: 'pending' })) {
@@ -45,7 +68,8 @@ export async function loadRequests(viewer: User, settings: SiteSettings): Promis
         : room > 0
           ? `Only ${room} more minutes can be approved on this shift.`
           : 'This shift already has the most extra time allowed.'
-      items.push({ kind: 'extension', id: ext.id, ext, shift, requester, blocked })
+      const clockedOut = (await events(ext.requested_by)).findLast((e) => e.shift_id === shift.id && e.kind === 'out' && compareTs(e.server_time, ext.created_at) <= 0) ?? null
+      items.push({ kind: 'extension', id: ext.id, ext, shift, requester, blocked, clockedOut })
     }
   }
 
@@ -67,7 +91,22 @@ export async function loadRequests(viewer: User, settings: SiteSettings): Promis
     }
   }
 
+  // Only the manager corrects attendance, so only she sees these (PRD role table).
+  if (role.can_correct_attendance) {
+    for (const request of await getCorrectionRequests({ status: 'pending' })) {
+      const requester = userById.get(request.requested_by)
+      if (!requester) continue
+      const mine = await events(request.requested_by)
+      const at = mine.findIndex((e) => e.id === request.clock_event_id)
+      if (at < 0) continue
+      // The session it is about: the clock-in and the clock-out that closed it.
+      const clockIn = request.kind === 'void' ? mine[at] : mine[at - 1]?.kind === 'in' ? mine[at - 1] : null
+      const clockOut = request.kind === 'end_time' ? mine[at] : mine[at + 1]?.kind === 'out' ? mine[at + 1] : null
+      const shiftId = mine[at].shift_id
+      items.push({ kind: 'correction', id: request.id, request, shift: shiftId ? (shiftById.get(shiftId) ?? null) : null, requester, clockIn, clockOut })
+    }
+  }
+
   // Oldest first: the longest-waiting person is answered first.
-  const created = (i: RequestItem) => (i.kind === 'extension' ? i.ext.created_at : i.swap.created_at)
-  return items.sort((a, b) => compareTs(created(a), created(b)))
+  return items.sort((a, b) => compareTs(requestCreated(a), requestCreated(b)))
 }

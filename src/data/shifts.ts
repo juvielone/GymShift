@@ -1,5 +1,6 @@
 import type { DateString, Shift, ShiftChange, ShiftChangeField, ShiftStatus, ShiftType, TimeString, User, Uuid } from '@/types'
 import { addDays, compareTs, defaultEndTime, fortnightStartOf, localDate } from '@/lib/rules'
+import { isVoided } from './attendance'
 import { canActOn, copy, db, newId, requireUser, roleOf, serverNow } from './store'
 
 /** Roster permission check, mirroring the planned RLS policy on shifts. */
@@ -9,8 +10,8 @@ function requireRosterer(actorId: Uuid, assigneeId: Uuid): User {
   return actor
 }
 
-/** Hours are counted against the shift's assignee, so a shift someone has clocked into keeps its owner. */
-const hasClockEvents = (shiftId: Uuid) => db.clockEvents.some((e) => e.shift_id === shiftId)
+/** Hours are counted against the shift's assignee, so a shift someone has clocked into keeps its owner. Voided clock events don't count. */
+const hasClockEvents = (shiftId: Uuid) => db.clockEvents.some((e) => e.shift_id === shiftId && !isVoided(e.id))
 
 function logChange(shift: Shift, field: ShiftChangeField, next: string, changedBy: Uuid, changed_at: string, swapId: Uuid | null) {
   db.shiftChanges.push({

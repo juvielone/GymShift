@@ -8,4 +8,6 @@ export const FLAG_LABEL: Record<FlagKind, string> = {
   no_show: "didn't clock in",
   missing_clock_out: 'no clock-out',
   over_without_extension: 'over approved time',
+  short_session: 'very short session',
+  off_start: 'far from start time',
 }

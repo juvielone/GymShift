@@ -6,7 +6,7 @@ import { ChevronRight, CircleAlert, MapPin, Package, Users } from 'lucide-react'
 import { getShiftRecord, markNoteDone, type ShiftRecord } from '@/data'
 import type { Note, Timestamp, User } from '@/types'
 import { useManagerDashboard } from '@/hooks/useManagerDashboard'
-import type { RequestItem } from '@/hooks/requests'
+import { requestCreated } from '@/hooks/requests'
 import { AccountButton } from '@/components/common/AccountButton'
 import { Disc } from '@/components/common/ListParts'
 import { rowClass, smallButton } from '@/components/common/listStyles'
@@ -24,10 +24,8 @@ import { firstName, formatClock, formatDateLong, formatDateShort, formatDuration
 import { addDays, localDate } from '@/lib/rules'
 import { cn } from '@/lib/utils'
 
-type Filter = 'all' | 'requests' | 'flags' | 'notes'
+type Filter = 'all' | 'requests' | 'corrections' | 'flags' | 'notes'
 type NoteItem = { note: Note; user: User | null }
-
-const requestCreated = (r: RequestItem): Timestamp => (r.kind === 'extension' ? r.ext.created_at : r.swap.created_at)
 
 export function ManagerDashboard({
   onSignOut,
@@ -77,9 +75,12 @@ export function ManagerDashboard({
     )
   }
 
-  const { me, settings, now, requests, flags, notes, today, fortnights, currentFortnight, fortnightMin } = data
+  const { me, settings, now, flags, notes, today, fortnights, currentFortnight, fortnightMin } = data
   const tz = settings.timezone
-  const total = requests.length + flags.length + notes.length
+  // Pending corrections ("This was a mistake", "When did you finish?") get their own chip.
+  const requests = data.requests.filter((r) => r.kind !== 'correction')
+  const corrections = data.requests.filter((r) => r.kind === 'correction')
+  const total = data.requests.length + flags.length + notes.length
   const todayDate = localDate(now, settings)
 
   async function openShift(shiftId: string) {
@@ -99,7 +100,7 @@ export function ManagerDashboard({
   // One list, split by day, newest day first ("Today", then "Tue 27 Oct", "Mon 26 Oct", ...).
   const show = (f: Filter) => filter === 'all' || filter === f
   const dayOf = (ts: Timestamp) => localDay(ts, tz)
-  const shownReq = show('requests') ? requests : []
+  const shownReq = [...(show('requests') ? requests : []), ...(show('corrections') ? corrections : [])]
   const shownFlags = show('flags') ? flags : []
   const shownNotes = show('notes') ? notes : []
   const days = [...new Set([...shownReq.map((r) => dayOf(requestCreated(r))), ...shownFlags.map((v) => dayOf(v.flag.created_at)), ...shownNotes.map((s) => dayOf(s.note.created_at))])]
@@ -116,6 +117,7 @@ export function ManagerDashboard({
   const emptyText: Record<Filter, string> = {
     all: 'Nothing needs you right now.',
     requests: 'No requests to decide.',
+    corrections: 'No corrections to check.',
     flags: 'No flags. Every clock-in looks fine.',
     notes: 'No notes waiting. Nothing running low.',
   }
@@ -123,6 +125,7 @@ export function ManagerDashboard({
   const chips: { id: Filter; label: string; count: number }[] = [
     { id: 'all', label: 'All', count: total },
     { id: 'requests', label: 'Requests', count: requests.length },
+    { id: 'corrections', label: 'Corrections', count: corrections.length },
     { id: 'flags', label: 'Flags', count: flags.length },
     { id: 'notes', label: 'Notes', count: notes.length },
   ]
@@ -263,7 +266,15 @@ export function ManagerDashboard({
       {gymOpen && <GymLocationSheet open onOpenChange={setGymOpen} settings={settings} me={me} onSaved={() => void refresh()} />}
       <HoursSheet open={hoursOpen} onOpenChange={setHoursOpen} fortnights={fortnights} current={currentFortnight} refreshedAt={now} />
       {openRecord && (
-        <ShiftRecordSheet key={openRecord.shift.id} record={openRecord} settings={settings} now={now} onOpenChange={(o) => !o && setOpenRecord(null)} />
+        <ShiftRecordSheet
+          key={openRecord.shift.id}
+          record={openRecord}
+          settings={settings}
+          now={now}
+          onOpenChange={(o) => !o && setOpenRecord(null)}
+          fixer={me}
+          onChanged={() => void refresh()}
+        />
       )}
       {openFlag && <FlagSheet key={openFlag.flag.id} view={openFlag} viewer={me} settings={settings} onOpenChange={(o) => !o && setOpenFlag(null)} onChanged={() => void refresh()} />}
     </main>

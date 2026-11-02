@@ -31,6 +31,8 @@ const fresh = () => ({
   shiftChanges: structuredClone(seed.shiftChanges),
   clockEvents: structuredClone(seed.clockEvents),
   corrections: structuredClone(seed.corrections),
+  clockVoids: structuredClone(seed.clockVoids),
+  correctionRequests: structuredClone(seed.correctionRequests),
   flags: structuredClone(seed.flags),
   extensions: structuredClone(seed.extensions),
   swaps: structuredClone(seed.swaps),
@@ -61,6 +63,8 @@ export const emptyTables = (): Omit<Db, 'settings' | 'roles'> => ({
   shiftChanges: [],
   clockEvents: [],
   corrections: [],
+  clockVoids: [],
+  correctionRequests: [],
   flags: [],
   extensions: [],
   swaps: [],
@@ -79,6 +83,11 @@ function load(): Db {
     Object.assign(auth, saved.auth)
     // New tables and settings added since the save fall back to the seed, so an older save still loads.
     const loaded = { ...base, ...saved.db, settings: { ...base.settings, ...saved.db?.settings } }
+    // Saves from before automatic clock-outs: every event came from a phone.
+    for (const e of loaded.clockEvents) {
+      e.source ??= 'phone'
+      e.assumed_time ??= null
+    }
     // Saves from before sign-in by username: give each person their first name, lowercased.
     for (const u of loaded.users) u.username ??= u.full_name.split(' ')[0].toLowerCase().replace(/[^a-z0-9]/g, '')
     return loaded

@@ -16,9 +16,22 @@ The database for GymShift. The app still runs on mock data (`src/data`); these m
 | `migrations/…08_due_flags.sql` | `private.raise_due_flags()`, run every 5 minutes by pg_cron: possible no-show and missing clock-out flags. |
 | `migrations/…09_resolve_flag.sql` | `resolve_flag`: Carly resolves a flag (manager only). |
 | `migrations/…10_photos.sql` | The private `shift-photos` Storage bucket and its rules; `add_photo`, `remove_photo`. |
+| `migrations/…11_attendance_enums.sql` | New enum values for the next file (a new enum value can't be used in the transaction that adds it). |
+| `migrations/…12_attendance_fixes.sql` | PRD F6 fixes: `clock_voids` and `correction_requests` (append-only / decided once); `request_void`, `request_end_time`, `decide_correction_request`, `void_clock_in`, `correct_clock_time`, `request_extension`, `decide_extension`; `clock_in` refuses a second open clock-in and flags off-start; `clock_out` flags very short sessions; the scheduled job also closes forgotten sessions at the approved end (`private.close_forgotten_sessions()`). Voided events count nowhere. |
+| `seed.sql` | Local test data only (`npm run db:reset`): six sign-ins with known PINs, a fortnight around today, and one case for each attendance fix. Never run it against the real project. |
 | `tests/db.test.mjs` | Runs every migration in an in-memory Postgres (with small stand-ins for Supabase auth and Storage) and checks the rules. `npm run test:db` |
 
-Every write the app makes is a database function (RPC) that checks who is calling with `auth.uid()` and uses the database clock (`now()`), never the phone's. Clock in/out, the gym location, the roster, notes, flags (raised and resolved) and photos are done; the rest (swaps, extensions, corrections, staff, and deleting photos after 6 months) come next.
+Every write the app makes is a database function (RPC) that checks who is calling with `auth.uid()` and uses the database clock (`now()`), never the phone's. Clock in/out, the gym location, the roster, notes, flags (raised and resolved), photos, extensions, corrections and voids are done; the rest (swaps, staff, and deleting photos after 6 months) come next.
+
+## Local database (for testing)
+
+Needs Docker Desktop running. The Supabase CLI is a dev dependency (`npx supabase …`).
+
+1. `npm run db:start` starts Postgres, auth, Storage and the API on your machine (first run downloads the images).
+2. `npm run db:reset` applies every migration, then `seed.sql`. Run it again any time for a clean database.
+3. Copy the local publishable key from `npx supabase status` into `.env.localdb.local` as `VITE_SUPABASE_PUBLISHABLE_KEY=…`, then `npm run dev:localdb`.
+4. Sign in with the usernames and PINs at the top of `seed.sql`. The local dashboard is at http://127.0.0.1:54323.
+5. `npm run db:stop` when done.
 
 ## Setting up the project (once)
 
