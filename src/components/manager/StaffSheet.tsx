@@ -242,7 +242,7 @@ export function StaffSheet({ open, onOpenChange, person, users, me, onSaved }: P
                   autoComplete="off"
                   className={`${field} mt-1`}
                 />
-                <span className="mt-1 block text-sm text-muted-foreground">First name and surname, so two Joshes can be told apart.</span>
+                <span className="mt-1 block text-sm text-muted-foreground">First name and surname, so two people with the same first name can be told apart.</span>
               </label>
               <label className="block">
                 <span className="text-sm font-medium text-muted-foreground">Username</span>
