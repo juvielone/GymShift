@@ -10,7 +10,7 @@ import type { CorrectionReason, Timestamp, User } from '@/types'
 import type { RequestItem } from '@/hooks/requests'
 import { Disc } from '@/components/common/ListParts'
 import { rowClass, smallButton } from '@/components/common/listStyles'
-import { firstName, formatClock, formatDateShort, formatTimeRange, localDay } from '@/lib/format'
+import { firstName, formatClock, formatDateShort, formatDistance, formatTimeRange, localDay } from '@/lib/format'
 
 const UNDO_MS = 5000
 
@@ -28,8 +28,7 @@ const REASON: Record<CorrectionReason, string> = {
 function whereText(e: EffectiveClockEvent): string {
   if (e.source === 'auto') return 'closed automatically'
   if (e.location_status !== 'ok' || e.distance_m === null) return 'no location'
-  const d = e.distance_m < 1000 ? `${e.distance_m} m` : `${(e.distance_m / 1000).toFixed(1)} km`
-  return `${d} from the gym`
+  return `${formatDistance(e.distance_m)} from the gym`
 }
 
 interface Props {

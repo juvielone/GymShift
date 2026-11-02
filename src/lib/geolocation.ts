@@ -16,6 +16,11 @@ export function setDevLocationMode(mode: DevLocationMode, gym: { lat: number; ln
   devGym = gym
 }
 
+/** Dev switcher only: the current choice, so it survives signing in as someone else. */
+export function getDevLocationMode(): DevLocationMode {
+  return devMode
+}
+
 export type LocationPermission = 'granted' | 'prompt' | 'denied' | 'unknown'
 
 /**
@@ -46,7 +51,11 @@ export function getClockLocation(): Promise<ClockLocation> {
     }
     return new Promise((resolve) => setTimeout(() => resolve(fake[devMode as Exclude<DevLocationMode, 'real'>]), 700))
   }
+  return getRealLocation()
+}
 
+/** The phone's real position, never the dev switcher's fake one: for setting and testing the gym point. */
+export function getRealLocation(): Promise<ClockLocation> {
   if (!('geolocation' in navigator)) return Promise.resolve({ status: 'unavailable' })
   return new Promise((resolve) => {
     navigator.geolocation.getCurrentPosition(

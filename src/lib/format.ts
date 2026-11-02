@@ -40,6 +40,11 @@ export function formatDateShort(date: DateString): string {
   return dateFormat(date, { weekday: 'short', day: 'numeric', month: 'short' }).replace(',', '')
 }
 
+/** 40 → "40 m", 4210 → "4.2 km" */
+export function formatDistance(metres: number): string {
+  return metres < 1000 ? `${Math.round(metres)} m` : `${(metres / 1000).toFixed(1)} km`
+}
+
 /** 43 → "43 min", 140 → "2h 20m", 180 → "3h" */
 export function formatDuration(min: number): string {
   if (min < 60) return `${min} min`

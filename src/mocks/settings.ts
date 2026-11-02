@@ -3,9 +3,9 @@ import type { SiteSettings } from '@/types'
 export const settings: SiteSettings = {
   site_name: 'World Gym Macquarie Park',
   timezone: 'Australia/Sydney',
-  // TODO: approximate Macquarie Park coordinates — exact gym coordinates are an open question in the PRD.
-  gym_lat: -33.7769,
-  gym_lng: 151.1203,
+  // The gym's coordinates (confirmed 2 Nov 2026). The radius is still a placeholder (PRD open question).
+  gym_lat: -33.78040309069026,
+  gym_lng: 151.12136047301382,
   radius_m: 150,
   no_show_after_min: 15,
   missing_out_after_min: 30,

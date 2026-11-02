@@ -6,8 +6,8 @@ import { RADIUS_MAX_M, RADIUS_MIN_M, updateSiteLocation } from '@/data'
 import type { SiteSettings, User } from '@/types'
 import { Drawer, DrawerContent, DrawerDescription, DrawerFooter, DrawerHeader, DrawerTitle } from '@/components/ui/drawer'
 import { smallButton } from '@/components/common/listStyles'
-import { getClockLocation } from '@/lib/geolocation'
-import { formatLatLng, parseLatLng } from '@/lib/format'
+import { getRealLocation } from '@/lib/geolocation'
+import { formatDistance, formatLatLng, parseLatLng } from '@/lib/format'
 import { distanceMetres, isOffSite } from '@/lib/rules'
 
 /** A fix looser than this would put the gym point in the wrong place; ask her to try again instead. */
@@ -41,7 +41,7 @@ export function GymLocationSheet({ open, onOpenChange, settings, me, onSaved }: 
   async function takeMyLocation() {
     setBusy('locate')
     setMsg(null)
-    const loc = await getClockLocation()
+    const loc = await getRealLocation()
     setBusy(null)
     if ('status' in loc) return setMsg({ tone: 'warn', text: NO_FIX[loc.status] })
     if (loc.accuracy_m > SETUP_ACCURACY_M) {
@@ -64,12 +64,12 @@ export function GymLocationSheet({ open, onOpenChange, settings, me, onSaved }: 
   async function testDistance() {
     setBusy('test')
     setMsg(null)
-    const loc = await getClockLocation()
+    const loc = await getRealLocation()
     setBusy(null)
     if ('status' in loc) return setMsg({ tone: 'warn', text: NO_FIX[loc.status] })
     const d = Math.round(distanceMetres(loc.lat, loc.lng, point.lat, point.lng))
     const away = isOffSite(d, loc.accuracy_m, { ...settings, radius_m: radius })
-    setMsg({ tone: away ? 'warn' : 'ok', text: `You're ${d} m from the gym (±${loc.accuracy_m} m): ${away ? 'outside, a clock-in here would be flagged' : 'inside'}.` })
+    setMsg({ tone: away ? 'warn' : 'ok', text: `You're ${formatDistance(d)} from the gym (±${loc.accuracy_m} m): ${away ? 'outside, a clock-in here would be flagged' : 'inside'}.` })
   }
 
   async function save() {

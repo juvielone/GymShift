@@ -270,5 +270,6 @@ Prices are approximate as of October 2026.
 - [ ] Exact headcount and names for account setup.
 - [ ] Who sends staff the written location notice 14 days before the trial starts?
 - [ ] Trial start date.
-- [ ] Exact gym coordinates and the radius to use (default 150 m). Carly can set both in the app by standing in the gym; still needs doing once before the trial.
+- [x] Exact gym coordinates: -33.78040309069026, 151.12136047301382 (confirmed 2 Nov 2026; in the demo data and local seed).
+- [ ] The radius to use (default 150 m). Carly can change it in the app; the live database still needs the coordinates set once before the trial.
 - [ ] Multiple sites (Carly, 30 Oct 2026; follow-up after the MVP): which other locations, and when? Would they use different shift times or rules? Would a team lead look after a site, or a group of people wherever they work?

@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react'
 import { getCurrentUser, getSettings, getUsers, setMockCurrentUser, setMockNow } from '@/data'
 import type { User } from '@/types'
-import { setDevLocationMode, type DevLocationMode } from '@/lib/geolocation'
+import { getDevLocationMode, setDevLocationMode, type DevLocationMode } from '@/lib/geolocation'
 
 const TIMES: { label: string; ts: string }[] = [
   // Josh's 28 Oct night shift, step by step: before, during, a normal finish, then over 3h (flagged).
@@ -29,14 +29,15 @@ export function DevSwitcher({ onChange }: { onChange: () => void }) {
   const [users, setUsers] = useState<User[]>([])
   const [userId, setUserId] = useState('')
   const [time, setTime] = useState(TIMES[0].ts)
-  const [loc, setLoc] = useState<DevLocationMode>('gym')
+  // Real GPS unless a fake is picked here; the pick stays across sign-ins until the page reloads.
+  const [loc, setLoc] = useState<DevLocationMode>(getDevLocationMode)
 
   useEffect(() => {
     void (async () => {
       const [all, me, settings] = await Promise.all([getUsers({ activeOnly: true }), getCurrentUser(), getSettings()])
       setUsers(all)
       setUserId(me.id)
-      setDevLocationMode('gym', { lat: settings.gym_lat, lng: settings.gym_lng })
+      setDevLocationMode(getDevLocationMode(), { lat: settings.gym_lat, lng: settings.gym_lng })
     })()
   }, [])
 

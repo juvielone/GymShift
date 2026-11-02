@@ -55,8 +55,8 @@ do $$
 declare
   tz constant text := 'Australia/Sydney';
   d date := (now() at time zone tz)::date;
-  gym_lat constant double precision := -33.7769;
-  gym_lng constant double precision := 151.1203;
+  gym_lat constant double precision := -33.78040309069026;
+  gym_lng constant double precision := 151.12136047301382;
   carly constant uuid := '00000000-0000-4000-8000-000000000001';
   gladys constant uuid := '00000000-0000-4000-8000-000000000002';
   josh constant uuid := '00000000-0000-4000-8000-000000000003';
@@ -109,10 +109,10 @@ begin
 
   -- ---- Case 2: Kyle, D-2 morning. A tap at home, asked about at once (that closed it), then the real shift ----
   sh := pg_temp.shift(d - 2, 'morning', '07:00', '10:00', kyle);
-  ev := pg_temp.clock(kyle, sh, 'in', pg_temp.at(d - 2, '05:10'), -33.7925, 151.1418);
+  ev := pg_temp.clock(kyle, sh, 'in', pg_temp.at(d - 2, '05:10'), -33.79600, 151.14286);
   perform pg_temp.flag('off_start', kyle, sh, ev, 'Clock-in 1h 50m before the 7:00 am start', pg_temp.at(d - 2, '05:10'));
-  ev2 := pg_temp.clock(kyle, sh, 'out', pg_temp.at(d - 2, '05:25'), -33.7925, 151.1418);
-  perform pg_temp.flag('off_site', kyle, sh, ev2, format('Clock-out %s m from gym (±8 m)', round(private.distance_m(-33.7925, 151.1418, gym_lat, gym_lng))), pg_temp.at(d - 2, '05:25'));
+  ev2 := pg_temp.clock(kyle, sh, 'out', pg_temp.at(d - 2, '05:25'), -33.79600, 151.14286);
+  perform pg_temp.flag('off_site', kyle, sh, ev2, format('Clock-out %s m from gym (±8 m)', round(private.distance_m(-33.79600, 151.14286, gym_lat, gym_lng))), pg_temp.at(d - 2, '05:25'));
   insert into public.correction_requests (kind, clock_event_id, requested_by, reason_code, created_at)
   values ('void', ev, kyle, 'accidental_tap', pg_temp.at(d - 2, '05:25'));
   perform pg_temp.clock(kyle, sh, 'in', pg_temp.at(d - 2, '07:01'), gym_lat, gym_lng);
@@ -120,10 +120,10 @@ begin
 
   -- ---- Case 3: Gino, D-3 night. A clock-in from home that afternoon, voided by Carly; then the real shift ----
   sh := pg_temp.shift(d - 3, 'night', '19:00', '22:00', gino);
-  ev := pg_temp.clock(gino, sh, 'in', pg_temp.at(d - 3, '14:05'), -33.8102, 151.0995);
-  perform pg_temp.flag('off_site', gino, sh, ev, format('Clock-in %s m from gym (±8 m)', round(private.distance_m(-33.8102, 151.0995, gym_lat, gym_lng))), pg_temp.at(d - 3, '14:05'));
+  ev := pg_temp.clock(gino, sh, 'in', pg_temp.at(d - 3, '14:05'), -33.81370, 151.10056);
+  perform pg_temp.flag('off_site', gino, sh, ev, format('Clock-in %s m from gym (±8 m)', round(private.distance_m(-33.81370, 151.10056, gym_lat, gym_lng))), pg_temp.at(d - 3, '14:05'));
   perform pg_temp.flag('off_start', gino, sh, ev, 'Clock-in 4h 55m before the 7:00 pm start', pg_temp.at(d - 3, '14:05'));
-  ev2 := pg_temp.clock(gino, sh, 'out', pg_temp.at(d - 3, '14:07'), -33.8102, 151.0995);
+  ev2 := pg_temp.clock(gino, sh, 'out', pg_temp.at(d - 3, '14:07'), -33.81370, 151.10056);
   perform pg_temp.flag('short_session', gino, sh, ev2, 'Clocked out 2 min after clocking in', pg_temp.at(d - 3, '14:07'));
   insert into public.clock_voids (clock_event_id, old_time, reason, voided_by, voided_at)
   select e.id, e.server_time, 'Tapped Clock in at home', carly, pg_temp.at(d - 3, '15:00') from public.clock_events e where e.id in (ev, ev2);
@@ -141,8 +141,8 @@ begin
   sh := pg_temp.shift(d - 2, 'night', '19:00', '22:00', angel);
   perform pg_temp.clock(angel, sh, 'in', pg_temp.at(d - 2, '19:00'), gym_lat, gym_lng);
   perform pg_temp.flag('missing_clock_out', angel, sh, (select e.id from public.clock_events e where e.shift_id = sh and e.kind = 'in'), 'No clock-out by 10:30 pm', pg_temp.at(d - 2, '22:30'));
-  ev2 := pg_temp.clock(angel, sh, 'out', pg_temp.at(d - 2, '22:40'), -33.7655, 151.0821);
-  perform pg_temp.flag('off_site', angel, sh, ev2, format('Clock-out %s m from gym (±8 m)', round(private.distance_m(-33.7655, 151.0821, gym_lat, gym_lng))), pg_temp.at(d - 2, '22:40'));
+  ev2 := pg_temp.clock(angel, sh, 'out', pg_temp.at(d - 2, '22:40'), -33.76900, 151.08316);
+  perform pg_temp.flag('off_site', angel, sh, ev2, format('Clock-out %s m from gym (±8 m)', round(private.distance_m(-33.76900, 151.08316, gym_lat, gym_lng))), pg_temp.at(d - 2, '22:40'));
   perform pg_temp.flag('over_without_extension', angel, sh, ev2, 'Recorded 3h 40m; approved 3h 0m', pg_temp.at(d - 2, '22:40'));
   insert into public.correction_requests (kind, clock_event_id, requested_by, reason_code, requested_time, created_at)
   values ('end_time', ev2, angel, 'forgot_clock_out', pg_temp.at(d - 2, '22:00'), pg_temp.at(d - 2, '22:41'));
@@ -157,7 +157,7 @@ begin
   -- ---- Case 7: Gino, D-1 night. Stayed to finish, clocked out 28 min late at the gym, asked for the time after ----
   sh := pg_temp.shift(d - 1, 'night', '19:00', '22:00', gino);
   perform pg_temp.clock(gino, sh, 'in', pg_temp.at(d - 1, '18:58'), gym_lat, gym_lng);
-  ev2 := pg_temp.clock(gino, sh, 'out', pg_temp.at(d - 1, '22:28'), -33.7770, 151.1205);
+  ev2 := pg_temp.clock(gino, sh, 'out', pg_temp.at(d - 1, '22:28'), -33.78050, 151.12156);
   perform pg_temp.flag('over_without_extension', gino, sh, ev2, 'Recorded 3h 30m; approved 3h 0m', pg_temp.at(d - 1, '22:28'));
   insert into public.extensions (shift_id, requested_by, minutes, reason, created_at)
   values (sh, gino, 30, 'Stayed to finish', pg_temp.at(d - 1, '22:29'));

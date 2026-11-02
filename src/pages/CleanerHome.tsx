@@ -23,17 +23,19 @@ import { MistakeSheet } from '@/components/home/MistakeSheet'
 import { FinishTimeSheet, type FinishMode } from '@/components/home/FinishTimeSheet'
 import { LocationFailSheet } from '@/components/home/LocationFailSheet'
 import { LocationHelpSheet } from '@/components/home/LocationHelpSheet'
+import { AwayFromGymSheet } from '@/components/home/AwayFromGymSheet'
 import { AccountButton } from '@/components/common/AccountButton'
 import { RosterRow } from '@/components/roster/RosterRow'
 import { RecordsRow } from '@/components/records/RecordsRow'
 import { firstName, formatClock, formatDateLong, formatDateShort, formatDuration, formatTime, shiftLabel, siteShortName } from '@/lib/format'
 import { getClockLocation } from '@/lib/geolocation'
-import { compareTs, localDate, minutesBetween, needsClockInConfirm, shiftStartAt } from '@/lib/rules'
+import { compareTs, distanceMetres, isOffSite, localDate, minutesBetween, needsClockInConfirm, shiftStartAt } from '@/lib/rules'
 import { cn } from '@/lib/utils'
 
 type Step = 'idle' | 'locating' | 'saving' | 'saved'
 type Receipt = { tone: 'ok' | 'warn'; title: string; detail?: string; action?: { label: string; onClick: () => void } }
 type NoFix = Extract<ClockLocation, { status: unknown }>
+type Fix = Exclude<ClockLocation, NoFix>
 
 /** Plain, warm wording for what just happened. Flags become "Carly will check it", never blame. */
 function receiptFor(kind: 'in' | 'out', result: ClockResult, name: string, workedMin: number | null): Receipt {
@@ -110,6 +112,7 @@ function Home({
   const [extOpen, setExtOpen] = useState(false)
   const [helpOpen, setHelpOpen] = useState(false)
   const [noFix, setNoFix] = useState<{ kind: 'in' | 'out'; location: NoFix } | null>(null)
+  const [away, setAway] = useState<{ location: Fix; distance: number } | null>(null)
   const [photoPromptOpen, setPhotoPromptOpen] = useState(false)
   const [openPhoto, setOpenPhoto] = useState<Photo | null>(null)
   const [noteOpen, setNoteOpen] = useState(false)
@@ -150,6 +153,7 @@ function Home({
     setFailed(false)
     setReceipt(null)
     setNoFix(null)
+    setAway(null)
     setStep('locating')
     const location = await getClockLocation()
     // No location: nothing is saved yet. Offer a retry first; "anyway" saves it and Carly checks it.
@@ -158,11 +162,19 @@ function Home({
       setNoFix({ kind, location })
       return
     }
+    // Clocking in from outside the gym: ask first, so someone still on the way can check again.
+    const distance = distanceMetres(location.lat, location.lng, settings.gym_lat, settings.gym_lng)
+    if (kind === 'in' && isOffSite(distance, location.accuracy_m, settings)) {
+      setStep('idle')
+      setAway({ location, distance })
+      return
+    }
     await save(kind, location)
   }
 
   async function save(kind: 'in' | 'out', location: ClockLocation) {
     setNoFix(null)
+    setAway(null)
     setStep('saving')
     try {
       const result = kind === 'in' ? await clockIn(user.id, location) : await clockOut(user.id, location)
@@ -423,6 +435,16 @@ function Home({
             setNoFix(null)
             setHelpOpen(true)
           }}
+        />
+      )}
+      {away && (
+        <AwayFromGymSheet
+          open
+          onOpenChange={(o) => !o && setAway(null)}
+          distanceM={away.distance}
+          accuracyM={away.location.accuracy_m}
+          onRetry={() => void clock('in')}
+          onAnyway={() => void save('in', away.location)}
         />
       )}
       <LocationHelpSheet open={helpOpen} onOpenChange={setHelpOpen} onFixed={() => void refresh()} />
