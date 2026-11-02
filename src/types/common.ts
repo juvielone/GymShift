@@ -12,5 +12,8 @@ export type DateString = string
 /** time as "HH:mm" (24h, Australia/Sydney local time) */
 export type TimeString = string
 
-/** Status shared by every approval-style request (swaps, extensions, correction requests). */
-export type RequestStatus = 'pending' | 'approved' | 'declined'
+/**
+ * Status shared by every approval-style request (swaps, extensions, correction requests).
+ * 'withdrawn': the person who asked took it back (swaps only).
+ */
+export type RequestStatus = 'pending' | 'approved' | 'declined' | 'withdrawn'

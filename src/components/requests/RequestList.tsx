@@ -147,7 +147,7 @@ export function RequestList({ items, viewer, tz, now, onChanged }: Props) {
         } else {
           icon = item.swap.kind === 'swap' ? <ArrowLeftRight /> : <UserRound />
           const other = item.other ? shortName(item.other.full_name) : null
-          title = item.swap.kind === 'swap' ? `${who} ↔ ${other} · swap` : other ? `${who} → ${other} · cover` : `${who} · needs cover`
+          title = !other ? `${who} · needs cover` : item.swap.kind === 'swap' ? `${who} → ${other} · ${other} said yes` : `${who} → ${other} · ${other} offered`
           reason = item.swap.reason
           asked = askedAt(item.swap.created_at)
         }

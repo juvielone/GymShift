@@ -13,7 +13,7 @@ import { PhotoSheet } from '@/components/home/PhotoSheet'
 import { PhotoPrompt } from '@/components/home/PhotoPrompt'
 import { NoteSheet, type NoteSent } from '@/components/home/NoteSheet'
 import { usePhotoUploads } from '@/hooks/usePhotoUploads'
-import { UpcomingShifts } from '@/components/home/UpcomingShifts'
+import { ShiftHandoffs } from '@/components/home/ShiftHandoffs'
 import { TeamSwaps } from '@/components/home/TeamSwaps'
 import { ExtensionSheet } from '@/components/home/ExtensionSheet'
 import { ClockOutConfirm } from '@/components/home/ClockOutConfirm'
@@ -327,7 +327,7 @@ function Home({
         )}
       </div>
 
-      <UpcomingShifts shifts={upcoming} />
+      <ShiftHandoffs user={user} settings={settings} now={now} upcoming={upcoming} onChanged={() => void refresh()} />
 
       {/* Team lead only: Gladys rosters for everyone on Carly's behalf. */}
       {/* A cleaner sees their own past shifts; Gladys sees her group's (src/data checks it). */}

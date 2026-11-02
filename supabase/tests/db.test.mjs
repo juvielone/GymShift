@@ -889,3 +889,120 @@ test('staff: Carly adds, changes and deactivates people; the phone is private; n
     db = shared
   }
 })
+
+// ---- Swaps, covers and days off (15_swaps) ----
+
+test('swaps: ask a colleague or anyone free, someone says yes, Carly or Gladys approves; nothing is deleted', async () => {
+  const shared = db
+  db = await freshDb()
+  try {
+    const ask = (who, shift, target = null, reason = null) =>
+      call(who, `select * from public.request_swap($1, $2, $3)`, [shift, target, reason]).then((r) => r[0])
+    const answer = (who, id, yes) => call(who, `select * from public.answer_swap($1, $2)`, [id, yes]).then((r) => r[0])
+    const decide = (who, id, approve, coveredBy = null) =>
+      call(who, `select * from public.decide_swap($1, $2, $3)`, [id, approve, coveredBy]).then((r) => r[0])
+    const withdraw = (who, id) => call(who, `select * from public.withdraw_swap($1)`, [id]).then((r) => r[0])
+    const owner_ = async (id) => (await db.query(`select assigned_user_id from shifts where id = $1`, [id])).rows[0].assigned_user_id
+
+    const night = await addShift({ date: '2027-04-05', type: 'night', user: JOSH })
+    // Kyle works 9 – 11 pm that night (logged as a morning slot so both fit the roster): not free.
+    await addShift({ date: '2027-04-05', type: 'morning', user: KYLE, start: '21:00', end: '23:00' })
+
+    // Only the person on the shift asks, never for themselves, and only someone free that night.
+    await rejects(ask(KYLE, night, GLADYS), /Only the person on this shift can ask/)
+    await rejects(ask(JOSH, night, JOSH), /Pick someone else/)
+    await rejects(ask(JOSH, night, KYLE), /Kyle is working then/)
+    const swap = await ask(JOSH, night, GLADYS, '  Family ')
+    assert.equal(swap.kind, 'swap')
+    assert.equal(swap.reason, 'Family')
+    await rejects(ask(JOSH, night, null), /already asked about this shift/)
+
+    // The colleague says yes first; nobody else answers for them.
+    await rejects(decide(CARLY, swap.id, true), /Gladys hasn't said yes yet/)
+    await rejects(answer(KYLE, swap.id, true), /for someone else/)
+    const yes = await answer(GLADYS, swap.id, true)
+    assert.equal(yes.covered_by, GLADYS)
+    assert.ok(yes.accepted_at)
+    assert.equal(yes.status, 'pending')
+    await rejects(answer(GLADYS, swap.id, true), /already said yes/)
+
+    // Gladys is taking it, so Carly decides. Approving moves the shift and logs it with the request.
+    await rejects(decide(GLADYS, swap.id, true), /part of this request, so Carly decides it/)
+    await rejects(decide(JOSH, swap.id, true), /Not allowed to decide/)
+    const approved = await decide(CARLY, swap.id, true)
+    assert.equal(approved.status, 'approved')
+    assert.equal(approved.decided_by, CARLY)
+    assert.equal(await owner_(night), GLADYS)
+    const log = (await db.query(`select field, old_value, new_value, swap_id from shift_changes where shift_id = $1`, [night])).rows
+    assert.deepEqual(log, [{ field: 'assigned_user_id', old_value: JOSH, new_value: GLADYS, swap_id: swap.id }])
+    await rejects(decide(CARLY, swap.id, false), /already decided/)
+
+    // A cover: every member of staff sees it; anyone free offers; Gladys approves for her group.
+    const kyles = await addShift({ date: '2027-04-08', type: 'night', user: KYLE })
+    const cover = await ask(KYLE, kyles)
+    assert.equal(cover.kind, 'cover')
+    assert.equal((await call(JOSH, `select id from swaps where id = $1`, [cover.id])).length, 1)
+    await rejects(answer(JOSH, cover.id, false), /Only the person asked can say no/)
+    await rejects(answer(KYLE, cover.id, true), /your own request/)
+    await rejects(decide(GLADYS, cover.id, true), /needs someone to cover it/)
+    await answer(JOSH, cover.id, true)
+    await decide(GLADYS, cover.id, true)
+    assert.equal(await owner_(kyles), JOSH)
+
+    // Nobody offered: the approver may pick who covers, but never themselves.
+    const kyles2 = await addShift({ date: '2027-04-10', type: 'night', user: KYLE })
+    const open = await ask(KYLE, kyles2)
+    await rejects(decide(GLADYS, open.id, true, GLADYS), /part of this request/)
+    await decide(CARLY, open.id, true, JOSH)
+    assert.equal(await owner_(kyles2), JOSH)
+
+    // The person asked can say no; the person who asked can withdraw. Both stay on record.
+    const later = await addShift({ date: '2027-04-09', type: 'night', user: JOSH })
+    const no = await answer(KYLE, (await ask(JOSH, later, KYLE)).id, false)
+    assert.equal(no.status, 'declined')
+    assert.equal(no.decided_by, KYLE)
+    const again = await ask(JOSH, later)
+    await rejects(withdraw(KYLE, again.id), /Only the person who asked/)
+    const back = await withdraw(JOSH, again.id)
+    assert.equal(back.status, 'withdrawn')
+    await rejects(answer(KYLE, again.id, true), /withdrawn/)
+    assert.equal(await owner_(later), JOSH)
+
+    // Nothing once the shift has started.
+    const t = await startingAgo(5)
+    const started = await addShift({ date: t.date, type: 'night', user: JOSH, start: t.start, end: t.end })
+    await rejects(ask(JOSH, started, GLADYS), /has started/)
+
+    await rejects(db.query(`delete from swaps where id = $1`, [swap.id]), /never|not allowed|forbid/i)
+    await rejects(db.query(`update swaps set reason = 'x' where id = $1`, [no.id]), /already decided/)
+  } finally {
+    db = shared
+  }
+})
+
+test('days off: set from tomorrow on, replaced as a whole, only your own', async () => {
+  const shared = db
+  db = await freshDb()
+  try {
+    const { today, tomorrow } = await days()
+    const plus = (n) => new Date(Date.parse(`${today}T00:00:00Z`) + n * 86_400_000).toISOString().slice(0, 10)
+    const set = (who, dates, note = null) =>
+      call(who, `select date::text, note from public.set_days_off($1, $2, $3::date[], $4)`, [tomorrow, plus(14), dates, note])
+
+    assert.deepEqual(await set(JOSH, [tomorrow, plus(3)], ' Uni exam '), [
+      { date: tomorrow, note: 'Uni exam' },
+      { date: plus(3), note: 'Uni exam' },
+    ])
+    assert.deepEqual(await set(JOSH, [plus(3)]), [{ date: plus(3), note: null }])
+    await rejects(call(JOSH, `select * from public.set_days_off($1, $2, $3::date[])`, [today, plus(14), [today]]), /from tomorrow on/)
+    await rejects(call(JOSH, `select * from public.set_days_off($1, $2, $3::date[])`, [tomorrow, plus(60), [tomorrow]]), /within one month/)
+    // Kyle's marks are his own; Josh's stay as they were.
+    await set(KYLE, [plus(2)])
+    assert.deepEqual((await db.query(`select user_id, date::text from availability order by user_id`)).rows, [
+      { user_id: JOSH, date: plus(3) },
+      { user_id: KYLE, date: plus(2) },
+    ])
+  } finally {
+    db = shared
+  }
+})

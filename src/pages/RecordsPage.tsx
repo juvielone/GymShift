@@ -13,7 +13,7 @@ import { PhotoThumb } from '@/components/home/PhotosRow'
 import { FLAG_LABEL } from '@/components/manager/flagText'
 import { ShiftRecordSheet } from '@/components/records/ShiftRecordSheet'
 import { PickerSheet } from '@/components/common/PickerSheet'
-import { shortName, formatClock, formatDateShort, formatDuration } from '@/lib/format'
+import { shortName, formatClock, formatDateShort, formatDayRange, formatDuration } from '@/lib/format'
 import { addDays } from '@/lib/rules'
 import { cn } from '@/lib/utils'
 
@@ -21,12 +21,7 @@ const STRIP = 4
 const capital = (s: string) => s.charAt(0).toUpperCase() + s.slice(1)
 
 /** "12 – 25 Oct", or "28 Sep – 11 Oct" across months. */
-function rangeLabel(start: string): string {
-  const fmt = (d: string, month: boolean) =>
-    new Intl.DateTimeFormat('en-AU', { day: 'numeric', ...(month ? { month: 'short' } : {}), timeZone: 'UTC' }).format(new Date(`${d}T00:00:00Z`))
-  const end = addDays(start, 13)
-  return `${fmt(start, start.slice(5, 7) !== end.slice(5, 7))} – ${fmt(end, true)}`
-}
+const rangeLabel = (start: string) => formatDayRange(start, addDays(start, 13))
 
 export function RecordsPage({ onBack }: { onBack: () => void }) {
   const [person, setPerson] = useState<string | null>(null)

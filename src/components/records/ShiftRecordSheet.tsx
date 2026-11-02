@@ -36,7 +36,7 @@ const REQUEST_LABEL: Record<CorrectionRequest['reason_code'], string> = {
   confirm_auto_close: 'Confirmed the automatic clock-out',
   other: 'Asked to fix this',
 }
-const STATUS_LABEL: Record<CorrectionRequest['status'], string> = { pending: 'waiting for Carly', approved: 'approved', declined: 'kept as recorded' }
+const STATUS_LABEL: Record<CorrectionRequest['status'], string> = { pending: 'waiting for Carly', approved: 'approved', declined: 'kept as recorded', withdrawn: 'taken back' }
 
 interface Props {
   record: ShiftRecord

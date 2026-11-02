@@ -1,0 +1,48 @@
+{
+  "title": "Questions & privacy page",
+  "question": "Three ways to lay out the page cleaners open from sign-in. Lock the one that reads best on a phone.",
+  "options": [
+    {
+      "id": "handbook",
+      "kind": "assigned",
+      "kicker": "THE ROLL",
+      "label": "Staff handbook",
+      "lineage": "the induction booklet a new cleaner is handed on day one",
+      "thesis": "Numbered chapters with a contents list; every answer is a short numbered step list.",
+      "palette": ["#ffffff", "#111111", "#d7192a", "#f5f5f5"],
+      "materials": ["hairline rows", "Geist with tabular numerals"],
+      "viewport": "Title, a five-line contents list, then chapter 1 opening with its first question answered in steps.",
+      "risk": "A long scroll; finding one answer relies on the contents list and tapping questions open.",
+      "html": ".impeccable/mocks/decision/handbook.html",
+      "htmlFrame": "390x844"
+    },
+    {
+      "id": "fixes",
+      "kind": "dealt",
+      "label": "If this happens, do this",
+      "lineage": "the laminated quick-reference card on the cleaners' cupboard door",
+      "thesis": "Problems on the left, the fix on the right, grouped by moment of the shift; privacy is its own notice.",
+      "palette": ["#ffffff", "#111111", "#fef3c7", "#d7192a"],
+      "materials": ["two-column hairline table", "one outlined notice card"],
+      "viewport": "Title, an outlined 'Location and privacy notice' card, then 'Signing in' with three problem → fix rows.",
+      "risk": "Questions that are not problems ('How do I clock in?') read awkwardly as 'if this happens'.",
+      "html": ".impeccable/mocks/decision/fixes.html",
+      "htmlFrame": "390x844"
+    },
+    {
+      "id": "topics",
+      "kind": "dealt",
+      "label": "Topic tiles",
+      "lineage": "a help centre's front door",
+      "thesis": "Six topic tiles first; each opens its own short page of questions.",
+      "palette": ["#ffffff", "#111111", "#f5f5f5", "#d7192a"],
+      "materials": ["2 x 3 tiles with icons", "one page per topic"],
+      "viewport": "Title, then six tiles: Signing in, Clocking in and out, Extra time, Photos and notes, Shifts and swaps, Privacy.",
+      "risk": "One extra tap to reach any answer, and tiles look like an app menu rather than reading.",
+      "html": ".impeccable/mocks/decision/topics.html",
+      "htmlFrame": "390x844"
+    }
+  ],
+  "reroll": true,
+  "buildPath": { "value": "code" }
+}

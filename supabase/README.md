@@ -19,11 +19,13 @@ The database for GymShift. The app still runs on mock data (`src/data`); these m
 | `migrations/…11_attendance_enums.sql` | New enum values for the next file (a new enum value can't be used in the transaction that adds it). |
 | `migrations/…12_attendance_fixes.sql` | PRD F6 fixes: `clock_voids` and `correction_requests` (append-only / decided once); `request_void`, `request_end_time`, `decide_correction_request`, `void_clock_in`, `correct_clock_time`, `request_extension`, `decide_extension`; `clock_in` refuses a second open clock-in and flags off-start; `clock_out` flags very short sessions; the scheduled job also closes forgotten sessions at the approved end (`private.close_forgotten_sessions()`). Voided events count nowhere. |
 | `migrations/…13_staff.sql` | Staff (PRD F1): `user_contacts` (optional mobile, readable only by Carly and the person; `users.email` dropped); `update_staff`, `set_staff_active`; and `check_staff`, `check_pin_reset`, `add_staff`, which the staff Edge Function calls as Carly around its login changes. Nobody is ever deleted. |
+| `migrations/…14_swap_enums.sql` | The `withdrawn` request status (its own file, like 11). |
+| `migrations/…15_swaps.sql` | Swaps, covers and days off (PRD F3): `request_swap`, `answer_swap` (the colleague's yes or no), `withdraw_swap`, `decide_swap` (Carly or Gladys, never someone in the request; moves the shift and logs it), `set_days_off`. Open covers are readable by all staff. |
 | `functions/staff/index.ts` | Edge Function: the only code that makes logins, sets PINs and renames logins. Holds the service-role key (a Supabase secret, never in the app); asks the database first. |
 | `seed.sql` | Local test data only (`npm run db:reset`): six sign-ins with known PINs, a fortnight around today, and one case for each attendance fix. Never run it against the real project. |
 | `tests/db.test.mjs` | Runs every migration in an in-memory Postgres (with small stand-ins for Supabase auth and Storage) and checks the rules. `npm run test:db` |
 
-Every write the app makes is a database function (RPC) that checks who is calling with `auth.uid()` and uses the database clock (`now()`), never the phone's. Clock in/out, the gym location, the roster, notes, flags (raised and resolved), photos, extensions, corrections, voids and staff are done; the rest (swaps, and deleting photos after 6 months) come next.
+Every write the app makes is a database function (RPC) that checks who is calling with `auth.uid()` and uses the database clock (`now()`), never the phone's. Clock in/out, the gym location, the roster, notes, flags (raised and resolved), photos, extensions, corrections, voids, staff, swaps and days off are done; deleting photos after 6 months comes next.
 
 ## Local database (for testing)
 

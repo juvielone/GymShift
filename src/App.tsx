@@ -7,6 +7,7 @@ import { ManagerDashboard } from '@/pages/ManagerDashboard'
 import { RosterPage } from '@/pages/RosterPage'
 import { StaffPage } from '@/pages/StaffPage'
 import { RecordsPage } from '@/pages/RecordsPage'
+import { HelpPage } from '@/pages/HelpPage'
 import { DevSwitcher } from '@/components/dev/DevSwitcher'
 
 type View = 'home' | 'roster' | 'staff' | 'records'
@@ -22,6 +23,20 @@ function App() {
   // Carly, and Gladys on her behalf, can open the roster. UI convenience only; src/data checks it too.
   const [canRoster, setCanRoster] = useState(false)
   const [view, setView] = useState<View>('home')
+  // Questions & privacy lives at #help (chapters at #help-…), so the notice can be sent as a link and the
+  // phone's back button closes it. Open to everyone, signed in or not.
+  const [help, setHelp] = useState(() => window.location.hash.startsWith('#help'))
+
+  useEffect(() => {
+    const onHash = () => setHelp(window.location.hash.startsWith('#help'))
+    window.addEventListener('hashchange', onHash)
+    return () => window.removeEventListener('hashchange', onHash)
+  }, [])
+
+  function closeHelp() {
+    window.history.replaceState(null, '', window.location.pathname + window.location.search)
+    setHelp(false)
+  }
 
   // Trial mode reads the time from the server before anything shows, so no screen uses the phone's clock.
   async function start() {
@@ -75,6 +90,7 @@ function App() {
       </main>
     )
   }
+  if (help) return <HelpPage onBack={closeHelp} backLabel={signedIn ? 'Back' : 'Back to sign in'} />
   if (!signedIn) return <SignIn onSignedIn={onSignedIn} />
 
   return (

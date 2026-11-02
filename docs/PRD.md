@@ -78,10 +78,14 @@ Nine features, ordered by build priority. Each acceptance criterion is a test th
 
 *As a cleaner, I want to request a swap or cover so that changes are approved and recorded, not lost in chat.*
 
-- Cleaners can mark dates they are unavailable for the next fortnight.
-- A cleaner can request a swap with a named colleague, or release a shift for cover.
-- Carly or Gladys approves or declines. On approval, the shift's assigned cleaner updates.
-- Both cleaners and the approver can see the request and its outcome.
+- Cleaners can mark dates they are unavailable for the next fortnight ("Days I can't work": a Mon–Sun grid, from tomorrow on, with an optional note). The roster shows it to Carly and Gladys as a warning; it never blocks.
+- **Can't make a shift?** The person on it picks a free colleague, or "Anyone who's free", with an optional reason (Sick, Family, Other). It is one-way: to trade, the other person asks back. *(Decided 3 Nov 2026.)*
+- **The colleague says yes first.** A named colleague sees "Josh asked you" with Not me / I'll take it; an open shift shows to everyone free with I'll take it. Nothing reaches Carly or Gladys until someone has said yes (except an open shift, which they can give to someone directly).
+- Carly or Gladys then approves or declines; on approval the shift moves to the new person and the change is logged. **Nobody decides a request they are part of:** if Gladys asked, or is the one taking the shift, Carly decides.
+- The person who asked can **withdraw** it while it is waiting. A request is decided once (approved, declined or withdrawn) and stays on record.
+- Nothing is handed over once the shift has started: it stays with whoever is on it, and the usual no-show rules apply.
+- Cleaners never cancel a shift. If nobody can take it, Carly or Gladys gives it to someone or cancels it (F2).
+- Both cleaners and the approver can see the request and where it is up to ("Asked Gladys · waiting for an answer", "Gladys said yes · waiting for approval").
 
 ### F4. Clock in and clock out with location
 

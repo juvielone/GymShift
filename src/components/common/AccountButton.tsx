@@ -1,7 +1,7 @@
 // Header avatar. Tapping it opens the account sheet: who is signed in, the manager's "Manage" rows
-// (setup that isn't daily, e.g. gym location), and Log out. Log out returns to the demo login for now.
+// (setup that isn't daily, e.g. gym location), Questions & privacy for everyone, and Log out. Log out returns to the demo login for now.
 import { useState, type ReactNode } from 'react'
-import { ChevronRight, LogOut } from 'lucide-react'
+import { ChevronRight, CircleHelp, LogOut } from 'lucide-react'
 import { getPermissions } from '@/data'
 import type { Uuid } from '@/types'
 import { Drawer, DrawerContent, DrawerDescription, DrawerFooter, DrawerHeader, DrawerTitle } from '@/components/ui/drawer'
@@ -88,6 +88,27 @@ export function AccountButton({ userId, name, siteName, onSignOut, manage }: Pro
               </ul>
             </section>
           )}
+
+          <div className="px-4">
+            <button
+              type="button"
+              onClick={() => {
+                // Close the sheet first, then open the page (#help), so nothing is left locked under it.
+                setOpen(false)
+                window.setTimeout(() => (window.location.hash = 'help'), 200)
+              }}
+              className={`${rowClass} min-h-14 items-center hover:bg-muted/60 active:bg-muted`}
+            >
+              <Disc tone="neutral">
+                <CircleHelp />
+              </Disc>
+              <span className="min-w-0 flex-1">
+                <span className="block text-base leading-snug font-medium">Questions &amp; privacy</span>
+                <span className="block text-sm leading-snug text-muted-foreground">How the app works, and what it records</span>
+              </span>
+              <ChevronRight aria-hidden className="size-5 shrink-0 text-muted-foreground" />
+            </button>
+          </div>
 
           <DrawerFooter>
             <button

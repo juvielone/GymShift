@@ -236,3 +236,20 @@
 @media (prefers-reduced-motion: reduce) {
     .pin-shake { animation: none; }
 }
+
+/* Questions & privacy: a question opens in place with a short height ease (browsers that can animate it). */
+@media (prefers-reduced-motion: no-preference) {
+  .help-page {
+    interpolate-size: allow-keywords;
+  }
+  .help-q::details-content {
+    height: 0;
+    overflow: clip;
+    transition:
+      height 200ms cubic-bezier(0.16, 1, 0.3, 1),
+      content-visibility 200ms allow-discrete;
+  }
+  .help-q[open]::details-content {
+    height: auto;
+  }
+}

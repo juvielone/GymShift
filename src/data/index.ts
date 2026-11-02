@@ -69,7 +69,7 @@ export { getSettings, RADIUS_MIN_M, RADIUS_MAX_M } from './settings'
 export const updateSiteLocation = persisted(settings.updateSiteLocation, (l) => l.updateSiteLocation)
 
 export { getAvailability } from './availability'
-export const markUnavailable = persisted(availability.markUnavailable)
+export const setDaysOff = persisted(availability.setDaysOff, (l) => l.setDaysOff)
 
 export { getShifts, getShift, getUpcomingShifts, getShiftChanges, getShiftChangesForFortnight, getRosterWarnings } from './shifts'
 export type { RosterWarning, RosterWarningKind } from './shifts'
@@ -103,9 +103,11 @@ export { getExtensions } from './extensions'
 export const requestExtension = persisted(extensions.requestExtension, (l) => l.requestExtension)
 export const decideExtension = persisted(extensions.decideExtension, (l) => l.decideExtension)
 
-export { getSwaps } from './swaps'
-export const requestSwap = persisted(swaps.requestSwap)
-export const decideSwap = persisted(swaps.decideSwap)
+export { getSwaps, getSwapCandidates } from './swaps'
+export const requestSwap = persisted(swaps.requestSwap, (l) => l.requestSwap)
+export const answerSwap = persisted(swaps.answerSwap, (l) => l.answerSwap)
+export const withdrawSwap = persisted(swaps.withdrawSwap, (l) => l.withdrawSwap)
+export const decideSwap = persisted(swaps.decideSwap, (l) => l.decideSwap)
 
 export { getPhotos } from './photos'
 /** Where to load a photo's image from: a short-lived signed link in the live app. null = no image. */

@@ -2,7 +2,7 @@
 // Carly switches to a password on the same screen. Staff names are never listed (PRD F1), except
 // the mock-only demo accounts helper, which goes away with Supabase auth.
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { Delete, LoaderCircle } from 'lucide-react'
+import { CircleHelp, Delete, LoaderCircle } from 'lucide-react'
 import { getDataMode, getDemoAccounts, getSettings, resetTrialData, signIn, SIGN_IN_MISMATCH, type DataMode, type DemoAccount } from '@/data'
 import { shortName, siteShortName } from '@/lib/format'
 import { cn } from '@/lib/utils'
@@ -124,11 +124,15 @@ export function SignIn({ onSignedIn }: { onSignedIn: () => void }) {
 
   return (
     <main className="mx-auto flex min-h-svh max-w-[480px] flex-col px-4 pb-[calc(env(safe-area-inset-bottom)+16px)]">
-      <header className="flex h-12 items-center px-1">
+      <header className="flex h-12 items-center justify-between px-1">
         <p className="flex items-baseline gap-2">
           <span className="text-[15px] font-bold tracking-[0.08em] uppercase">World Gym</span>
           <span className="text-[15px] text-muted-foreground">{site}</span>
         </p>
+        <a href="#help" aria-label="Questions and privacy" className="-mr-2 flex h-11 items-center gap-1.5 rounded-xl px-2 text-[15px] font-medium hover:bg-muted active:bg-muted">
+          <CircleHelp aria-hidden className="size-[18px]" />
+          Help
+        </a>
       </header>
 
       <h1 className="mt-7 px-1 text-[28px] leading-tight font-semibold tracking-[-0.01em]">Sign in</h1>

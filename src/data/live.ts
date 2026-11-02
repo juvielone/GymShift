@@ -488,3 +488,30 @@ export async function decideExtension(input: { extensionId: Uuid; decidedBy: Uui
   if (input.decidedBy !== auth.userId) throw new Error('Only the manager can approve extensions')
   return write<Extension>('decide_extension', { p_extension_id: input.extensionId, p_approve: input.approve })
 }
+
+// ---- Swaps, covers and days off (database functions request_swap, answer_swap, withdraw_swap, decide_swap, set_days_off) ----
+
+export async function requestSwap(input: { shiftId: Uuid; requestedBy: Uuid; targetUserId?: Uuid | null; reason?: string | null }): Promise<Swap> {
+  if (input.requestedBy !== auth.userId) throw new Error('Only the person on this shift can ask')
+  return write<Swap>('request_swap', { p_shift_id: input.shiftId, p_target_user_id: input.targetUserId ?? null, p_reason: input.reason ?? null })
+}
+
+export async function answerSwap(input: { swapId: Uuid; userId: Uuid; yes: boolean }): Promise<Swap> {
+  if (input.userId !== auth.userId) throw new Error('This request is for someone else')
+  return write<Swap>('answer_swap', { p_swap_id: input.swapId, p_yes: input.yes })
+}
+
+export async function withdrawSwap(input: { swapId: Uuid; userId: Uuid }): Promise<Swap> {
+  if (input.userId !== auth.userId) throw new Error('Only the person who asked can withdraw it')
+  return write<Swap>('withdraw_swap', { p_swap_id: input.swapId })
+}
+
+export async function decideSwap(input: { swapId: Uuid; decidedBy: Uuid; approve: boolean; coveredBy?: Uuid }): Promise<Swap> {
+  if (input.decidedBy !== auth.userId) throw new Error('Not allowed to decide this swap')
+  return write<Swap>('decide_swap', { p_swap_id: input.swapId, p_approve: input.approve, p_covered_by: input.coveredBy ?? null })
+}
+
+export async function setDaysOff(input: { userId: Uuid; from: DateString; to: DateString; dates: DateString[]; note?: string | null }): Promise<Availability[]> {
+  if (input.userId !== auth.userId) throw new Error('Sign in first')
+  return write<Availability[]>('set_days_off', { p_from: input.from, p_to: input.to, p_dates: input.dates, p_note: input.note ?? null })
+}

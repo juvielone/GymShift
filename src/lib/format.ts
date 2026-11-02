@@ -35,6 +35,12 @@ export function formatDateLong(date: DateString): string {
   return dateFormat(date, { weekday: 'long', day: 'numeric', month: 'long' }).replace(',', '')
 }
 
+/** "12 – 25 Oct", or "28 Sep – 11 Oct" across months. */
+export function formatDayRange(start: DateString, end: DateString): string {
+  const fmt = (d: DateString, month: boolean) => dateFormat(d, { day: 'numeric', ...(month ? { month: 'short' } : {}) })
+  return `${fmt(start, start.slice(5, 7) !== end.slice(5, 7))} – ${fmt(end, true)}`
+}
+
 /** "2026-10-31" → "Sat 31 Oct" */
 export function formatDateShort(date: DateString): string {
   return dateFormat(date, { weekday: 'short', day: 'numeric', month: 'short' }).replace(',', '')
