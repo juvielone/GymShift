@@ -76,7 +76,11 @@ function saveError(error: { code?: string; message: string }): Error {
   // Postgres' own "permission denied for function …": the session has run out.
   if (error.code === '42501' && error.message.startsWith('permission denied')) return new Error('Sign in again, then try once more.')
   if (error.code === 'P0001' || error.code === '42501') return new Error(error.message)
-  return new Error('Not saved yet. Check your internet and try again.')
+  // Only a request that never reached the server is a connection problem (no Postgres code). Anything else
+  // is the database refusing, and "check your internet" would send people looking in the wrong place.
+  if (!error.code || /fetch|network|load failed/i.test(error.message)) return new Error('Not saved yet. Check your internet and try again.')
+  // The code lets whoever looks after the app match a screenshot to the console warning above.
+  return new Error(`Not saved yet. Try again. (Code ${error.code})`)
 }
 
 async function rows<T>(table: string): Promise<T[]> {

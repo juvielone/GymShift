@@ -1,17 +1,25 @@
 // Carly sets the gym point and radius the off-site check uses. She stands in the gym and takes one
 // fix, or pastes coordinates from Google Maps. Saving affects new clock events only.
-import { useState } from 'react'
+// Setting up and testing listen for up to BEST_FIX_MS while GPS sharpens (indoors the first reading is rough),
+// showing the accuracy as it improves. Clock-ins never wait like this: they take one quick reading.
+import { useEffect, useRef, useState } from 'react'
 import { LoaderCircle, Minus, Plus } from 'lucide-react'
 import { RADIUS_MAX_M, RADIUS_MIN_M, updateSiteLocation } from '@/data'
 import type { SiteSettings, User } from '@/types'
 import { Drawer, DrawerContent, DrawerDescription, DrawerFooter, DrawerHeader, DrawerTitle } from '@/components/ui/drawer'
 import { smallButton } from '@/components/common/listStyles'
-import { getRealLocation } from '@/lib/geolocation'
+import { getBestRealLocation } from '@/lib/geolocation'
 import { formatDistance, formatLatLng, parseLatLng } from '@/lib/format'
 import { distanceMetres, isOffSite } from '@/lib/rules'
 
-/** A fix looser than this would put the gym point in the wrong place; ask her to try again instead. */
+/** A fix this tight is used straight away; looser ones (up to the radius) need "Use it anyway". */
 const SETUP_ACCURACY_M = 30
+/** How long setting up or testing keeps listening for a sharper reading. */
+const BEST_FIX_MS = 15_000
+/** A reading looser than this can't say anything useful about a 50–300 m radius. */
+const ROUGH_TEST_M = 1000
+/** When the phone isn't using GPS at all: what to change, in plain words. */
+const ROUGH_HINT = 'Turn on Precise Location for your browser (iPhone: Settings → Privacy → Location Services → Safari Websites), or paste the coordinates instead.'
 const RADIUS_STEP_M = 25
 
 const NO_FIX: Record<'denied' | 'timeout' | 'unavailable', string> = {
@@ -34,26 +42,55 @@ export function GymLocationSheet({ open, onOpenChange, settings, me, onSaved }: 
   const [radius, setRadius] = useState(settings.radius_m)
   const [paste, setPaste] = useState('')
   const [busy, setBusy] = useState<'locate' | 'test' | 'save' | null>(null)
-  const [msg, setMsg] = useState<{ tone: 'ok' | 'warn'; text: string } | null>(null)
+  const [msg, setMsg] = useState<{ tone: 'ok' | 'warn'; text: string; at: 'point' | 'test' | 'save' } | null>(null)
+  /** Accuracy of the best reading so far while listening. */
+  const [live, setLive] = useState<number | null>(null)
+  /** A reading looser than SETUP_ACCURACY_M but within the radius, waiting for "Use it anyway". */
+  const [loose, setLoose] = useState<{ lat: number; lng: number; accuracy_m: number } | null>(null)
+  const stopListening = useRef<() => void>(() => {})
+
+  // Closing the sheet stops listening straight away.
+  useEffect(() => {
+    if (!open) stopListening.current()
+    return () => stopListening.current()
+  }, [open])
+
+  /** Listens for the sharpest reading in BEST_FIX_MS, showing its accuracy as it improves. */
+  async function bestReading() {
+    setLive(null)
+    const { result, stop } = getBestRealLocation({ goodEnoughM: SETUP_ACCURACY_M, maxMs: BEST_FIX_MS, onReading: setLive })
+    stopListening.current = stop
+    const loc = await result
+    stopListening.current = () => {}
+    setLive(null)
+    return loc
+  }
 
   const changed = point.lat !== settings.gym_lat || point.lng !== settings.gym_lng || radius !== settings.radius_m
 
   async function takeMyLocation() {
     setBusy('locate')
     setMsg(null)
-    const loc = await getRealLocation()
+    setLoose(null)
+    const loc = await bestReading()
     setBusy(null)
-    if ('status' in loc) return setMsg({ tone: 'warn', text: NO_FIX[loc.status] })
-    if (loc.accuracy_m > SETUP_ACCURACY_M) {
-      return setMsg({ tone: 'warn', text: `Accuracy ±${loc.accuracy_m} m is too loose. Move away from walls or stand near the entrance, then try again.` })
-    }
+    if ('status' in loc) return setMsg({ tone: 'warn', text: NO_FIX[loc.status], at: 'point' })
+    if (loc.accuracy_m <= SETUP_ACCURACY_M) return applyReading(loc)
+    // Too rough to place the gym at all: the phone is guessing from the network, not GPS.
+    if (loc.accuracy_m > radius) return setMsg({ tone: 'warn', text: `Your phone isn't using GPS right now (±${formatDistance(loc.accuracy_m)}). ${ROUGH_HINT}`, at: 'point' })
+    setLoose(loc)
+  }
+
+  function applyReading(loc: { lat: number; lng: number; accuracy_m: number }) {
     setPoint({ lat: loc.lat, lng: loc.lng })
     setSource(`From your phone · ±${loc.accuracy_m} m`)
+    setLoose(null)
+    setMsg(null)
   }
 
   function applyPasted() {
     const p = parseLatLng(paste)
-    if (!p) return setMsg({ tone: 'warn', text: 'Paste two numbers like -33.7769, 151.1203.' })
+    if (!p) return setMsg({ tone: 'warn', text: 'Paste two numbers like -33.7804, 151.1214.', at: 'point' })
     setMsg(null)
     setPoint(p)
     setSource('Pasted')
@@ -64,12 +101,14 @@ export function GymLocationSheet({ open, onOpenChange, settings, me, onSaved }: 
   async function testDistance() {
     setBusy('test')
     setMsg(null)
-    const loc = await getRealLocation()
+    setLoose(null)
+    const loc = await bestReading()
     setBusy(null)
-    if ('status' in loc) return setMsg({ tone: 'warn', text: NO_FIX[loc.status] })
+    if ('status' in loc) return setMsg({ tone: 'warn', text: NO_FIX[loc.status], at: 'test' })
+    if (loc.accuracy_m > ROUGH_TEST_M) return setMsg({ tone: 'warn', text: `Your phone's location is too rough to test right now (±${formatDistance(loc.accuracy_m)}). ${ROUGH_HINT}`, at: 'test' })
     const d = Math.round(distanceMetres(loc.lat, loc.lng, point.lat, point.lng))
     const away = isOffSite(d, loc.accuracy_m, { ...settings, radius_m: radius })
-    setMsg({ tone: away ? 'warn' : 'ok', text: `You're ${formatDistance(d)} from the gym (±${loc.accuracy_m} m): ${away ? 'outside, a clock-in here would be flagged' : 'inside'}.` })
+    setMsg({ tone: away ? 'warn' : 'ok', text: `You're ${formatDistance(d)} from the gym (±${loc.accuracy_m} m): ${away ? 'outside, a clock-in here would be flagged' : 'inside'}.`, at: 'test' })
   }
 
   async function save() {
@@ -80,7 +119,7 @@ export function GymLocationSheet({ open, onOpenChange, settings, me, onSaved }: 
       onSaved()
       onOpenChange(false)
     } catch (e) {
-      setMsg({ tone: 'warn', text: e instanceof Error ? e.message : 'Not saved yet. Try again.' })
+      setMsg({ tone: 'warn', text: e instanceof Error ? e.message : 'Not saved yet. Try again.', at: 'save' })
     } finally {
       setBusy(null)
     }
@@ -103,9 +142,22 @@ export function GymLocationSheet({ open, onOpenChange, settings, me, onSaved }: 
             <p className="text-sm text-muted-foreground">{source}</p>
             <button type="button" onClick={() => void takeMyLocation()} disabled={busy !== null} className={`${smallButton.ink} mt-3 w-full gap-2`}>
               {busy === 'locate' && <LoaderCircle aria-hidden className="size-4 animate-spin" />}
-              {busy === 'locate' ? 'Finding you…' : 'Use my current location'}
+              {busy === 'locate' ? (live === null ? 'Finding you…' : `Finding you… ±${live} m`) : 'Use my current location'}
             </button>
-            <p className="mt-1 text-sm text-muted-foreground">Stand inside the gym when you tap this.</p>
+            <p className="mt-1 text-sm text-muted-foreground">Stand inside the gym when you tap this. It can take up to 15 seconds.</p>
+            {loose && (
+              <div className="mt-3 rounded-xl bg-warn-soft px-3 py-3 text-[15px] leading-snug text-warn">
+                <p>{`Your phone is only sure to within ±${loose.accuracy_m} m, so the gym point could be off by that much. Pasting from Google Maps is more exact.`}</p>
+                <div className="mt-2.5 flex gap-2">
+                  <button type="button" onClick={() => applyReading(loose)} className={`${smallButton.outline} flex-1`}>
+                    Use it anyway
+                  </button>
+                  <button type="button" onClick={() => void takeMyLocation()} className={`${smallButton.ink} flex-1`}>
+                    Try again
+                  </button>
+                </div>
+              </div>
+            )}
             <div className="mt-3 flex gap-2">
               <label className="sr-only" htmlFor="gym-paste">
                 Paste coordinates from Google Maps
@@ -121,6 +173,10 @@ export function GymLocationSheet({ open, onOpenChange, settings, me, onSaved }: 
               <button type="button" onClick={applyPasted} disabled={!paste.trim()} className={smallButton.outline}>
                 Use
               </button>
+            </div>
+            <p className="mt-1 text-sm text-muted-foreground">In Google Maps, press and hold the gym, then copy the numbers it shows.</p>
+            <div aria-live="polite" className="mt-3 empty:hidden">
+              <Message msg={msg} at="point" />
             </div>
           </section>
 
@@ -157,12 +213,15 @@ export function GymLocationSheet({ open, onOpenChange, settings, me, onSaved }: 
           <section>
             <button type="button" onClick={() => void testDistance()} disabled={busy !== null} className={`${smallButton.outline} w-full gap-2`}>
               {busy === 'test' && <LoaderCircle aria-hidden className="size-4 animate-spin" />}
-              Test my distance
+              {busy === 'test' ? (live === null ? 'Checking…' : `Checking… ±${live} m`) : 'Test my distance'}
             </button>
+            <div aria-live="polite" className="mt-3 empty:hidden">
+              <Message msg={msg} at="test" />
+            </div>
           </section>
 
           <div aria-live="polite" className="empty:hidden">
-            {msg && <p className={`rounded-xl px-3 py-2.5 text-[15px] leading-snug ${msg.tone === 'ok' ? 'bg-ok-soft' : 'bg-warn-soft text-warn'}`}>{msg.text}</p>}
+            <Message msg={msg} at="save" />
           </div>
         </div>
 
@@ -183,4 +242,16 @@ export function GymLocationSheet({ open, onOpenChange, settings, me, onSaved }: 
       </DrawerContent>
     </Drawer>
   )
+}
+
+/** A message shown next to the control it is about: the point, the test, or saving. */
+function Message({ msg, at }: { msg: { tone: 'ok' | 'warn'; text: string; at: string } | null; at: string }) {
+  const ref = useRef<HTMLParagraphElement>(null)
+  const shown = !!msg && msg.at === at
+  // In a short phone viewport the answer can land below the fold; bring it up.
+  useEffect(() => {
+    if (shown) ref.current?.scrollIntoView({ block: 'nearest', behavior: 'smooth' })
+  }, [shown, msg?.text])
+  if (!msg || !shown) return null
+  return <p ref={ref} className={`rounded-xl px-3 py-2.5 text-[15px] leading-snug ${msg.tone === 'ok' ? 'bg-ok-soft' : 'bg-warn-soft text-warn'}`}>{msg.text}</p>
 }

@@ -54,6 +54,50 @@ export function getClockLocation(): Promise<ClockLocation> {
   return getRealLocation()
 }
 
+/**
+ * For setting up and testing the gym point only (never for clocking): keeps listening while GPS sharpens, up
+ * to `maxMs`, and settles on the most accurate reading. Indoors a phone's first reading is often Wi-Fi or
+ * cell based (±40–100 m or worse); GPS can take 5–30 s to tighten. `onReading` reports each improvement so
+ * the sheet can show "±64 m … ±18 m". Stops as soon as a reading is within `goodEnoughM`. Never rejects.
+ * Returns the result and a stop function (for closing the sheet early). Real GPS, never the dev switcher.
+ */
+export function getBestRealLocation(opts: { goodEnoughM: number; maxMs: number; onReading?: (accuracyM: number) => void }): {
+  result: Promise<ClockLocation>
+  stop: () => void
+} {
+  if (!('geolocation' in navigator)) return { result: Promise.resolve({ status: 'unavailable' }), stop: () => {} }
+  let stop = () => {}
+  const result = new Promise<ClockLocation>((resolve) => {
+    let best: Extract<ClockLocation, { lat: number }> | null = null
+    let settled = false
+    const finish = (value: ClockLocation) => {
+      if (settled) return
+      settled = true
+      navigator.geolocation.clearWatch(watchId)
+      clearTimeout(timer)
+      resolve(value)
+    }
+    const watchId = navigator.geolocation.watchPosition(
+      (pos) => {
+        const reading = { lat: pos.coords.latitude, lng: pos.coords.longitude, accuracy_m: Math.round(pos.coords.accuracy) }
+        if (!best || reading.accuracy_m < best.accuracy_m) {
+          best = reading
+          opts.onReading?.(reading.accuracy_m)
+        }
+        if (reading.accuracy_m <= opts.goodEnoughM) finish(reading)
+      },
+      (err) => {
+        // A late timeout or a blip after a good reading keeps that reading; only "no reading at all" fails.
+        if (err.code === err.PERMISSION_DENIED) finish({ status: 'denied' })
+      },
+      { enableHighAccuracy: true, maximumAge: 0 },
+    )
+    const timer = setTimeout(() => finish(best ?? { status: 'timeout' }), opts.maxMs)
+    stop = () => finish(best ?? { status: 'timeout' })
+  })
+  return { result, stop: () => stop() }
+}
+
 /** The phone's real position, never the dev switcher's fake one: for setting and testing the gym point. */
 export function getRealLocation(): Promise<ClockLocation> {
   if (!('geolocation' in navigator)) return Promise.resolve({ status: 'unavailable' })

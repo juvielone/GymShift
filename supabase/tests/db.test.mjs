@@ -1064,3 +1064,24 @@ test('days off: set from tomorrow on, replaced as a whole, only your own', async
     db = shared
   }
 })
+
+// Supabase loads pg_safeupdate for the app's requests: an UPDATE or DELETE without a WHERE fails there (error
+// 21000), even inside a function, though PGlite here would run it. So every function in the database is read
+// back and each UPDATE / DELETE statement must have a WHERE. (update_site_location broke live this way.)
+test('no database function updates or deletes without a WHERE (Supabase refuses it)', async () => {
+  const { rows } = await db.query(
+    `select n.nspname || '.' || p.proname as fn, p.prosrc as src
+     from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+     where n.nspname in ('public', 'private') and p.prolang in (select oid from pg_language where lanname in ('plpgsql', 'sql'))`,
+  )
+  const missing = []
+  for (const { fn, src } of rows) {
+    const code = src.replace(/--[^\n]*/g, ' ').replace(/'(?:[^']|'')*'/g, "''")
+    for (const statement of code.split(';')) {
+      const s = statement.toLowerCase()
+      const writes = /(^|[^a-z_])(?<!for\s)(?<!do\s)update\s+(public\.|private\.)?[a-z_]+\s+(?:[a-z_]+\s+)?set\b/.test(s) || /\bdelete\s+from\b/.test(s)
+      if (writes && !/\bwhere\b/.test(s)) missing.push(`${fn}: ${statement.trim().split('\n')[0]}`)
+    }
+  }
+  assert.deepEqual(missing, [])
+})
