@@ -14,6 +14,8 @@ import { PhotoPrompt } from '@/components/home/PhotoPrompt'
 import { NoteSheet, type NoteSent } from '@/components/home/NoteSheet'
 import { usePhotoUploads } from '@/hooks/usePhotoUploads'
 import { ShiftHandoffs } from '@/components/home/ShiftHandoffs'
+import { ShiftNotesCard } from '@/components/home/ShiftNotesCard'
+import { useShiftNotes } from '@/hooks/useShiftNotes'
 import { TeamSwaps } from '@/components/home/TeamSwaps'
 import { ExtensionSheet } from '@/components/home/ExtensionSheet'
 import { ClockOutConfirm } from '@/components/home/ClockOutConfirm'
@@ -248,6 +250,15 @@ function Home({
   const showDock = phase.kind !== 'done' || step === 'saved'
   const markTs = session ? new Date(Date.parse(session.clockIn.effective_time) + session.approvedMin * 60_000).toISOString() : null
   const next = upcoming[0]
+  const todayShift = phase.kind === 'before' ? phase.shift : phase.kind === 'on' ? phase.session.shift : null
+  const noteShifts = todayShift ? [todayShift, ...upcoming] : upcoming
+  const shiftNotes = useShiftNotes(user.id, noteShifts, now)
+  // Seen notes on later shifts sit on their Next shifts card; new ones and today's stay under the pass.
+  const seenNotes = new Map<string, { id: string; from: string; body: string }[]>()
+  for (const n of shiftNotes.notes) {
+    if (n.seen_at === null || noteShifts.find((s) => s.id === n.shift_id)?.date === localDate(now, settings)) continue
+    seenNotes.set(n.shift_id, [...(seenNotes.get(n.shift_id) ?? []), { id: n.id, from: shiftNotes.authorName(n), body: n.body }])
+  }
 
   return (
     <main className={cn('mx-auto min-h-svh max-w-[480px] px-4', !showDock ? 'pb-10' : phase.kind === 'no_shift' ? 'pb-[calc(env(safe-area-inset-bottom)+160px)]' : 'pb-[calc(env(safe-area-inset-bottom)+112px)]')}>
@@ -272,6 +283,9 @@ function Home({
       <div className="mt-4">
         <ShiftPass phase={phase} settings={settings} now={now} nextShiftLabel={next ? shiftLabel(next.date, next.start_time) : null} />
       </div>
+
+      {/* Notes from Carly or their team lead, for today's shift (until clock-out) and the next ones. */}
+      <ShiftNotesCard settings={settings} now={now} shifts={noteShifts} shiftNotes={shiftNotes} />
 
       <div className="mt-2">
         {autoClosed && autoClosed.session.clockOut && (
@@ -327,7 +341,7 @@ function Home({
         )}
       </div>
 
-      <ShiftHandoffs user={user} settings={settings} now={now} upcoming={upcoming} onChanged={() => void refresh()} />
+      <ShiftHandoffs user={user} settings={settings} now={now} upcoming={upcoming} notes={seenNotes} onChanged={() => void refresh()} />
 
       {/* Team lead only: Gladys rosters for everyone on Carly's behalf. */}
       {/* A cleaner sees their own past shifts; Gladys sees her group's (src/data checks it). */}

@@ -1,7 +1,8 @@
 // Next shifts: one card per shift, the first three shown, the rest one tap away. Each card's foot says
-// where a hand-off is up to (PRD F3) and offers the one next step: "Can't make it?" or Withdraw.
+// where a hand-off is up to (PRD F3) and offers the one next step: "Can't make it?" or Withdraw. A note
+// from Carly or the team lead that the cleaner has already seen sits on its shift's card (PRD F8).
 import { useState } from 'react'
-import { Check, ChevronDown, Hourglass, Moon, Sunrise } from 'lucide-react'
+import { Check, ChevronDown, ClipboardList, Hourglass, Moon, Sunrise } from 'lucide-react'
 import type { Shift } from '@/types'
 import type { MyHandoff } from '@/hooks/useHandoffs'
 import { formatDateShort, formatTimeRange, shortName } from '@/lib/format'
@@ -16,6 +17,8 @@ interface Props {
   busy?: string | null
   onCantMake?: (shift: Shift) => void
   onWithdraw?: (shift: Shift, handoff: MyHandoff) => void
+  /** Seen notes for the shift, by shift id: who wrote it and what it says. */
+  notes?: Map<string, { id: string; from: string; body: string }[]>
 }
 
 function footText(h: MyHandoff | undefined): { text: string; tone: 'muted' | 'ok'; icon: 'wait' | 'ok' | null } | null {
@@ -26,7 +29,7 @@ function footText(h: MyHandoff | undefined): { text: string; tone: 'muted' | 'ok
   return { text: "Not approved. You're still on this shift.", tone: 'muted', icon: null }
 }
 
-export function UpcomingShifts({ shifts, handoffs, busy, onCantMake, onWithdraw }: Props) {
+export function UpcomingShifts({ shifts, handoffs, busy, onCantMake, onWithdraw, notes }: Props) {
   const [open, setOpen] = useState(false)
   const list = open ? shifts : shifts.slice(0, SHOWN)
 
@@ -69,6 +72,14 @@ export function UpcomingShifts({ shifts, handoffs, busy, onCantMake, onWithdraw 
                   </span>
                   <span className="text-[15px] text-muted-foreground">{formatTimeRange(s.start_time, s.end_time)}</span>
                 </div>
+                {notes?.get(s.id)?.map((n) => (
+                  <div key={n.id} className="flex gap-2 border-t border-border px-4 py-2.5 text-[15px] leading-snug">
+                    <ClipboardList aria-hidden className="mt-0.5 size-4 shrink-0 text-muted-foreground" />
+                    <p className="min-w-0 whitespace-pre-line">
+                      <span className="font-medium">From {n.from}:</span> {n.body}
+                    </p>
+                  </div>
+                ))}
                 {(onCantMake || foot) && (
                   <div className="flex min-h-11 items-center gap-2 border-t border-border pr-1.5 pb-1 pl-4">
                     <span className={cn('flex flex-1 items-center gap-1.5 py-2 text-sm leading-snug', foot?.tone === 'ok' ? 'text-ok' : 'text-muted-foreground')}>

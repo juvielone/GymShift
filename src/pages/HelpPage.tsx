@@ -141,6 +141,14 @@ function chapters(s: SiteSettings): Chapter[] {
           q: 'How do I tell my manager supplies are low or something is wrong?',
           a: ['Tap the note row under your shift.', 'Pick "Supplies low" or "Something wrong", and send.', 'Your manager sees it until it is done.'],
         },
+        {
+          q: 'A note from my manager is on my home',
+          a: [
+            'Your manager or team lead can leave a note on one of your shifts, for example a room to do first.',
+            'It shows under your shift card before you start. Read it and tap "Got it", so they know you saw it.',
+            'If your shift is swapped, the note goes with the shift to whoever works it.',
+          ],
+        },
       ],
     },
     {

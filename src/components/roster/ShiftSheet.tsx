@@ -1,11 +1,13 @@
 // One roster slot (a date's morning or night shift) in a sheet: tap a name to assign, tweak the
 // times, take it off the roster, and read what changed after publishing. Assigning takes two taps
-// from the roster: the slot, then the name. Clashes are shown, never blocked.
+// from the roster: the slot, then the name. Clashes are shown, never blocked. A note for whoever works it
+// (Carly on any shift, a team lead on their group's) is written here too.
 import { useState } from 'react'
 import { Check, LoaderCircle } from 'lucide-react'
 import { createShift, removeShift, updateShift } from '@/data'
 import type { DateString, Shift, ShiftChange, ShiftType, User } from '@/types'
 import type { Roster } from '@/hooks/useRoster'
+import { ShiftNotesSection } from '@/components/roster/ShiftNotesSection'
 import { Drawer, DrawerContent, DrawerDescription, DrawerHeader, DrawerTitle } from '@/components/ui/drawer'
 import { smallButton } from '@/components/common/listStyles'
 import { shortName, formatClock, formatDateShort, formatTime, formatTimeRange } from '@/lib/format'
@@ -113,6 +115,19 @@ export function ShiftSheet({ slot, shift, roster, onOpenChange, onChanged }: Pro
         </DrawerHeader>
 
         <div className="flex flex-col gap-5 overflow-y-auto px-4 pb-6">
+          {/* The note first, so it's found without scrolling past the staff list. */}
+          {shift && shift.status !== 'cancelled' && (
+            <ShiftNotesSection
+              shift={shift}
+              me={me}
+              settings={settings}
+              onSent={(message) => {
+                onChanged(message)
+                onOpenChange(false)
+              }}
+            />
+          )}
+
           <fieldset>
             <legend className="mb-2 text-sm font-medium">Times</legend>
             <div className="flex items-center gap-2">

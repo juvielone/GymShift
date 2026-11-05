@@ -12,6 +12,7 @@ import * as extensions from './extensions'
 import * as swaps from './swaps'
 import * as photos from './photos'
 import * as notes from './notes'
+import * as shiftNotes from './shiftInstructions'
 import type { Photo } from '@/types'
 import { MODE, persist } from './store'
 import { runDueJobs } from './trial'
@@ -123,6 +124,12 @@ export type { ShiftRecord } from './records'
 export { getNotes, getOpenSupplyAlerts, getOpenIssues } from './notes'
 export const addNote = persisted(notes.addNote, (l) => l.addNote)
 export const markNoteDone = persisted(notes.markNoteDone, (l) => l.markNoteDone)
+
+export { getShiftNotes, canAddShiftNote } from './shiftInstructions'
+export type { ShiftNote } from './shiftInstructions'
+export const addShiftNote = persisted(shiftNotes.addShiftNote, (l) => l.addShiftNote)
+export const markShiftNoteSeen = persisted(shiftNotes.markShiftNoteSeen, (l) => l.markShiftNoteSeen)
+export const withdrawShiftNote = persisted(shiftNotes.withdrawShiftNote, (l) => l.withdrawShiftNote)
 
 /**
  * Fetch what other people have changed since (their clock-ins, notes, roster edits). Live mode reads

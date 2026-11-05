@@ -40,6 +40,7 @@ There are three roles, about 7 users in total (Carly, Gladys and roughly 5 clean
 | Approve extensions | Yes | No | No |
 | Review flags and correct attendance times | Yes | No | No |
 | View all photos, notes and hours | Yes | Own group | Own only |
+| Leave notes for a shift | All staff | Own group | No |
 | Export fortnightly hours | Yes | No | No |
 | Manage users and site settings | Yes | No | No |
 
@@ -148,6 +149,11 @@ Nine features, ordered by build priority. Each acceptance criterion is a test th
 
 - A note can be added to the cleaner's own shift, with an optional tag: Supplies low, Issue, General, or Running late.
 - Notes tagged Supplies low or Issue appear on Carly's dashboard until she marks them done.
+- **Notes for the shift** *(asked for by Carly, decided 5 Nov 2026)*: Carly can leave a note on any shift, and a team lead on their own group's shifts ("Thursday night, please do the dusting"), from the roster's shift sheet. It is for one specific shift, so Carly can tell the person ahead of time.
+  - The person on the shift sees a new note on their home under the shift card and taps "Got it". After that, a note on today's shift stays there until they clock out, and one on a later shift sits on that shift's card in Next shifts. The writer sees "Seen" with the time, or "Not seen yet", and the note box is the first thing in the roster's shift sheet.
+  - The note belongs to the shift: if the shift is swapped, the new person sees it. A note on a draft is seen once the fortnight is published. No new notes on a cancelled or finished shift.
+  - Carly can also write one from her dashboard: tapping a row on the Today pass opens the shift with the note box on top, before or during the shift. The row shows "Note seen" or "Note not seen yet" until the shift is done. After the shift, notes show in the shift record as facts and no new ones can be added. *(Decided 6 Nov 2026.)*
+  - Notes are never edited or deleted. Whoever wrote one, or Carly, can take it back; it stays on record. There are no phone notifications (push is out of scope): staff see notes when they open the app.
 - **Running late** is sent before clock-in, with about how late ("about 15 min"). It is information, not a task: it does not go into Carly's list. Her Today card shows "Running late · about 7:15 pm" instead of "Not in yet". The no-show check waits until that time plus the no-show window before flagging. Pay is unaffected, because paid time starts at clock-in. *(Decided 30 Oct 2026.)*
 
 ### F9. Manager dashboard and hours export

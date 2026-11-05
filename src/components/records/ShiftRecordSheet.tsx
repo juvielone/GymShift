@@ -12,8 +12,9 @@ import { PhotoThumb } from '@/components/home/PhotosRow'
 import { FLAG_ICON } from '@/components/manager/flagIcons'
 import { FLAG_LABEL } from '@/components/manager/flagText'
 import { ClockFixForm, type ClockFix } from '@/components/manager/ClockFixForm'
+import { ShiftNotesSection } from '@/components/roster/ShiftNotesSection'
 import { shortName, formatClock, formatDateShort, formatDuration, formatTimeRange, localDay, zonedTimestamp } from '@/lib/format'
-import { compareTs, isOffSite } from '@/lib/rules'
+import { compareTs, isOffSite, shiftEndAt } from '@/lib/rules'
 import { cn } from '@/lib/utils'
 
 const NOTE_ICON: Record<NoteTag, ReactNode> = {
@@ -58,6 +59,10 @@ export function ShiftRecordSheet({ record, settings, now, onOpenChange, fixer, o
   const tz = settings.timezone
   const name = shortName(user.full_name)
   const started = compareTs(now, zonedTimestamp(shift.date, shift.start_time, tz)) >= 0
+  const ended = compareTs(now, shiftEndAt(shift, settings)) >= 0
+  // Carly's note for the person on the shift: on top while it can still be read before or during the shift,
+  // then a read-only fact under the times. Only Carly gets it here; Gladys writes hers from the roster.
+  const shiftNote = fixer && <ShiftNotesSection shift={shift} me={fixer} settings={settings} onSent={() => onChanged?.()} />
   const fixButton = 'h-11 rounded-[14px] border border-border px-3.5 text-[15px] font-medium hover:bg-muted active:bg-muted'
 
   if (fixing && fixer) {
@@ -107,6 +112,7 @@ export function ShiftRecordSheet({ record, settings, now, onOpenChange, fixer, o
           <PhotoViewer record={record} index={viewing} tz={tz} onIndex={setViewing} onClose={() => setViewing(null)} />
         ) : (
           <div className="overflow-y-auto px-4 pb-2">
+            {!ended && shiftNote && <div className="mb-4">{shiftNote}</div>}
             <dl className="divide-y divide-border border-y border-border">
               <ClockFact label="Clock-in" event={session.clock_in} settings={settings} missing={started ? "Didn't clock in" : 'Not started'} />
               {session.clock_in && <ClockFact label="Clock-out" event={session.clock_out} settings={settings} missing="Still on shift" />}
@@ -121,6 +127,7 @@ export function ShiftRecordSheet({ record, settings, now, onOpenChange, fixer, o
                 />
               ))}
             </dl>
+            {ended && shiftNote && <div className="mt-4">{shiftNote}</div>}
 
             {fixer && session.clock_in && (
               <div className="mt-3 flex flex-wrap gap-2">
@@ -205,7 +212,7 @@ export function ShiftRecordSheet({ record, settings, now, onOpenChange, fixer, o
 
             {notes.length > 0 && (
               <>
-                <h3 className="mt-5 mb-1 px-1 text-base font-semibold">Notes</h3>
+                <h3 className="mt-5 mb-1 px-1 text-base font-semibold">From {name}</h3>
                 <ul>
                   {notes.map((n) => (
                     <li key={n.id} className="flex gap-3 border-b border-border px-1 py-2.5">

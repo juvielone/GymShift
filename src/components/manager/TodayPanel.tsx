@@ -1,5 +1,5 @@
 // Today's shifts on a black pass: who is on, done, not started, or not in yet.
-import { Check, ChevronRight } from 'lucide-react'
+import { Check, ChevronRight, ClipboardList } from 'lucide-react'
 import type { AttendanceSession } from '@/data'
 import type { Shift, SiteSettings, Timestamp, User } from '@/types'
 import { shortName, formatClock, formatDuration, formatTime, formatTimeRange, zonedTimestamp } from '@/lib/format'
@@ -12,6 +12,8 @@ export interface TodayRow {
   session: AttendanceSession | null
   /** From a "running late" note: when they said they'd arrive. */
   arriveBy: Timestamp | null
+  /** Notes for the shift from Carly or the team lead: true once all are seen, false if any isn't, null for none. */
+  noteSeen: boolean | null
 }
 
 /** Each row opens that shift's record (times, photos, notes) when onOpen is given. */
@@ -26,7 +28,7 @@ export function TodayPanel({ rows, settings, now, onOpen }: { rows: TodayRow[]; 
         <p className="mt-2 text-base">No shifts today.</p>
       ) : (
         <ul className="mt-1 divide-y divide-pass-line">
-          {rows.map(({ shift, user, session, arriveBy }) => {
+          {rows.map(({ shift, user, session, arriveBy, noteSeen }) => {
             const inAt = session?.clock_in?.effective_time
             const outAt = session?.clock_out?.effective_time
             const startTs = zonedTimestamp(shift.date, shift.start_time, tz)
@@ -51,6 +53,8 @@ export function TodayPanel({ rows, settings, now, onOpen }: { rows: TodayRow[]; 
               chip = { label: `Starts ${formatTime(shift.start_time)}`, tone: 'quiet' }
               line = arriveBy ? `Running late · about ${formatClock(arriveBy, tz)}` : formatTimeRange(shift.start_time, shift.end_time)
             }
+            // A note matters until the shift is done: one quiet line under the status, never a second chip.
+            const noteLine = noteSeen === null || (inAt && outAt) ? null : noteSeen ? 'Note seen' : 'Note not seen yet'
             return (
               <li key={shift.id}>
                 <button
@@ -64,6 +68,12 @@ export function TodayPanel({ rows, settings, now, onOpen }: { rows: TodayRow[]; 
                       {shortName(user.full_name)} <span className="font-normal text-pass-muted">· {shift.type === 'morning' ? 'Morning' : 'Night'}</span>
                     </span>
                     <span className="block text-sm text-pass-muted">{line}</span>
+                    {noteLine && (
+                      <span className="mt-0.5 flex items-center gap-1.5 text-sm text-pass-muted">
+                        <ClipboardList aria-hidden className="size-3.5 shrink-0" />
+                        {noteLine}
+                      </span>
+                    )}
                   </span>
                   <span
                     className={cn(

@@ -432,6 +432,64 @@ test('notes: cleaners note their own shift, running late needs a time, only Carl
   }
 })
 
+test('notes for the shift: Carly on anyone’s, a team lead on their group’s; the person on it says “Got it”; taken back, never deleted', async () => {
+  const shared = db
+  db = await freshDb()
+  try {
+    const { tomorrow } = await days()
+    const fortnight = (await db.query(`select private.fortnight_start_of($1::date)::text as f`, [tomorrow])).rows[0].f
+    const shift = await createShift(CARLY, tomorrow, 'night', JOSH)
+    const gladysShift = await createShift(CARLY, tomorrow, 'morning', GLADYS)
+    const add = (who, shiftId, body) => call(who, `select * from public.add_shift_instruction($1, $2)`, [shiftId, body]).then((r) => r[0])
+    const seen = (who, id) => call(who, `select * from public.mark_shift_instruction_seen($1)`, [id]).then((r) => r[0])
+    const withdraw = (who, id) => call(who, `select * from public.withdraw_shift_instruction($1)`, [id]).then((r) => r[0])
+
+    // A draft: whoever rosters may already leave a note, but Josh can't see it until it's published.
+    const fromCarly = await add(CARLY, shift.id, '  Please do the dusting  ')
+    assert.equal(fromCarly.body, 'Please do the dusting')
+    assert.equal(fromCarly.author_id, CARLY)
+    assert.equal((await call(JOSH, `select 1 from shift_instructions`)).length, 0)
+    await rejects(seen(JOSH, fromCarly.id), /This note is for someone else/)
+    await call(CARLY, `select * from public.publish_fortnight($1)`, [fortnight])
+    assert.equal((await call(JOSH, `select 1 from shift_instructions`)).length, 1)
+
+    const fromGladys = await add(GLADYS, shift.id, 'Delivery at 8, back store room')
+    await rejects(add(JOSH, shift.id, 'Note to self'), /This is your own shift/)
+    await rejects(add(KYLE, shift.id, 'Hi Josh'), /Only Carly or their team lead can leave a note for this shift/)
+    await rejects(add(GLADYS, gladysShift.id, 'Note to self'), /This is your own shift/)
+    await rejects(add(CARLY, shift.id, '   '), /A note needs some text/)
+    await rejects(add(null, shift.id, 'Signed out'), /permission denied/)
+    assert.equal((await add(CARLY, gladysShift.id, 'Mirrors in studio 2')).author_id, CARLY)
+    // Kyle sees none of Josh's notes; Gladys sees her group's.
+    assert.equal((await call(KYLE, `select 1 from shift_instructions where shift_id = $1`, [shift.id])).length, 0)
+    assert.equal((await call(GLADYS, `select 1 from shift_instructions where shift_id = $1`, [shift.id])).length, 2)
+
+    const first = await seen(JOSH, fromCarly.id)
+    assert.equal(first.user_id, JOSH)
+    const again = await seen(JOSH, fromCarly.id)
+    assert.equal(String(again.seen_at), String(first.seen_at))
+    await rejects(seen(KYLE, fromCarly.id), /This note is for someone else/)
+    assert.equal((await call(CARLY, `select 1 from shift_instruction_reads`)).length, 1)
+    assert.equal((await call(KYLE, `select 1 from shift_instruction_reads`)).length, 0)
+
+    await rejects(withdraw(JOSH, fromGladys.id), /Only whoever wrote it, or Carly, can take this note back/)
+    const back = await withdraw(GLADYS, fromGladys.id)
+    assert.equal(back.withdrawn_by, GLADYS)
+    assert.equal(String((await withdraw(CARLY, fromGladys.id)).withdrawn_at), String(back.withdrawn_at))
+    await rejects(owner(CARLY, (tx) => tx.query(`delete from shift_instructions where id = $1`, [fromGladys.id])), /rows are never deleted/)
+    await rejects(owner(CARLY, (tx) => tx.query(`update shift_instructions set body = 'changed' where id = $1`, [fromCarly.id])), /only withdrawn_at and withdrawn_by can change/)
+    await rejects(owner(CARLY, (tx) => tx.query(`delete from shift_instruction_reads`)), /rows are never deleted/)
+
+    // Cancelled and finished shifts take no new notes.
+    await call(CARLY, `select * from public.remove_shift($1)`, [gladysShift.id])
+    await rejects(add(CARLY, gladysShift.id, 'Too late'), /This shift is cancelled/)
+    const past = await addShift({ date: '2020-01-02', type: 'night', user: KYLE })
+    await rejects(add(CARLY, past, 'Too late'), /This shift has already finished/)
+  } finally {
+    db = shared
+  }
+})
+
 test('the scheduled job flags no-shows and missing clock-outs once, waiting for a running-late time', async () => {
   const shared = db
   db = await freshDb()

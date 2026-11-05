@@ -1,6 +1,6 @@
 // Everything Carly's dashboard shows, loaded through '@/data'. Server time only.
 import { useCallback, useEffect, useState } from 'react'
-import { getCurrentUser, getFlags, getFortnightHours, getNotes, getOpenIssues, getOpenSupplyAlerts, getSettings, getShiftAttendance, getShifts, getUsers, refreshData, serverNow } from '@/data'
+import { getCurrentUser, getFlags, getFortnightHours, getNotes, getOpenIssues, getOpenSupplyAlerts, getSettings, getShiftAttendance, getShiftNotes, getShifts, getUsers, refreshData, serverNow } from '@/data'
 import type { Note, SiteSettings, Timestamp, User } from '@/types'
 import type { FlagView } from '@/components/manager/FlagSheet'
 import type { TodayRow } from '@/components/manager/TodayPanel'
@@ -40,12 +40,16 @@ async function load(): Promise<ManagerDashboard> {
   const shiftById = new Map(shifts.map((s) => [s.id, s]))
 
   const todayShifts = shifts.filter((s) => s.date === today)
+  const todayNotes = await getShiftNotes({ viewerId: me.id, shiftIds: todayShifts.map((s) => s.id) })
   const todayRows: TodayRow[] = []
   for (const shift of todayShifts) {
     const user = userById.get(shift.assigned_user_id)
     // Running late is information for this card only, never a task in the list. Newest note wins.
     const arriveBy = late.find((n) => n.shift_id === shift.id)?.arrive_by ?? null
-    if (user) todayRows.push({ shift, user, session: await getShiftAttendance(shift.id), arriveBy })
+    // Notes for the shift: seen once the person on it has tapped "Got it" on every one.
+    const forShift = todayNotes.filter((n) => n.shift_id === shift.id)
+    const noteSeen = forShift.length === 0 ? null : forShift.every((n) => n.seen_at !== null)
+    if (user) todayRows.push({ shift, user, session: await getShiftAttendance(shift.id), arriveBy, noteSeen })
   }
 
   const fortnights = [...new Set(shifts.map((s) => s.fortnight_start))].sort()

@@ -40,6 +40,8 @@ const fresh = () => ({
   swaps: structuredClone(seed.swaps),
   photos: structuredClone(seed.photos),
   notes: structuredClone(seed.notes),
+  shiftInstructions: structuredClone(seed.shiftInstructions),
+  shiftInstructionReads: structuredClone(seed.shiftInstructionReads),
 })
 
 type Db = ReturnType<typeof fresh>
@@ -73,6 +75,8 @@ export const emptyTables = (): Omit<Db, 'settings' | 'roles'> => ({
   swaps: [],
   photos: [],
   notes: [],
+  shiftInstructions: [],
+  shiftInstructionReads: [],
 })
 
 function load(): Db {

@@ -17,13 +17,15 @@ interface Props {
   settings: SiteSettings
   now: Timestamp
   upcoming: Shift[]
+  /** Seen notes from Carly or the team lead, by shift id, for the Next shifts cards. */
+  notes?: Map<string, { id: string; from: string; body: string }[]>
   /** After a change that moves a shift or a request, so the whole home reloads. */
   onChanged: () => void
 }
 
 const shiftLine = (s: Shift) => `${formatDateShort(s.date)} · ${s.type === 'morning' ? 'Morning' : 'Night'} · ${formatTimeRange(s.start_time, s.end_time)}`
 
-export function ShiftHandoffs({ user, settings, now, upcoming, onChanged }: Props) {
+export function ShiftHandoffs({ user, settings, now, upcoming, notes, onChanged }: Props) {
   const { data, reload } = useHandoffs(user, settings, now, upcoming)
   const [asking, setAsking] = useState<Shift | null>(null)
   const [daysOpen, setDaysOpen] = useState(false)
@@ -117,7 +119,7 @@ export function ShiftHandoffs({ user, settings, now, upcoming, onChanged }: Prop
         </section>
       )}
 
-      <UpcomingShifts shifts={upcoming} handoffs={data?.mine} busy={busy} onCantMake={setAsking} onWithdraw={withdraw} />
+      <UpcomingShifts shifts={upcoming} handoffs={data?.mine} busy={busy} onCantMake={setAsking} onWithdraw={withdraw} notes={notes} />
       {Object.entries(errors)
         .filter(([key]) => upcoming.some((s) => s.id === key))
         .map(([key, message]) => (

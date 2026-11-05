@@ -21,6 +21,8 @@ import type {
   Scope,
   Shift,
   ShiftChange,
+  ShiftInstruction,
+  ShiftInstructionRead,
   ShiftType,
   SiteSettings,
   Swap,
@@ -33,6 +35,7 @@ import type {
 import { AlreadyClockedInError, type ClockLocation, type ClockResult } from './clockEvents'
 import { requireCanAddPhoto } from './photos'
 import { SIGN_IN_MISMATCH } from './users'
+import { getShiftNotes, type ShiftNote } from './shiftInstructions'
 import { auth, copy, db, emptyTables, requireUser, syncTeamNames } from './store'
 
 const LOGIN_DOMAIN = 'staff.gymshift.invalid'
@@ -88,7 +91,7 @@ let refreshApplied = 0
 /** Reload everything this person may see. Small on purpose: about 7 people and a few fortnights. */
 async function refresh(): Promise<void> {
   const started = ++refreshesStarted
-  const [roles, users, userContacts, settings, availability, shifts, shiftChanges, clockEvents, corrections, clockVoids, correctionRequests, flags, extensions, swaps, photos, notes] =
+  const [roles, users, userContacts, settings, availability, shifts, shiftChanges, clockEvents, corrections, clockVoids, correctionRequests, flags, extensions, swaps, photos, notes, shiftInstructions, shiftInstructionReads] =
     await Promise.all([
     rows<RoleRow>('roles'),
     rows<User>('users'),
@@ -106,6 +109,8 @@ async function refresh(): Promise<void> {
     rows<Swap>('swaps'),
     rows<Photo>('photos'),
     rows<Note>('notes'),
+    rows<ShiftInstruction>('shift_instructions'),
+    rows<ShiftInstructionRead>('shift_instruction_reads'),
   ])
   // A slower, older reload (a background one overtaken by a save) must not put back what it read.
   if (started < refreshApplied) return
@@ -128,6 +133,8 @@ async function refresh(): Promise<void> {
     swaps,
     photos,
     notes,
+    shiftInstructions,
+    shiftInstructionReads,
   })
   syncTeamNames()
 }
@@ -370,6 +377,33 @@ export async function addNote(input: { shiftId: Uuid; userId: Uuid; body: string
 export async function markNoteDone(input: { noteId: Uuid; doneBy: Uuid }): Promise<Note> {
   if (input.doneBy !== auth.userId) throw new Error('Only the manager can mark notes done')
   return write<Note>('mark_note_done', { p_note_id: input.noteId })
+}
+
+// ---- Notes for the shift (database functions add_shift_instruction, mark_shift_instruction_seen, withdraw_shift_instruction) ----
+
+/** The saved note as the store now has it, after the reload. */
+async function shiftNote(id: Uuid): Promise<ShiftNote> {
+  const note = db.shiftInstructions.find((n) => n.id === id)
+  if (!note) throw new Error('Saved. Pull down to refresh.')
+  return (await getShiftNotes({ viewerId: auth.userId, shiftIds: [note.shift_id], includeWithdrawn: true })).find((n) => n.id === id) ?? { ...copy(note), seen_at: null }
+}
+
+export async function addShiftNote(input: { shiftId: Uuid; authorId: Uuid; body: string }): Promise<ShiftNote> {
+  if (input.authorId !== auth.userId) throw new Error('Only Carly or their team lead can leave a note for this shift')
+  const row = await write<ShiftInstruction>('add_shift_instruction', { p_shift_id: input.shiftId, p_body: input.body })
+  return shiftNote(row.id)
+}
+
+export async function markShiftNoteSeen(input: { noteId: Uuid; userId: Uuid }): Promise<ShiftNote> {
+  if (input.userId !== auth.userId) throw new Error('This note is for someone else')
+  await write<ShiftInstructionRead>('mark_shift_instruction_seen', { p_instruction_id: input.noteId })
+  return shiftNote(input.noteId)
+}
+
+export async function withdrawShiftNote(input: { noteId: Uuid; userId: Uuid }): Promise<ShiftNote> {
+  if (input.userId !== auth.userId) throw new Error('Only whoever wrote it, or Carly, can take this note back')
+  await write<ShiftInstruction>('withdraw_shift_instruction', { p_instruction_id: input.noteId })
+  return shiftNote(input.noteId)
 }
 
 // ---- Flags (database function resolve_flag; raising them happens inside clock_in/out and the scheduled job) ----
