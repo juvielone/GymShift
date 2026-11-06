@@ -3,7 +3,7 @@
 // Setting up and testing listen for up to BEST_FIX_MS while GPS sharpens (indoors the first reading is rough),
 // showing the accuracy as it improves. Clock-ins never wait like this: they take one quick reading.
 import { useEffect, useRef, useState } from 'react'
-import { LoaderCircle, Minus, Plus } from 'lucide-react'
+import { Check, LoaderCircle, Minus, Plus } from 'lucide-react'
 import { RADIUS_MAX_M, RADIUS_MIN_M, updateSiteLocation } from '@/data'
 import type { SiteSettings, User } from '@/types'
 import { Drawer, DrawerContent, DrawerDescription, DrawerFooter, DrawerHeader, DrawerTitle } from '@/components/ui/drawer'
@@ -48,6 +48,8 @@ export function GymLocationSheet({ open, onOpenChange, settings, me, onSaved }: 
   /** A reading looser than SETUP_ACCURACY_M but within the radius, waiting for "Use it anyway". */
   const [loose, setLoose] = useState<{ lat: number; lng: number; accuracy_m: number } | null>(null)
   const stopListening = useRef<() => void>(() => {})
+  /** What the database returned from the last save in this sheet; the sheet stays open to confirm it. */
+  const [saved, setSaved] = useState<SiteSettings | null>(null)
 
   // Closing the sheet stops listening straight away.
   useEffect(() => {
@@ -66,7 +68,9 @@ export function GymLocationSheet({ open, onOpenChange, settings, me, onSaved }: 
     return loc
   }
 
-  const changed = point.lat !== settings.gym_lat || point.lng !== settings.gym_lng || radius !== settings.radius_m
+  const base = saved ?? settings
+  const changed = point.lat !== base.gym_lat || point.lng !== base.gym_lng || radius !== base.radius_m
+  const justSaved = saved !== null && !changed
 
   async function takeMyLocation() {
     setBusy('locate')
@@ -115,9 +119,13 @@ export function GymLocationSheet({ open, onOpenChange, settings, me, onSaved }: 
     setBusy('save')
     setMsg(null)
     try {
-      await updateSiteLocation({ userId: me.id, lat: point.lat, lng: point.lng, radius_m: radius })
+      const s = await updateSiteLocation({ userId: me.id, lat: point.lat, lng: point.lng, radius_m: radius })
+      // Show what the database now holds, and stay open so she sees it saved (and can test it).
+      setSaved(s)
+      setPoint({ lat: s.gym_lat, lng: s.gym_lng })
+      setRadius(s.radius_m)
+      setSource('Saved point')
       onSaved()
-      onOpenChange(false)
     } catch (e) {
       setMsg({ tone: 'warn', text: e instanceof Error ? e.message : 'Not saved yet. Try again.', at: 'save' })
     } finally {
@@ -226,17 +234,27 @@ export function GymLocationSheet({ open, onOpenChange, settings, me, onSaved }: 
         </div>
 
         <DrawerFooter>
-          <p className="text-center text-sm text-muted-foreground">Applies to new clock-ins only. Past records keep their saved distance.</p>
+          <div aria-live="polite">
+            {justSaved ? (
+              <p className="flex items-center justify-center gap-2 rounded-xl bg-ok-soft px-3 py-2.5 text-[15px] font-medium text-ok">
+                <Check aria-hidden className="size-4 shrink-0" />
+                Saved. New clock-ins use this point and {saved.radius_m} m.
+              </p>
+            ) : (
+              <p className="text-center text-sm text-muted-foreground">Applies to new clock-ins only. Past records keep their saved distance.</p>
+            )}
+          </div>
           <button
             type="button"
             onClick={() => void save()}
             disabled={!changed || busy !== null}
-            className="h-14 rounded-[14px] bg-brand text-lg font-semibold text-brand-foreground transition-colors active:bg-brand-press disabled:bg-muted disabled:text-muted-foreground"
+            className="flex h-14 items-center justify-center gap-2 rounded-[14px] bg-brand text-lg font-semibold text-brand-foreground transition-colors active:bg-brand-press disabled:bg-muted disabled:text-muted-foreground"
           >
-            {busy === 'save' ? 'Saving…' : 'Save'}
+            {busy === 'save' && <LoaderCircle aria-hidden className="size-5 animate-spin" />}
+            {busy === 'save' ? 'Saving…' : justSaved ? 'Saved' : 'Save'}
           </button>
           <button type="button" onClick={() => onOpenChange(false)} className="h-14 rounded-[14px] border border-border text-lg font-medium active:bg-muted">
-            Cancel
+            {justSaved ? 'Done' : 'Cancel'}
           </button>
         </DrawerFooter>
       </DrawerContent>
