@@ -1,13 +1,19 @@
-// Today's shifts on a black pass: who is on, done, not started, or not in yet.
+// Today's shifts on a black pass: who is on, done, not started, or not in yet. Anyone who clocked in off the
+// roster is here too ("Not rostered"), so they never drop out of sight once Carly resolves the flag.
 import { Check, ChevronRight, ClipboardList } from 'lucide-react'
 import type { AttendanceSession } from '@/data'
 import type { Shift, SiteSettings, Timestamp, User } from '@/types'
-import { shortName, formatClock, formatDuration, formatTime, formatTimeRange, zonedTimestamp } from '@/lib/format'
+import { shortName, formatClock, formatDuration, formatTime, formatTimeRange } from '@/lib/format'
 import { compareTs, minutesBetween, noShowDueAt } from '@/lib/rules'
 import { cn } from '@/lib/utils'
 
 export interface TodayRow {
-  shift: Shift
+  /** The shift's id, or the clock-in's id off the roster: what onOpen gets. */
+  id: string
+  /** Rostered start, or the clock-in off the roster (the pass is in this order). */
+  startsAt: Timestamp
+  /** null = clocked in off the roster. */
+  shift: Shift | null
   user: User
   session: AttendanceSession | null
   /** From a "running late" note: when they said they'd arrive. */
@@ -16,22 +22,25 @@ export interface TodayRow {
   noteSeen: boolean | null
 }
 
-/** Each row opens that shift's record (times, photos, notes) when onOpen is given. */
-export function TodayPanel({ rows, settings, now, onOpen }: { rows: TodayRow[]; settings: SiteSettings; now: Timestamp; onOpen?: (shiftId: string) => void }) {
+/** Each row opens its record (times, photos, notes) when onOpen is given. */
+export function TodayPanel({ rows, settings, now, onOpen }: { rows: TodayRow[]; settings: SiteSettings; now: Timestamp; onOpen?: (recordId: string) => void }) {
   const tz = settings.timezone
+  const rostered = rows.filter((r) => r.shift).length
+  const offRoster = rows.length - rostered
   return (
     <section aria-labelledby="today-title" className="rounded-[18px] bg-pass p-[18px] text-pass-foreground shadow-[0_8px_24px_-12px_rgb(0_0_0/0.45)]">
       <h2 id="today-title" className="text-[15px] font-medium text-pass-muted">
-        Today{rows.length > 0 && ` · ${rows.length} ${rows.length === 1 ? 'shift' : 'shifts'}`}
+        Today{rostered > 0 && ` · ${rostered} ${rostered === 1 ? 'shift' : 'shifts'}`}
+        {offRoster > 0 && ` · ${offRoster} not rostered`}
       </h2>
       {rows.length === 0 ? (
         <p className="mt-2 text-base">No shifts today.</p>
       ) : (
         <ul className="mt-1 divide-y divide-pass-line">
-          {rows.map(({ shift, user, session, arriveBy, noteSeen }) => {
+          {rows.map(({ id, startsAt, shift, user, session, arriveBy, noteSeen }) => {
             const inAt = session?.clock_in?.effective_time
             const outAt = session?.clock_out?.effective_time
-            const startTs = zonedTimestamp(shift.date, shift.start_time, tz)
+            const startTs = startsAt
             const started = compareTs(now, startTs) >= 0
             // A late note keeps the row calm until its time plus the no-show window has passed.
             const lateCalm = arriveBy !== null && compareTs(now, noShowDueAt(startTs, arriveBy, settings)) < 0
@@ -43,6 +52,10 @@ export function TodayPanel({ rows, settings, now, onOpen }: { rows: TodayRow[]; 
             } else if (inAt) {
               chip = { label: 'On shift', tone: 'live' }
               line = `In ${formatClock(inAt, tz)} · ${formatDuration(minutesBetween(inAt, now))}`
+            } else if (!shift) {
+              // Off the roster there's always a clock-in; this only keeps the types honest.
+              chip = { label: 'Not rostered', tone: 'quiet' }
+              line = 'Not rostered'
             } else if (started && lateCalm) {
               chip = { label: 'Running late', tone: 'quiet' }
               line = `Said about ${formatClock(arriveBy, tz)}`
@@ -57,16 +70,16 @@ export function TodayPanel({ rows, settings, now, onOpen }: { rows: TodayRow[]; 
             // A note matters until the shift is done: one quiet line under the status, never a second chip.
             const noteLine = noteSeen === null || (inAt && outAt) ? null : noteSeen ? 'Note seen' : 'Note not seen yet'
             return (
-              <li key={shift.id}>
+              <li key={id}>
                 <button
                   type="button"
                   disabled={!onOpen}
-                  onClick={() => onOpen?.(shift.id)}
+                  onClick={() => onOpen?.(id)}
                   className="-mx-2 flex w-[calc(100%+1rem)] items-center justify-between gap-3 rounded-[12px] px-2 py-3 text-left transition-colors enabled:hover:bg-white/[0.06] enabled:active:bg-white/10"
                 >
                   <span className="min-w-0 flex-1">
                     <span className="block text-base font-medium">
-                      {shortName(user.full_name)} <span className="font-normal text-pass-muted">· {shift.type === 'morning' ? 'Morning' : 'Night'}</span>
+                      {shortName(user.full_name)} <span className="font-normal text-pass-muted">· {!shift ? 'Not rostered' : shift.type === 'morning' ? 'Morning' : 'Night'}</span>
                     </span>
                     <span className="block text-sm text-pass-muted">{line}</span>
                     {noteLine && (

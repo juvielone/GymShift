@@ -33,7 +33,7 @@ import type {
   Uuid,
 } from '@/types'
 import { AlreadyClockedInError, type ClockLocation, type ClockResult } from './clockEvents'
-import { requireCanAddPhoto } from './photos'
+import { requireCanAddPhoto, type PhotoTarget } from './photos'
 import { SIGN_IN_MISMATCH } from './users'
 import { getShiftNotes, type ShiftNote } from './shiftInstructions'
 import { auth, copy, db, emptyTables, requireUser, syncTeamNames } from './store'
@@ -424,11 +424,15 @@ const PHOTO_BUCKET = 'shift-photos'
 const LINK_SECONDS = 3600
 const photoLinks = new Map<string, { url: string; until: number }>()
 
-/** Upload the image into the person's own folder, then save the row. A refused save takes the image back out. */
-export async function uploadPhoto(input: { shiftId: Uuid; userId: Uuid; file: Blob }): Promise<Photo> {
+/**
+ * Upload the image into the person's own folder (under the shift, or the clock-in off the roster), then save
+ * the row. A refused save takes the image back out.
+ */
+export async function uploadPhoto(input: PhotoTarget & { userId: Uuid; file: Blob }): Promise<Photo> {
   if (input.userId !== auth.userId) throw new Error('Photos can only be added to your own shift')
   requireCanAddPhoto(input)
-  const path = `${input.userId}/${input.shiftId}/${crypto.randomUUID()}.jpg`
+  const holder = 'shiftId' in input ? input.shiftId : input.clockInId
+  const path = `${input.userId}/${holder}/${crypto.randomUUID()}.jpg`
   const bucket = sb().storage.from(PHOTO_BUCKET)
   const { error } = await bucket.upload(path, input.file, { contentType: 'image/jpeg', upsert: false })
   if (error) {
@@ -436,7 +440,9 @@ export async function uploadPhoto(input: { shiftId: Uuid; userId: Uuid; file: Bl
     throw new Error('Not saved yet. Check your internet and try again.')
   }
   try {
-    return await write<Photo>('add_photo', { p_shift_id: input.shiftId, p_storage_path: path })
+    return 'shiftId' in input
+      ? await write<Photo>('add_photo', { p_shift_id: input.shiftId, p_storage_path: path })
+      : await write<Photo>('add_session_photo', { p_clock_in_id: input.clockInId, p_storage_path: path })
   } catch (e) {
     // Storage only lets this go while the image has no row, so a save that did land is never undone.
     void bucket.remove([path])

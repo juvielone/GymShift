@@ -1,11 +1,12 @@
 // Everything Carly's dashboard shows, loaded through '@/data'. Server time only.
 import { useCallback, useEffect, useState } from 'react'
-import { getCurrentUser, getFlags, getFortnightHours, getNotes, getOpenIssues, getOpenSupplyAlerts, getSettings, getShiftAttendance, getShiftNotes, getShifts, getUsers, refreshData, serverNow } from '@/data'
+import { getCurrentUser, getFlags, getFortnightHours, getNotes, getOpenIssues, getOpenSupplyAlerts, getSettings, getShiftAttendance, getShiftNotes, getShifts, getUnscheduledToday, getUsers, refreshData, serverNow } from '@/data'
 import type { Note, SiteSettings, Timestamp, User } from '@/types'
 import type { FlagView } from '@/components/manager/FlagSheet'
 import type { TodayRow } from '@/components/manager/TodayPanel'
 import { loadRequests, type RequestItem } from '@/hooks/requests'
 import { compareTs, localDate } from '@/lib/rules'
+import { zonedTimestamp } from '@/lib/format'
 
 export interface ManagerDashboard {
   me: User
@@ -49,8 +50,14 @@ async function load(): Promise<ManagerDashboard> {
     // Notes for the shift: seen once the person on it has tapped "Got it" on every one.
     const forShift = todayNotes.filter((n) => n.shift_id === shift.id)
     const noteSeen = forShift.length === 0 ? null : forShift.every((n) => n.seen_at !== null)
-    if (user) todayRows.push({ shift, user, session: await getShiftAttendance(shift.id), arriveBy, noteSeen })
+    const startsAt = zonedTimestamp(shift.date, shift.start_time, settings.timezone)
+    if (user) todayRows.push({ id: shift.id, startsAt, shift, user, session: await getShiftAttendance(shift.id), arriveBy, noteSeen })
   }
+  // Clocked in off the roster: on the pass like everyone else, whether or not its flag is resolved.
+  for (const r of await getUnscheduledToday(me.id)) {
+    todayRows.push({ id: r.id, startsAt: r.starts_at, shift: null, user: r.user, session: r.session, arriveBy: null, noteSeen: null })
+  }
+  todayRows.sort((a, b) => compareTs(a.startsAt, b.startsAt))
 
   const fortnights = [...new Set(shifts.map((s) => s.fortnight_start))].sort()
   const currentFortnight = fortnights.filter((f) => f <= today).at(-1) ?? fortnights[0] ?? today

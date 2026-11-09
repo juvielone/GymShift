@@ -16,7 +16,7 @@ import {
   refreshData,
   serverNow,
 } from '@/data'
-import type { EffectiveClockEvent } from '@/data'
+import type { EffectiveClockEvent, PhotoTarget } from '@/data'
 import type { CorrectionRequest, Extension, Note, Photo, Shift, SiteSettings, Timestamp, User } from '@/types'
 import { approvedShiftMinutes, compareTs, localDate, minutesBetween } from '@/lib/rules'
 import { getLocationPermission } from '@/lib/geolocation'
@@ -65,7 +65,7 @@ export interface CleanerHome {
   locationAccess: LocationAccess
   /** The rostered shift photos and notes attach to (today's, before, during or after it). null = none. */
   recordShift: Shift | null
-  /** Shown work photos on that shift, oldest first. */
+  /** Shown work photos on that shift (or on the session off the roster), oldest first. */
   photos: Photo[]
   /** This person's notes on that shift, newest first. */
   notes: Note[]
@@ -74,6 +74,9 @@ export interface CleanerHome {
   /** The latest session the job closed for them that they haven't answered yet, with its shift's photos. */
   autoClosed: { session: Session; photos: Photo[] } | null
 }
+
+/** Where a session's photos go: its rostered shift, or its clock-in when worked off the roster. */
+export const photoTargetOf = (session: Session): PhotoTarget => (session.shift ? { shiftId: session.shift.id } : { clockInId: session.clockIn.id })
 
 async function loadHome(): Promise<CleanerHome> {
   const [user, settings] = await Promise.all([getCurrentUser(), getSettings()])
@@ -160,7 +163,7 @@ async function loadHome(): Promise<CleanerHome> {
     const autoShift = autoOut.shift_id ? ((await getShifts({ userId: user.id })).find((s) => s.id === autoOut.shift_id) ?? null) : null
     autoClosed = {
       session: await buildSession(autoShift, autoIn, autoOut),
-      photos: autoShift ? await getPhotos({ shiftId: autoShift.id }) : [],
+      photos: await getPhotos(autoShift ? { shiftId: autoShift.id } : { clockInId: autoIn.id }),
     }
   }
 
@@ -180,9 +183,11 @@ async function loadHome(): Promise<CleanerHome> {
             : 'unknown'
 
   const recordShift = phase.kind === 'before' ? phase.shift : phase.kind === 'no_shift' ? null : phase.session.shift
+  // Off the roster, photos hang on the clock-in (there's no shift for notes).
+  const offRoster = (phase.kind === 'on' || phase.kind === 'done') && !phase.session.shift ? phase.session : null
   const [photos, notes] = recordShift
     ? await Promise.all([getPhotos({ shiftId: recordShift.id }), getNotes({ shiftId: recordShift.id, userId: user.id })])
-    : [[], []]
+    : [offRoster ? await getPhotos({ clockInId: offRoster.clockIn.id }) : [], []]
 
   return { user, settings, now, phase, upcoming, locationAccess, recordShift, photos, notes, voidNotice, autoClosed }
 }

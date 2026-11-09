@@ -5,7 +5,7 @@ import { Check, CircleAlert, Clock, Hourglass, LoaderCircle, MessageSquare, Undo
 import { AlreadyClockedInError, clockIn, clockOut } from '@/data'
 import type { ClockLocation, ClockResult } from '@/data'
 import type { FlagKind, Photo, SiteSettings } from '@/types'
-import { useCleanerHome, type CleanerHome as HomeData, type Session, type VoidNotice } from '@/hooks/useCleanerHome'
+import { photoTargetOf, useCleanerHome, type CleanerHome as HomeData, type Session, type VoidNotice } from '@/hooks/useCleanerHome'
 import { ShiftPass } from '@/components/home/ShiftPass'
 import { ExtensionRow, LocationRow, StatusRow } from '@/components/home/StatusRows'
 import { PhotosRow } from '@/components/home/PhotosRow'
@@ -104,8 +104,8 @@ function Home({
   const name = firstName(user.full_name)
   const tz = settings.timezone
   const session = phase.kind === 'on' || phase.kind === 'done' ? phase.session : null
-  // Photos go on a rostered shift from clock-in on; unscheduled time has no shift to hold them.
-  const photoShiftId = session && recordShift ? recordShift.id : null
+  // Photos from clock-in on: on the rostered shift, or on the clock-in when working off the roster.
+  const photoTarget = session ? photoTargetOf(session) : null
 
   const [step, setStep] = useState<Step>('idle')
   const [receipt, setReceipt] = useState<Receipt | null>(null)
@@ -125,15 +125,15 @@ function Home({
   const receiptTimer = useRef<number | undefined>(undefined)
   const refreshQuietly = useCallback(() => void refresh(), [refresh])
   const uploads = usePhotoUploads({
-    shiftId: photoShiftId,
+    target: photoTarget,
     userId: user.id,
     room: settings.max_photos_per_shift - photos.length,
     onSaved: refreshQuietly,
   })
   // Photos for a shift closed automatically: they can still add them once they've answered.
-  const autoShiftId = autoClosed?.session.shift?.id ?? null
+  const autoTarget = autoClosed ? photoTargetOf(autoClosed.session) : null
   const autoUploads = usePhotoUploads({
-    shiftId: autoShiftId,
+    target: autoTarget,
     userId: user.id,
     room: settings.max_photos_per_shift - (autoClosed?.photos.length ?? 0),
     onSaved: refreshQuietly,
@@ -184,7 +184,7 @@ function Home({
       await refresh()
       const r = receiptFor(kind, result, name, worked)
       // Clocked out with no photos: the receipt offers them, since clocking out never waits for photos.
-      if (kind === 'out' && photoShiftId && photos.length === 0 && uploads.queue.length === 0) {
+      if (kind === 'out' && photoTarget && photos.length === 0 && uploads.queue.length === 0) {
         const closes = formatClock(new Date(Date.parse(result.event.server_time) + settings.photo_upload_window_min * 60_000).toISOString(), tz)
         r.detail = `${r.tone === 'warn' ? `${r.detail} ` : ''}Please add your work photos by ${closes}.`
         r.action = { label: 'Add photos', onClick: uploads.pick }
@@ -213,7 +213,7 @@ function Home({
       // Before the approved length a mistaken tap would end the shift early, so ask once.
       const early = phase.session.shift !== null && phase.session.workedMin < phase.session.approvedMin
       // No photos yet: ask "Add your photos first?" once (it also covers the early question). Never a block.
-      if (photoShiftId && photos.length === 0 && uploads.queue.length === 0) setPhotoPromptOpen(true)
+      if (photoTarget && photos.length === 0 && uploads.queue.length === 0) setPhotoPromptOpen(true)
       else if (early) setConfirmOpen(true)
       else void clock('out')
     } else if (needsClockInConfirm(phase.kind === 'before' ? shiftStartAt(phase.shift, settings) : null, now, settings)) {
@@ -232,7 +232,7 @@ function Home({
     void refresh()
     const r: Receipt = { tone: 'ok', ...message }
     // An automatic close with no photos: they can add them now (the window counts from this answer).
-    if (answered?.mode === 'auto' && autoShiftId && autoClosed?.photos.length === 0) r.action = { label: 'Add photos', onClick: autoUploads.pick }
+    if (answered?.mode === 'auto' && autoTarget && autoClosed?.photos.length === 0) r.action = { label: 'Add photos', onClick: autoUploads.pick }
     showReceipt(r)
   }
 
@@ -299,7 +299,7 @@ function Home({
         )}
         {voidNotice && <VoidNoticeRow notice={voidNotice} tz={tz} />}
         <LocationRow phase={phase} settings={settings} access={data.locationAccess} onHelp={() => setHelpOpen(true)} />
-        {photoShiftId && session && (
+        {photoTarget && session && (
           <PhotosRow
             photos={photos}
             queue={uploads.queue}

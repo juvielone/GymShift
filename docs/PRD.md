@@ -140,6 +140,7 @@ Nine features, ordered by build priority. Each acceptance criterion is a test th
 - Up to 10 photos per shift, uploaded from clock-in until 3 hours after clock-out.
 - Photos are compressed on the phone to about 150 KB before upload.
 - Each photo stores the shift, the cleaner and the upload time.
+- Time worked off the roster (an unscheduled clock-in) takes photos too, on the same rules; they belong to that clock-in. *(Decided 9 Nov 2026.)*
 - Clocking out with no photos asks "Add your photos first?" once. The cleaner can still clock out without them; it never blocks. *(Decided 30 Oct 2026.)*
 - A cleaner can remove a photo they added by mistake within 10 minutes of adding it. After that only Carly can remove it. A removed photo keeps its record (who removed it, when); only the image is deleted.
 - Photos are deleted automatically after 6 months.
@@ -163,6 +164,7 @@ Nine features, ordered by build priority. Each acceptance criterion is a test th
 
 - The dashboard shows today's shifts with clock-in status, open flags, pending requests, and open supply notes.
 - Carly can view photos and notes grouped by shift: tapping a shift on her Today card, or in Shift records, opens its record (clock times with location and corrections, worked time, photos, notes, flags).
+- Time worked off the roster shows on her Today card and in Shift records as "Not rostered", with its times, photos and flags, whether or not its flag is resolved. *(Decided 9 Nov 2026.)*
 - **Shift records** list past shifts one fortnight at a time (the roster and pay period), with a person picker and ‹ › arrows back to the 6-month retention limit, plus a summary line (shifts, hours, shifts with no photos) that matches the hours export for that fortnight. Carly sees everyone, Gladys her own group. *(Decided 31 Oct 2026.)*
 - Cleaners see their own past shifts the same way ("My past shifts"), with their hours for the chosen fortnight, so they can check their pay period. *(Decided 31 Oct 2026.)*
 - Carly can export a fortnight's hours per cleaner as a CSV file, using corrected times.

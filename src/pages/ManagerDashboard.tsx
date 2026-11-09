@@ -83,8 +83,8 @@ export function ManagerDashboard({
   const total = data.requests.length + flags.length + notes.length
   const todayDate = localDate(now, settings)
 
-  async function openShift(shiftId: string) {
-    setOpenRecord(await getShiftRecord({ shiftId, viewerId: me.id }))
+  async function openShift(recordId: string) {
+    setOpenRecord(await getShiftRecord({ recordId, viewerId: me.id }))
   }
 
   async function done(noteId: string) {
@@ -267,7 +267,7 @@ export function ManagerDashboard({
       <HoursSheet open={hoursOpen} onOpenChange={setHoursOpen} fortnights={fortnights} current={currentFortnight} refreshedAt={now} />
       {openRecord && (
         <ShiftRecordSheet
-          key={openRecord.shift.id}
+          key={openRecord.id}
           record={openRecord}
           settings={settings}
           now={now}

@@ -654,6 +654,74 @@ test('photos: upload into your own folder, saved by add_photo with the rules; re
   }
 })
 
+test('photos off the roster: saved on the clock-in by add_session_photo, with the same rules', async () => {
+  const shared = db
+  db = await freshDb()
+  try {
+    const { today } = await days()
+    const fortnight = (await db.query(`select private.fortnight_start_of($1::date)::text as f`, [today])).rows[0].f
+    const joshShift = (await createShift(CARLY, today, 'night', JOSH)).id
+    await call(CARLY, `select * from public.publish_fortnight($1)`, [fortnight])
+    const upload = (who, path, size = 150_000) =>
+      call(who, `insert into storage.objects (bucket_id, name, metadata) values ('shift-photos', $1, $2) returning name`, [path, { size }])
+    const add = (who, path, clockIn) => call(who, `select * from public.add_session_photo($1, $2)`, [clockIn, path]).then((r) => r[0])
+
+    // Kyle isn't rostered today: his clock-in is unscheduled, and its id is his photo folder.
+    const kyleIn = (await clock(KYLE, 'in', { lat: GYM.lat, lng: GYM.lng, accuracy: 10 })).event
+    assert.equal(kyleIn.shift_id, null)
+    const pathFor = (user, holder = kyleIn.id) => `${user}/${holder}/${crypto.randomUUID()}.jpg`
+
+    // Storage: only your own folder, for your own clock-in.
+    await rejects(upload(JOSH, pathFor(JOSH)), /row-level security/)
+    await rejects(upload(KYLE, pathFor(KYLE, crypto.randomUUID())), /row-level security/)
+
+    const first = pathFor(KYLE)
+    await upload(KYLE, first)
+    const saved = await add(KYLE, first, kyleIn.id)
+    assert.equal(saved.clock_event_id, kyleIn.id)
+    assert.equal(saved.shift_id, null)
+    assert.equal(saved.size_bytes, 150_000)
+    await rejects(add(KYLE, first, kyleIn.id), /already saved/)
+    await rejects(add(JOSH, first, kyleIn.id), /only be added to your own shift/)
+
+    // Who can see it: Kyle, Gladys (his team lead), Carly; not Josh.
+    const sees = async (who, path) => (await call(who, `select 1 from storage.objects where name = $1`, [path])).length === 1
+    assert.deepEqual([await sees(KYLE, first), await sees(GLADYS, first), await sees(CARLY, first), await sees(JOSH, first)], [true, true, true, false])
+
+    // A rostered clock-in keeps using its shift.
+    const joshIn = (await clock(JOSH, 'in', { lat: GYM.lat, lng: GYM.lng, accuracy: 10 })).event
+    assert.equal(joshIn.shift_id, joshShift)
+    await rejects(add(JOSH, pathFor(JOSH, joshIn.id), joshIn.id), /Add these photos to the rostered shift/)
+
+    // Up to the limit (10).
+    for (let i = 1; i < 10; i++) {
+      const p = pathFor(KYLE)
+      await upload(KYLE, p)
+      await add(KYLE, p, kyleIn.id)
+    }
+    const eleventh = pathFor(KYLE)
+    await upload(KYLE, eleventh)
+    await rejects(add(KYLE, eleventh, kyleIn.id), /at most 10 photos/)
+
+    // A photo has exactly one holder.
+    await rejects(
+      owner(null, (tx) =>
+        tx.query(`insert into photos (shift_id, clock_event_id, user_id, storage_path, size_bytes, expires_at) values ($1, $2, $3, 'x', 1, now())`, [joshShift, joshIn.id, JOSH]),
+      ),
+      /photos_one_holder/,
+    )
+
+    // After clock-out plus 3 hours, photos close: an earlier off-roster session of Kyle's ended 181 minutes ago.
+    const earlierIn = await clockAgo(KYLE, null, 'in', 300)
+    await clockAgo(KYLE, null, 'out', 181)
+    const late = pathFor(KYLE, earlierIn)
+    await upload(KYLE, late)
+    await rejects(add(KYLE, late, earlierIn), /Photos for this shift have closed/)
+  } finally {
+    db = shared
+  }
+})
+
 // ---- Attendance fixes (12_attendance_fixes): voids, late clock-outs, forgotten clock-outs ----
 
 /** Insert a clock event as the database owner, `minutesAgo` before now. Returns its id. */

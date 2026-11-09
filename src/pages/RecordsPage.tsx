@@ -3,9 +3,10 @@
 // ("Shift records", with a person picker); a cleaner sees their own ("My past shifts").
 // Pinned on top: the person picker, ‹ fortnight › arrows like the Hours sheet, and one summary line.
 // Both choices open the app's own picker sheet, never the browser's dropdown.
+// Time worked off the roster shows as its own "Not rostered" row, with its photos like any shift.
 // Tap a shift for its full record.
 import { useState } from 'react'
-import { Camera, ChevronDown, ChevronLeft, ChevronRight, MessageSquare, Moon, Sunrise, Users } from 'lucide-react'
+import { Camera, ChevronDown, ChevronLeft, ChevronRight, Clock, MessageSquare, Moon, Sunrise, Users } from 'lucide-react'
 import type { ShiftRecord } from '@/data'
 import { useShiftRecords } from '@/hooks/useShiftRecords'
 import { Disc } from '@/components/common/ListParts'
@@ -75,7 +76,7 @@ export function RecordsPage({ onBack }: { onBack: () => void }) {
   const workedMin = records.reduce((sum, r) => sum + [r.session, ...r.other_sessions].reduce((s, x) => s + (x.worked_min ?? 0), 0), 0)
   const voidedCount = records.reduce((n, r) => n + r.voided.length, 0)
   const noPhotos = records.filter((r) => r.session.clock_in && r.photos.length === 0).length
-  const days = [...new Set(records.map((r) => r.shift.date))]
+  const days = [...new Set(records.map((r) => r.date))]
   const countFor = (id: string) => all.filter((r) => r.user.id === id).length
   const plural = (n: number, word: string) => `${n} ${word}${n === 1 ? '' : 's'}`
   const arrow =
@@ -163,9 +164,9 @@ export function RecordsPage({ onBack }: { onBack: () => void }) {
             </h2>
             <ul>
               {records
-                .filter((r) => r.shift.date === day)
+                .filter((r) => r.date === day)
                 .map((r) => (
-                  <li key={r.shift.id}>
+                  <li key={r.id}>
                     <RecordRow record={r} own={own} tz={tz} now={now} today={today} showVoided={showVoided} onOpen={() => setOpen(r)} />
                   </li>
                 ))}
@@ -201,7 +202,7 @@ export function RecordsPage({ onBack }: { onBack: () => void }) {
       />
       {open && (
         <ShiftRecordSheet
-          key={open.shift.id}
+          key={open.id}
           record={open}
           settings={settings}
           now={now}
@@ -233,11 +234,11 @@ function RecordRow({
   onOpen: () => void
 }) {
   const { shift, user, session, photos, notes, flags } = record
-  const type = shift.type === 'morning' ? 'Morning' : 'Night'
+  const type = !shift ? null : shift.type === 'morning' ? 'Morning' : 'Night'
   const inAt = session.clock_in?.effective_time
   const outAt = session.clock_out?.effective_time
   // Today's shift may still be starting; only an earlier day reads as missed.
-  const missed = !inAt && shift.date < today
+  const missed = !inAt && record.date < today
   const line = !inAt
     ? missed
       ? "Didn't clock in"
@@ -251,7 +252,7 @@ function RecordRow({
   return (
     <button type="button" onClick={onOpen} className="flex w-full items-center gap-3 border-b border-border px-1 py-3 text-left hover:bg-muted/60 active:bg-muted">
       {own ? (
-        <Disc tone="neutral">{shift.type === 'morning' ? <Sunrise /> : <Moon />}</Disc>
+        <Disc tone="neutral">{!shift ? <Clock /> : shift.type === 'morning' ? <Sunrise /> : <Moon />}</Disc>
       ) : (
         <Disc tone="neutral">
           <span className="text-[15px] font-semibold">{user.full_name[0]}</span>
@@ -259,8 +260,8 @@ function RecordRow({
       )}
       <span className="min-w-0 flex-1">
         <span className="block text-base leading-snug font-medium">
-          {own ? `${type} shift` : shortName(user.full_name)}
-          {!own && <span className="font-normal text-muted-foreground"> · {type}</span>}
+          {own ? (type ? `${type} shift` : 'Not rostered') : shortName(user.full_name)}
+          {!own && <span className="font-normal text-muted-foreground"> · {type ?? 'Not rostered'}</span>}
         </span>
         <span className={cn('block text-sm leading-snug', missed ? 'text-warn' : 'text-muted-foreground')}>{line}</span>
 

@@ -2,6 +2,7 @@
 // flags. Facts first, like the flag sheet. Tapping a photo shows it large inside the sheet, with
 // swipe and next/previous. For Carly (canFix), "Correct time" and "Void clock-in" fix the clock events in
 // place; resolving flags stays in the flag sheet. Voided sessions are listed only with "Show voided".
+// Time off the roster (no shift) shows its times, photos, requests and flags; it has no shift notes.
 import { useRef, useState, type ReactNode } from 'react'
 import { ChevronLeft, ChevronRight, CircleAlert, Clock, MessageSquare, Package } from 'lucide-react'
 import type { EffectiveClockEvent, ShiftRecord } from '@/data'
@@ -58,11 +59,15 @@ export function ShiftRecordSheet({ record, settings, now, onOpenChange, fixer, o
   const { shift, user, session, photos, notes, flags } = record
   const tz = settings.timezone
   const name = shortName(user.full_name)
-  const started = compareTs(now, zonedTimestamp(shift.date, shift.start_time, tz)) >= 0
-  const ended = compareTs(now, shiftEndAt(shift, settings)) >= 0
+  const started = !shift || compareTs(now, zonedTimestamp(shift.date, shift.start_time, tz)) >= 0
+  const ended = shift ? compareTs(now, shiftEndAt(shift, settings)) >= 0 : session.clock_out !== null
   // Carly's note for the person on the shift: on top while it can still be read before or during the shift,
   // then a read-only fact under the times. Only Carly gets it here; Gladys writes hers from the roster.
-  const shiftNote = fixer && <ShiftNotesSection shift={shift} me={fixer} settings={settings} onSent={() => onChanged?.()} />
+  const shiftNote = fixer && shift && <ShiftNotesSection shift={shift} me={fixer} settings={settings} onSent={() => onChanged?.()} />
+  const title = `${name} · ${!shift ? 'Not rostered' : shift.type === 'morning' ? 'Morning shift' : 'Night shift'}`
+  const subtitle = shift
+    ? `${formatDateShort(shift.date)} · ${formatTimeRange(shift.start_time, shift.end_time)}`
+    : `${formatDateShort(record.date)} · Clocked in with no shift on the roster`
   const fixButton = 'h-11 rounded-[14px] border border-border px-3.5 text-[15px] font-medium hover:bg-muted active:bg-muted'
 
   if (fixing && fixer) {
@@ -70,12 +75,8 @@ export function ShiftRecordSheet({ record, settings, now, onOpenChange, fixer, o
       <Drawer open onOpenChange={onOpenChange}>
         <DrawerContent className="mx-auto max-w-[480px]">
           <DrawerHeader className="text-left group-data-[vaul-drawer-direction=bottom]/drawer-content:text-left">
-            <DrawerTitle className="text-xl font-semibold">
-              {name} · {shift.type === 'morning' ? 'Morning' : 'Night'} shift
-            </DrawerTitle>
-            <DrawerDescription className="text-[15px]">
-              {formatDateShort(shift.date)} · {formatTimeRange(shift.start_time, shift.end_time)}
-            </DrawerDescription>
+            <DrawerTitle className="text-xl font-semibold">{title}</DrawerTitle>
+            <DrawerDescription className="text-[15px]">{subtitle}</DrawerDescription>
           </DrawerHeader>
           <div className="overflow-y-auto px-4 pb-4">
             <ClockFixForm
@@ -100,12 +101,8 @@ export function ShiftRecordSheet({ record, settings, now, onOpenChange, fixer, o
     <Drawer open onOpenChange={onOpenChange}>
       <DrawerContent className="mx-auto max-w-[480px]">
         <DrawerHeader className="text-left group-data-[vaul-drawer-direction=bottom]/drawer-content:text-left">
-          <DrawerTitle className="text-xl font-semibold">
-            {name} · {shift.type === 'morning' ? 'Morning' : 'Night'} shift
-          </DrawerTitle>
-          <DrawerDescription className="text-[15px]">
-            {formatDateShort(shift.date)} · {formatTimeRange(shift.start_time, shift.end_time)}
-          </DrawerDescription>
+          <DrawerTitle className="text-xl font-semibold">{title}</DrawerTitle>
+          <DrawerDescription className="text-[15px]">{subtitle}</DrawerDescription>
         </DrawerHeader>
 
         {viewing !== null && photos[viewing] ? (

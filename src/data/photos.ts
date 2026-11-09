@@ -2,19 +2,24 @@
 // The phone compresses each photo (~150 KB) before it gets here. Demo and trial keep images in
 // photoFiles; the live app uses Supabase Storage (live.ts). The rows here are the record.
 // A removed photo keeps its row (who removed it, when); only the image goes.
-import type { Photo, Uuid } from '@/types'
+// Photos go on a rostered shift, or on the clock-in for time off the roster (PhotoTarget); same rules for both.
+import type { ClockEvent, Photo, Uuid } from '@/types'
 import { canRemoveOwnPhoto, compareTs, photoWindowClosesAt, photoWindowStart } from '@/lib/rules'
-import { effectiveTime, isVoided } from './attendance'
+import { effectiveTime, isVoided, pairedOut } from './attendance'
 import { deleteFile, fileUrl, putFile } from './photoFiles'
 import { copy, db, newId, requireUser, roleOf, serverNow } from './store'
 
+/** What photos are added to: a rostered shift, or the clock-in of time worked off the roster. */
+export type PhotoTarget = { shiftId: Uuid } | { clockInId: Uuid }
+
 /** Shown photos, oldest first. Removed ones only when asked for (the record view). */
-export async function getPhotos(filter: { shiftId?: Uuid; userId?: Uuid; includeRemoved?: boolean } = {}): Promise<Photo[]> {
+export async function getPhotos(filter: { shiftId?: Uuid; clockInId?: Uuid; userId?: Uuid; includeRemoved?: boolean } = {}): Promise<Photo[]> {
   return copy(
     db.photos
       .filter(
         (p) =>
           (filter.shiftId === undefined || p.shift_id === filter.shiftId) &&
+          (filter.clockInId === undefined || p.clock_event_id === filter.clockInId) &&
           (filter.userId === undefined || p.user_id === filter.userId) &&
           (filter.includeRemoved || p.removed_at === null),
       )
@@ -48,37 +53,57 @@ export const latestAnswer = (clockEventId: Uuid) =>
     .sort(compareTs)
     .at(-1) ?? null
 
-/**
- * Own shift only, from clock-in until the upload window after clock-out closes, up to the shift's limit.
- * Live mode runs this too before uploading, so an image isn't sent only to be refused (the database checks again).
- */
-export function requireCanAddPhoto(input: { shiftId: Uuid; userId: Uuid }) {
-  const user = requireUser(input.userId)
-  const shift = db.shifts.find((s) => s.id === input.shiftId)
-  if (!shift) throw new Error(`Unknown shift ${input.shiftId}`)
-  if (shift.assigned_user_id !== user.id) throw new Error('Photos can only be added to your own shift')
+/** Where the upload window counts from for an off-roster session: its clock-out (or the answer about it). */
+function sessionWindowFrom(clockIn: ClockEvent) {
+  const out = pairedOut(clockIn)
+  return out ? photoWindowStart({ server_time: out.server_time, effective_time: effectiveTime(out) }, latestAnswer(out.id)) : null
+}
 
-  const { clockIn, clockOut } = attendanceOf(shift.id)
-  if (!clockIn) throw new Error('Photos can be added once you clock in')
+/**
+ * Own shift (or own off-roster session) only, from clock-in until the upload window after clock-out closes,
+ * up to the shift's limit. Live mode runs this too before uploading, so an image isn't sent only to be refused
+ * (the database checks again: add_photo, add_session_photo).
+ */
+export function requireCanAddPhoto(input: PhotoTarget & { userId: Uuid }) {
+  const user = requireUser(input.userId)
+  let holder: { shift_id: Uuid | null; clock_event_id: Uuid | null }
+  let clockOut: string | null
+  if ('shiftId' in input) {
+    const shift = db.shifts.find((s) => s.id === input.shiftId)
+    if (!shift) throw new Error(`Unknown shift ${input.shiftId}`)
+    if (shift.assigned_user_id !== user.id) throw new Error('Photos can only be added to your own shift')
+    const att = attendanceOf(shift.id)
+    if (!att.clockIn) throw new Error('Photos can be added once you clock in')
+    holder = { shift_id: shift.id, clock_event_id: null }
+    clockOut = att.clockOut
+  } else {
+    const clockIn = db.clockEvents.find((e) => e.id === input.clockInId)
+    if (!clockIn || clockIn.kind !== 'in' || isVoided(clockIn.id)) throw new Error('That clock-in is no longer on record')
+    if (clockIn.user_id !== user.id) throw new Error('Photos can only be added to your own shift')
+    if (clockIn.shift_id !== null) throw new Error('Add these photos to the rostered shift')
+    holder = { shift_id: null, clock_event_id: clockIn.id }
+    clockOut = sessionWindowFrom(clockIn)
+  }
   const now = serverNow()
   const closes = photoWindowClosesAt(clockOut, db.settings)
   if (closes !== null && compareTs(now, closes) > 0) throw new Error('Photos for this shift have closed')
-  if (db.photos.filter((p) => p.shift_id === shift.id && p.removed_at === null).length >= db.settings.max_photos_per_shift) {
+  const sameHolder = (p: Photo) => (holder.shift_id !== null ? p.shift_id === holder.shift_id : p.clock_event_id === holder.clock_event_id)
+  if (db.photos.filter((p) => sameHolder(p) && p.removed_at === null).length >= db.settings.max_photos_per_shift) {
     throw new Error(`A shift can have at most ${db.settings.max_photos_per_shift} photos`)
   }
-  return { user, shift, now }
+  return { user, holder, now }
 }
 
-export async function uploadPhoto(input: { shiftId: Uuid; userId: Uuid; file: Blob }): Promise<Photo> {
-  const { user, shift, now } = requireCanAddPhoto(input)
+export async function uploadPhoto(input: PhotoTarget & { userId: Uuid; file: Blob }): Promise<Photo> {
+  const { user, holder, now } = requireCanAddPhoto(input)
   const expires = new Date(now)
   expires.setUTCMonth(expires.getUTCMonth() + db.settings.photo_retention_months)
   const id = newId('photo')
   const row: Photo = {
     id,
-    shift_id: shift.id,
+    ...holder,
     user_id: user.id,
-    storage_path: `shifts/${shift.id}/${id}.jpg`,
+    storage_path: `shifts/${holder.shift_id ?? holder.clock_event_id}/${id}.jpg`,
     size_bytes: input.file.size,
     uploaded_at: now,
     expires_at: expires.toISOString(),

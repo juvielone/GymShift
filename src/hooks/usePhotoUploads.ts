@@ -1,7 +1,7 @@
 // Work-photo uploads from the phone's own picker: shrink each photo, save one at a time, and keep
 // any that didn't save on screen with a retry. Never blocks anything else on the home screen.
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { uploadPhoto } from '@/data'
+import { uploadPhoto, type PhotoTarget } from '@/data'
 import { compressPhoto } from '@/lib/image'
 
 /** retry: network or storage hiccup, try again. full / closed / unreadable: trying again won't help. */
@@ -24,7 +24,8 @@ function problemOf(e: unknown): UploadProblem {
 }
 
 interface Options {
-  shiftId: string | null
+  /** The rostered shift, or the clock-in off the roster. null = nowhere to add photos. */
+  target: PhotoTarget | null
   userId: string
   /** How many more photos fit on this shift (saved photos already counted). */
   room: number
@@ -32,15 +33,15 @@ interface Options {
   onSaved: () => void
 }
 
-export function usePhotoUploads({ shiftId, userId, room, onSaved }: Options) {
+export function usePhotoUploads({ target, userId, room, onSaved }: Options) {
   const [queue, setQueue] = useState<QueuedPhoto[]>([])
   /** "Only 2 more fit": shown when more photos were picked than the shift has room for. */
   const [notice, setNotice] = useState<string | null>(null)
   const chain = useRef<Promise<void>>(Promise.resolve())
-  const latest = useRef({ shiftId, userId, onSaved })
+  const latest = useRef({ target, userId, onSaved })
   useEffect(() => {
-    latest.current = { shiftId, userId, onSaved }
-  }, [shiftId, userId, onSaved])
+    latest.current = { target, userId, onSaved }
+  }, [target, userId, onSaved])
 
   // The "only N more fit" line is for the moment of picking; it clears itself after a short read.
   useEffect(() => {
@@ -67,8 +68,8 @@ export function usePhotoUploads({ shiftId, userId, room, onSaved }: Options) {
   /** Saves in order, one at a time, so a phone holding several big photos doesn't run out of memory. */
   const save = useCallback((item: QueuedPhoto) => {
     chain.current = chain.current.then(async () => {
-      const { shiftId: sid, userId: uid } = latest.current
-      if (!sid) return
+      const { target: to, userId: uid } = latest.current
+      if (!to) return
       let file: Blob
       try {
         file = await compressPhoto(item.file)
@@ -78,7 +79,7 @@ export function usePhotoUploads({ shiftId, userId, room, onSaved }: Options) {
         return
       }
       try {
-        await uploadPhoto({ shiftId: sid, userId: uid, file })
+        await uploadPhoto({ ...to, userId: uid, file })
         drop(item.key)
         latest.current.onSaved()
       } catch (e) {

@@ -143,6 +143,7 @@ function chapters(s: SiteSettings): Chapter[] {
           q: 'How many photos can I add, and until when?',
           a: [
             `Up to ${s.max_photos_per_shift} photos per shift, from when you clock in until ${formatDuration(s.photo_upload_window_min)} after you clock out. The app makes them smaller so they upload fast.`,
+            "If you're working without a shift on the roster, you can still add them the same way.",
           ],
         },
         {

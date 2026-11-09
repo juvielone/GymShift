@@ -111,6 +111,7 @@ export const withdrawSwap = persisted(swaps.withdrawSwap, (l) => l.withdrawSwap)
 export const decideSwap = persisted(swaps.decideSwap, (l) => l.decideSwap)
 
 export { getPhotos } from './photos'
+export type { PhotoTarget } from './photos'
 /** Where to load a photo's image from: a short-lived signed link in the live app. null = no image. */
 export async function getPhotoUrl(photo: Photo): Promise<string | null> {
   return MODE === 'live' ? (await import('./live')).photoUrl(photo) : photos.getPhotoUrl(photo)
@@ -118,7 +119,7 @@ export async function getPhotoUrl(photo: Photo): Promise<string | null> {
 export const uploadPhoto = persisted(photos.uploadPhoto, (l) => l.uploadPhoto)
 export const removePhoto = persisted(photos.removePhoto, (l) => l.removePhoto)
 
-export { getShiftRecord, getShiftRecords, getRecordPeople } from './records'
+export { getShiftRecord, getShiftRecords, getRecordPeople, getUnscheduledToday } from './records'
 export type { ShiftRecord } from './records'
 
 export { getNotes, getOpenSupplyAlerts, getOpenIssues } from './notes'

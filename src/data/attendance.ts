@@ -132,6 +132,15 @@ export function shiftSessions(shift: Shift): AttendanceSession[] {
     .sort((a, b) => compareTs((a.clock_in ?? a.clock_out)!.server_time, (b.clock_in ?? b.clock_out)!.server_time))
 }
 
+export type ClockedSession = AttendanceSession & { clock_in: EffectiveClockEvent }
+
+/** Counting sessions with no rostered shift (clocked in off the roster), oldest first. Hours count them in full. */
+export function unscheduledSessions(): ClockedSession[] {
+  return allSessions()
+    .filter((s): s is ClockedSession => s.shift_id === null && s.clock_in !== null)
+    .sort((a, b) => compareTs(a.clock_in.server_time, b.clock_in.server_time))
+}
+
 /**
  * Attendance for one rostered shift: the session whose clock-in holds the shift (the first one not waiting
  * on a void request). An empty session when nobody has clocked in.
