@@ -11,6 +11,18 @@ import { PGlite } from '@electric-sql/pglite'
 
 const MIGRATIONS = join(import.meta.dirname, '..', 'migrations')
 
+// The tests build shifts relative to "now" (a few hours either side), so near midnight a shift would land on
+// another day and its clock-in wouldn't link. PGlite's now() reads Node's Date.now(), so move the clock to about
+// 1:00 pm Sydney on today's date: the date stays real, time still passes, and the results never depend on when
+// the tests run.
+{
+  const real = Date.now.bind(Date)
+  const parts = new Intl.DateTimeFormat('en-GB', { timeZone: 'Australia/Sydney', hour: '2-digit', minute: '2-digit', hourCycle: 'h23' }).formatToParts(real())
+  const minutesIntoDay = Number(parts.find((p) => p.type === 'hour').value) * 60 + Number(parts.find((p) => p.type === 'minute').value)
+  const shift = (13 * 60 - minutesIntoDay) * 60_000
+  Date.now = () => real() + shift
+}
+
 const CARLY = '00000000-0000-4000-8000-000000000001'
 const GLADYS = '00000000-0000-4000-8000-000000000002'
 const JOSH = '00000000-0000-4000-8000-000000000003'
