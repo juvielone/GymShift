@@ -310,6 +310,7 @@ function Home({
             onPick={uploads.pick}
             onRetry={uploads.retry}
             onOpen={setOpenPhoto}
+            onLate={onOpenRecords}
           />
         )}
         {session && <ExtensionRow session={session} settings={settings} tz={tz} onAsk={() => setExtOpen(true)} />}

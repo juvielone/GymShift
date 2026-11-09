@@ -18,7 +18,7 @@ import {
 } from '@/data'
 import type { EffectiveClockEvent, PhotoTarget } from '@/data'
 import type { CorrectionRequest, Extension, Note, Photo, Shift, SiteSettings, Timestamp, User } from '@/types'
-import { approvedShiftMinutes, compareTs, localDate, minutesBetween } from '@/lib/rules'
+import { approvedShiftMinutes, compareTs, localDate, minutesBetween, photoWindowClosesAt, photoWindowStart } from '@/lib/rules'
 import { getLocationPermission } from '@/lib/geolocation'
 
 /** What to tell the cleaner about location before they tap. 'unknown' keeps the plain text. */
@@ -138,8 +138,11 @@ async function loadHome(): Promise<CleanerHome> {
   }
   if (!phase) {
     // A session that finished today still counts as "done" for the screen: an unscheduled one, or a night
-    // shift rostered yesterday that ran past midnight.
-    const lastOut = last?.kind === 'out' && localDate(last.effective_time, settings) === today ? last : null
+    // shift rostered yesterday that ran past midnight. So does one whose photo window is still open, so a
+    // night shift's photos row doesn't vanish at midnight.
+    const photosStillDue = (out: EffectiveClockEvent) =>
+      compareTs(now, photoWindowClosesAt(photoWindowStart(out, requestOn(out.id, 'end_time')?.created_at ?? null), settings) ?? now) < 0
+    const lastOut = last?.kind === 'out' && (localDate(last.effective_time, settings) === today || photosStillDue(last)) ? last : null
     const lastIn = lastOut ? events.findLast((e) => e.kind === 'in' && compareTs(e.effective_time, lastOut.effective_time) <= 0) : undefined
     const fromToday = lastIn?.shift_id != null && todayShifts.some((s) => s.id === lastIn.shift_id)
     if (!lastDone && lastOut && lastIn && !fromToday && !setAside(lastIn)) lastDone = await buildSession(await linkedShift(lastIn), lastIn, lastOut)

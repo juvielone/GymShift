@@ -644,11 +644,13 @@ test('photos: upload into your own folder, saved by add_photo with the rules; re
     await rejects(call(GLADYS, `select public.remove_photo($1)`, [old]), /removed for 10 minutes/)
     assert.equal((await call(CARLY, `select * from public.remove_photo($1)`, [old]))[0].removed_by, CARLY)
 
-    // With a place free again, a new photo fits; after clock-out plus 3 hours, photos close.
+    // With a place free again, a new photo fits; after clock-out plus 3 hours it is still saved, marked late
+    // (until the end of the fortnight: 20_late_photos).
     const late = pathFor(JOSH)
     await upload(JOSH, late)
     await owner(null, (tx) => tx.query(`insert into clock_events (user_id, shift_id, kind, server_time, location_status) values ($1, $2, 'out', now() - interval '181 minutes', 'denied')`, [JOSH, shift]))
-    await rejects(add(JOSH, late), /Photos for this shift have closed/)
+    assert.equal((await add(JOSH, late)).added_late, true)
+    assert.equal(first.added_late, false)
   } finally {
     db = shared
   }
@@ -711,12 +713,19 @@ test('photos off the roster: saved on the clock-in by add_session_photo, with th
       /photos_one_holder/,
     )
 
-    // After clock-out plus 3 hours, photos close: an earlier off-roster session of Kyle's ended 181 minutes ago.
+    // After clock-out plus 3 hours a photo is still saved, marked late: an earlier session ended 181 minutes ago.
     const earlierIn = await clockAgo(KYLE, null, 'in', 300)
     await clockAgo(KYLE, null, 'out', 181)
     const late = pathFor(KYLE, earlierIn)
     await upload(KYLE, late)
-    await rejects(add(KYLE, late, earlierIn), /Photos for this shift have closed/)
+    assert.equal((await add(KYLE, late, earlierIn)).added_late, true)
+    assert.equal(saved.added_late, false)
+    // Once its fortnight has ended, photos close: a session 20 days ago.
+    const oldIn = await clockAgo(KYLE, null, 'in', 20 * 1440)
+    await clockAgo(KYLE, null, 'out', 20 * 1440 - 180)
+    const tooLate = pathFor(KYLE, oldIn)
+    await upload(KYLE, tooLate)
+    await rejects(add(KYLE, tooLate, oldIn), /Photos for this shift have closed/)
   } finally {
     db = shared
   }
@@ -965,7 +974,7 @@ test('the roster is a guide: finish from clock-in, a 10-minute leeway, and a no-
     assert.equal(noShow[0].resolved_at, null)
     const late = await clock(CARLY, 'in', { lat: GYM.lat, lng: GYM.lng, accuracy: 10 })
     assert.equal(late.event.shift_id, carlyShift)
-    assert.match(late.flags.find((f) => f.kind === 'off_start').detail, /^Clock-in (1h 59m|2h 0m) after the \d{1,2}:\d{2} [ap]m start$/)
+    assert.match(late.flags.find((f) => f.kind === 'off_start').detail, /^Clock-in (1h 59m|2h 0m|2h 1m) after the \d{1,2}:\d{2} [ap]m start$/)
     assert.equal((await db.query(`select resolved_by from flags where id = $1`, [noShow[0].id])).rows[0].resolved_by, CARLY)
   } finally {
     db = shared

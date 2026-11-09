@@ -26,7 +26,8 @@ const rangeLabel = (start: string) => formatDayRange(start, addDays(start, 13))
 
 export function RecordsPage({ onBack }: { onBack: () => void }) {
   const [person, setPerson] = useState<string | null>(null)
-  const [open, setOpen] = useState<ShiftRecord | null>(null)
+  // By id, so the open sheet shows the reloaded record (a late photo just added, a fix).
+  const [openId, setOpenId] = useState<string | null>(null)
   const [picking, setPicking] = useState<'person' | 'fortnight' | null>(null)
   const [showVoided, setShowVoided] = useState(false)
   const { data, error, reload, fortnight, setFortnight } = useShiftRecords()
@@ -70,6 +71,7 @@ export function RecordsPage({ onBack }: { onBack: () => void }) {
   const at = fortnights.indexOf(shown)
   const label = at === 0 ? 'This fortnight' : at === 1 ? 'Last fortnight' : rangeLabel(shown)
   const chosen = people.find((p) => p.id === person) ?? null
+  const open: ShiftRecord | null = all.find((r) => r.id === openId) ?? null
   const records = chosen ? all.filter((r) => r.user.id === chosen.id) : all
   const done = records.filter((r) => r.session.worked_min !== null)
   // Every counting session on the shift, as the hours export counts them. Voided ones never count.
@@ -167,7 +169,7 @@ export function RecordsPage({ onBack }: { onBack: () => void }) {
                 .filter((r) => r.date === day)
                 .map((r) => (
                   <li key={r.id}>
-                    <RecordRow record={r} own={own} tz={tz} now={now} today={today} showVoided={showVoided} onOpen={() => setOpen(r)} />
+                    <RecordRow record={r} own={own} tz={tz} now={now} today={today} showVoided={showVoided} onOpen={() => setOpenId(r.id)} />
                   </li>
                 ))}
             </ul>
@@ -206,8 +208,9 @@ export function RecordsPage({ onBack }: { onBack: () => void }) {
           record={open}
           settings={settings}
           now={now}
-          onOpenChange={(o) => !o && setOpen(null)}
+          onOpenChange={(o) => !o && setOpenId(null)}
           fixer={canFix ? me : undefined}
+          viewer={me}
           onChanged={() => void reload()}
           showVoided={showVoided}
         />
@@ -247,6 +250,7 @@ function RecordRow({
       ? `On shift · in ${formatClock(inAt, tz)} · ${formatDuration(Math.max(0, Math.round((Date.parse(now) - Date.parse(inAt)) / 60_000)))} so far`
       : `In ${formatClock(inAt, tz)} · Out ${formatClock(outAt, tz)} · ${formatDuration(session.worked_min ?? 0)}`
   const openFlags = flags.filter((f) => f.resolved_at === null)
+  const late = photos.filter((p) => p.added_late).length
   const tag = 'mt-2 mr-1 inline-flex h-[26px] items-center gap-1.5 rounded-full px-2.5 text-[13px] font-medium [&_svg]:size-3.5'
 
   return (
@@ -276,7 +280,7 @@ function RecordRow({
           </span>
         )}
 
-        {(inAt && photos.length === 0) || openFlags.length > 0 || notes.length > 0 || (showVoided && record.voided.length > 0) ? (
+        {(inAt && photos.length === 0) || late > 0 || openFlags.length > 0 || notes.length > 0 || (showVoided && record.voided.length > 0) ? (
           <span className="block">
             {showVoided && record.voided.length > 0 && (
               <span className={cn(tag, 'bg-muted text-muted-foreground line-through')}>
@@ -287,6 +291,12 @@ function RecordRow({
               <span className={cn(tag, 'bg-warn-soft text-warn')}>
                 <Camera aria-hidden />
                 No photos
+              </span>
+            )}
+            {late > 0 && (
+              <span className={cn(tag, 'bg-warn-soft text-warn')}>
+                <Clock aria-hidden />
+                {late === photos.length ? 'Photos added late' : `${late} added late`}
               </span>
             )}
             {openFlags.length > 0 && (

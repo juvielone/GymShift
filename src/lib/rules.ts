@@ -170,6 +170,14 @@ export function fortnightStartOf(date: string, settings: SiteSettings): string {
   return addDays(settings.roster_anchor_date, Math.floor(days / 14) * 14)
 }
 
+/**
+ * The last moment late photos can be added: the end of the fortnight the shift's day belongs to (midnight
+ * starting the next one, local time). Mirrors private.photo_late_until().
+ */
+export function photoLateUntil(date: string, settings: SiteSettings): Timestamp {
+  return zonedTimestamp(addDays(fortnightStartOf(date, settings), 14), '00:00', settings.timezone)
+}
+
 /** Default shift end: start + the standard shift length, e.g. "19:00" → "22:00". */
 export function defaultEndTime(start: string, settings: SiteSettings): string {
   const [h, m] = start.split(':').map(Number)

@@ -111,7 +111,8 @@ export const withdrawSwap = persisted(swaps.withdrawSwap, (l) => l.withdrawSwap)
 export const decideSwap = persisted(swaps.decideSwap, (l) => l.decideSwap)
 
 export { getPhotos } from './photos'
-export type { PhotoTarget } from './photos'
+export { getPhotoWindow } from './photos'
+export type { PhotoTarget, PhotoWindow } from './photos'
 /** Where to load a photo's image from: a short-lived signed link in the live app. null = no image. */
 export async function getPhotoUrl(photo: Photo): Promise<string | null> {
   return MODE === 'live' ? (await import('./live')).photoUrl(photo) : photos.getPhotoUrl(photo)

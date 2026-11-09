@@ -141,6 +141,7 @@ Nine features, ordered by build priority. Each acceptance criterion is a test th
 - Photos are compressed on the phone to about 150 KB before upload.
 - Each photo stores the shift, the cleaner and the upload time.
 - Time worked off the roster (an unscheduled clock-in) takes photos too, on the same rules; they belong to that clock-in. *(Decided 9 Nov 2026.)*
+- **Late photos:** after the upload window, the cleaner can still add photos to their own shift from My past shifts ("Add late photos") until the end of that fortnight. Each is saved as added late and marked "Late" for Carly; after the fortnight ends nothing more can be added. Flag, don't block. *(Decided 9 Nov 2026.)*
 - Clocking out with no photos asks "Add your photos first?" once. The cleaner can still clock out without them; it never blocks. *(Decided 30 Oct 2026.)*
 - A cleaner can remove a photo they added by mistake within 10 minutes of adding it. After that only Carly can remove it. A removed photo keeps its record (who removed it, when); only the image is deleted.
 - Photos are deleted automatically after 6 months.

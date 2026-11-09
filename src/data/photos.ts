@@ -3,8 +3,9 @@
 // photoFiles; the live app uses Supabase Storage (live.ts). The rows here are the record.
 // A removed photo keeps its row (who removed it, when); only the image goes.
 // Photos go on a rostered shift, or on the clock-in for time off the roster (PhotoTarget); same rules for both.
-import type { ClockEvent, Photo, Uuid } from '@/types'
-import { canRemoveOwnPhoto, compareTs, photoWindowClosesAt, photoWindowStart } from '@/lib/rules'
+// After the upload window, photos can still be added until the end of the fortnight, marked added_late.
+import type { ClockEvent, Photo, Timestamp, Uuid } from '@/types'
+import { canRemoveOwnPhoto, compareTs, localDate, photoLateUntil, photoWindowClosesAt, photoWindowStart } from '@/lib/rules'
 import { effectiveTime, isVoided, pairedOut } from './attendance'
 import { deleteFile, fileUrl, putFile } from './photoFiles'
 import { copy, db, newId, requireUser, roleOf, serverNow } from './store'
@@ -59,15 +60,22 @@ function sessionWindowFrom(clockIn: ClockEvent) {
   return out ? photoWindowStart({ server_time: out.server_time, effective_time: effectiveTime(out) }, latestAnswer(out.id)) : null
 }
 
-/**
- * Own shift (or own off-roster session) only, from clock-in until the upload window after clock-out closes,
- * up to the shift's limit. Live mode runs this too before uploading, so an image isn't sent only to be refused
- * (the database checks again: add_photo, add_session_photo).
- */
-export function requireCanAddPhoto(input: PhotoTarget & { userId: Uuid }) {
+/** Where photos stand for a shift or off-roster session: due now, late, or closed. */
+export interface PhotoWindow {
+  /** open: due now (on shift, or within the window after clock-out). late: still allowed, marked late. */
+  state: 'open' | 'late' | 'closed'
+  /** When photos were due: the upload window's close. null while still clocked in. */
+  dueBy: Timestamp | null
+  /** The end of the fortnight: the last moment a late photo can be added. */
+  lateUntil: Timestamp
+}
+
+/** The holder, its window and checks, without the photo-count limit. Throws when the target isn't theirs. */
+function resolveTarget(input: PhotoTarget & { userId: Uuid }) {
   const user = requireUser(input.userId)
   let holder: { shift_id: Uuid | null; clock_event_id: Uuid | null }
-  let clockOut: string | null
+  let windowFrom: Timestamp | null
+  let day: string
   if ('shiftId' in input) {
     const shift = db.shifts.find((s) => s.id === input.shiftId)
     if (!shift) throw new Error(`Unknown shift ${input.shiftId}`)
@@ -75,27 +83,51 @@ export function requireCanAddPhoto(input: PhotoTarget & { userId: Uuid }) {
     const att = attendanceOf(shift.id)
     if (!att.clockIn) throw new Error('Photos can be added once you clock in')
     holder = { shift_id: shift.id, clock_event_id: null }
-    clockOut = att.clockOut
+    windowFrom = att.clockOut
+    day = shift.date
   } else {
     const clockIn = db.clockEvents.find((e) => e.id === input.clockInId)
     if (!clockIn || clockIn.kind !== 'in' || isVoided(clockIn.id)) throw new Error('That clock-in is no longer on record')
     if (clockIn.user_id !== user.id) throw new Error('Photos can only be added to your own shift')
     if (clockIn.shift_id !== null) throw new Error('Add these photos to the rostered shift')
     holder = { shift_id: null, clock_event_id: clockIn.id }
-    clockOut = sessionWindowFrom(clockIn)
+    windowFrom = sessionWindowFrom(clockIn)
+    day = localDate(effectiveTime(clockIn), db.settings)
   }
   const now = serverNow()
-  const closes = photoWindowClosesAt(clockOut, db.settings)
-  if (closes !== null && compareTs(now, closes) > 0) throw new Error('Photos for this shift have closed')
+  const dueBy = photoWindowClosesAt(windowFrom, db.settings)
+  const lateUntil = photoLateUntil(day, db.settings)
+  const state: PhotoWindow['state'] = dueBy === null || compareTs(now, dueBy) <= 0 ? 'open' : compareTs(now, lateUntil) < 0 ? 'late' : 'closed'
+  return { user, holder, now, window: { state, dueBy, lateUntil } satisfies PhotoWindow }
+}
+
+/** Whether the person can still add photos to their own shift or off-roster session, and until when. null = not theirs. */
+export async function getPhotoWindow(input: PhotoTarget & { userId: Uuid }): Promise<PhotoWindow | null> {
+  try {
+    return copy(resolveTarget(input).window)
+  } catch {
+    return null
+  }
+}
+
+/**
+ * Own shift (or own off-roster session) only, from clock-in until the upload window after clock-out closes,
+ * up to the shift's limit. After that, until the end of the fortnight, a photo is still saved but marked late
+ * (flag, don't block). Live mode runs this too before uploading, so an image isn't sent only to be refused
+ * (the database checks again: add_photo, add_session_photo in 20_late_photos).
+ */
+export function requireCanAddPhoto(input: PhotoTarget & { userId: Uuid }) {
+  const { user, holder, now, window } = resolveTarget(input)
+  if (window.state === 'closed') throw new Error('Photos for this shift have closed')
   const sameHolder = (p: Photo) => (holder.shift_id !== null ? p.shift_id === holder.shift_id : p.clock_event_id === holder.clock_event_id)
   if (db.photos.filter((p) => sameHolder(p) && p.removed_at === null).length >= db.settings.max_photos_per_shift) {
     throw new Error(`A shift can have at most ${db.settings.max_photos_per_shift} photos`)
   }
-  return { user, holder, now }
+  return { user, holder, now, late: window.state === 'late' }
 }
 
 export async function uploadPhoto(input: PhotoTarget & { userId: Uuid; file: Blob }): Promise<Photo> {
-  const { user, holder, now } = requireCanAddPhoto(input)
+  const { user, holder, now, late } = requireCanAddPhoto(input)
   const expires = new Date(now)
   expires.setUTCMonth(expires.getUTCMonth() + db.settings.photo_retention_months)
   const id = newId('photo')
@@ -107,6 +139,7 @@ export async function uploadPhoto(input: PhotoTarget & { userId: Uuid; file: Blo
     size_bytes: input.file.size,
     uploaded_at: now,
     expires_at: expires.toISOString(),
+    added_late: late,
     removed_at: null,
     removed_by: null,
   }

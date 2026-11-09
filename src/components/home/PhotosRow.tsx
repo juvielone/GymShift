@@ -21,11 +21,13 @@ interface Props {
   onPick: () => void
   onRetry: (key: string) => void
   onOpen: (photo: Photo) => void
+  /** Once photos are overdue: where late ones can still go (My past shifts). */
+  onLate?: () => void
 }
 
 const tile = 'relative size-14 shrink-0 overflow-hidden rounded-[10px]'
 
-export function PhotosRow({ photos, queue, notice, settings, now, clockOut, onPick, onRetry, onOpen }: Props) {
+export function PhotosRow({ photos, queue, notice, settings, now, clockOut, onPick, onRetry, onOpen, onLate }: Props) {
   const tz = settings.timezone
   const max = settings.max_photos_per_shift
   const closesAt = photoWindowClosesAt(clockOut, settings)
@@ -36,7 +38,11 @@ export function PhotosRow({ photos, queue, notice, settings, now, clockOut, onPi
   const until = closesAt ? formatClock(closesAt, tz) : null
 
   if (photos.length === 0 && queue.length === 0) {
-    if (!open) return null
+    // Overdue with none: say so plainly, and where they can still go (marked late), without making it the easy path.
+    if (!open)
+      return onLate ? (
+        <StatusRow icon={<Camera />} tone="warn" title="No photos for this shift" detail={`They were due by ${until}. You can add them late in My past shifts.`} onClick={onLate} />
+      ) : null
     // Done with no photos: amber until they arrive, because Carly checks every shift's photos.
     return clockOut ? (
       <StatusRow icon={<Camera />} tone="warn" title="No photos yet" detail={`Add them by ${until}. Carly checks them.`} onClick={onPick} />

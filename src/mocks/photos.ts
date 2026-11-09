@@ -3,7 +3,7 @@ import { GLADYS, ANGEL, JOSH, shiftId } from './ids'
 
 const photo = (n: number, shift_id: string, user_id: string, uploaded_at: string, expires_at: string, size_bytes: number): Photo => {
   const id = `photo-${String(n).padStart(2, '0')}`
-  return { id, shift_id, clock_event_id: null, user_id, storage_path: `shifts/${shift_id}/${id}.jpg`, size_bytes, uploaded_at, expires_at, removed_at: null, removed_by: null }
+  return { id, shift_id, clock_event_id: null, user_id, storage_path: `shifts/${shift_id}/${id}.jpg`, size_bytes, uploaded_at, expires_at, added_late: false, removed_at: null, removed_by: null }
 }
 
 const JOSH_26 = shiftId('2026-10-26', 'morning')

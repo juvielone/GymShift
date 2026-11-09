@@ -3,6 +3,7 @@
 // swipe and next/previous. For Carly (canFix), "Correct time" and "Void clock-in" fix the clock events in
 // place; resolving flags stays in the flag sheet. Voided sessions are listed only with "Show voided".
 // Time off the roster (no shift) shows its times, photos, requests and flags; it has no shift notes.
+// On your own record, late photos can be added until the end of the fortnight (LatePhotos); late ones carry a mark.
 import { useRef, useState, type ReactNode } from 'react'
 import { ChevronLeft, ChevronRight, CircleAlert, Clock, MessageSquare, Package } from 'lucide-react'
 import type { EffectiveClockEvent, ShiftRecord } from '@/data'
@@ -10,6 +11,7 @@ import type { CorrectionRequest, NoteTag, SiteSettings, Timestamp, User } from '
 import { Drawer, DrawerContent, DrawerDescription, DrawerFooter, DrawerHeader, DrawerTitle } from '@/components/ui/drawer'
 import { Disc } from '@/components/common/ListParts'
 import { PhotoThumb } from '@/components/home/PhotosRow'
+import { LatePhotos } from '@/components/records/LatePhotos'
 import { FLAG_ICON } from '@/components/manager/flagIcons'
 import { FLAG_LABEL } from '@/components/manager/flagText'
 import { ClockFixForm, type ClockFix } from '@/components/manager/ClockFixForm'
@@ -51,9 +53,11 @@ interface Props {
   onChanged?: () => void
   /** List voided sessions too ("Show voided"). */
   showVoided?: boolean
+  /** Who is looking. On their own record they can add late photos. */
+  viewer?: User
 }
 
-export function ShiftRecordSheet({ record, settings, now, onOpenChange, fixer, onChanged, showVoided = false }: Props) {
+export function ShiftRecordSheet({ record, settings, now, onOpenChange, fixer, onChanged, showVoided = false, viewer }: Props) {
   const [viewing, setViewing] = useState<number | null>(null)
   const [fixing, setFixing] = useState<{ mode: ClockFix; event: EffectiveClockEvent } | null>(null)
   const { shift, user, session, photos, notes, flags } = record
@@ -68,6 +72,7 @@ export function ShiftRecordSheet({ record, settings, now, onOpenChange, fixer, o
   const subtitle = shift
     ? `${formatDateShort(shift.date)} · ${formatTimeRange(shift.start_time, shift.end_time)}`
     : `${formatDateShort(record.date)} · Clocked in with no shift on the roster`
+  const lateCount = photos.filter((p) => p.added_late).length
   const fixButton = 'h-11 rounded-[14px] border border-border px-3.5 text-[15px] font-medium hover:bg-muted active:bg-muted'
 
   if (fixing && fixer) {
@@ -186,6 +191,7 @@ export function ShiftRecordSheet({ record, settings, now, onOpenChange, fixer, o
               Photos
               <span className="text-sm font-normal text-muted-foreground">
                 {photos.length > 0 ? `${photos.length} of ${settings.max_photos_per_shift}` : 'None'}
+                {lateCount > 0 && <span className="text-warn"> · {lateCount} added late</span>}
               </span>
             </h3>
             {photos.length > 0 ? (
@@ -195,10 +201,11 @@ export function ShiftRecordSheet({ record, settings, now, onOpenChange, fixer, o
                     <button
                       type="button"
                       onClick={() => setViewing(i)}
-                      aria-label={`Photo ${i + 1}, added ${formatClock(p.uploaded_at, tz)}. Open`}
-                      className="block aspect-square w-full overflow-hidden rounded-[10px] bg-muted active:opacity-80"
+                      aria-label={`Photo ${i + 1}, added ${p.added_late ? 'late, ' : ''}${formatClock(p.uploaded_at, tz)}. Open`}
+                      className="relative block aspect-square w-full overflow-hidden rounded-[10px] bg-muted active:opacity-80"
                     >
                       <PhotoThumb photo={p} />
+                      {p.added_late && <LateMark />}
                     </button>
                   </li>
                 ))}
@@ -206,6 +213,7 @@ export function ShiftRecordSheet({ record, settings, now, onOpenChange, fixer, o
             ) : (
               <p className={cn('px-1 text-[15px]', session.clock_in ? 'text-warn' : 'text-muted-foreground')}>No photos for this shift.</p>
             )}
+            {viewer && viewer.id === user.id && session.clock_in && <LatePhotos record={record} userId={viewer.id} settings={settings} onSaved={() => onChanged?.()} />}
 
             {notes.length > 0 && (
               <>
@@ -290,6 +298,15 @@ function ClockFact({ label, event, settings, missing }: { label: string; event: 
   return <Fact label={label} value={formatClock(event.effective_time, tz)} note={note} warn={event.source === 'auto' || event.location_status !== 'ok' || away} />
 }
 
+/** On a photo added after its window closed: small, readable on any photo, never alarming. */
+function LateMark() {
+  return (
+    <span aria-hidden className="absolute bottom-1.5 left-1.5 rounded-full bg-black/65 px-2 py-0.5 text-[12px] leading-4 font-semibold text-white">
+      Late
+    </span>
+  )
+}
+
 /** A photo shown large inside the sheet. Swipe or use the arrows; "All photos" goes back to the grid. */
 function PhotoViewer({ record, index, tz, onIndex, onClose }: { record: ShiftRecord; index: number; tz: string; onIndex: (i: number) => void; onClose: () => void }) {
   const { photos } = record
@@ -323,7 +340,12 @@ function PhotoViewer({ record, index, tz, onIndex, onClose }: { record: ShiftRec
       </div>
       <div className="mt-2 flex items-center justify-between gap-3 px-1">
         <p className="text-[15px] text-muted-foreground" aria-live="polite">
-          Photo {index + 1} of {photos.length} · added {formatClock(photo.uploaded_at, tz)}
+          Photo {index + 1} of {photos.length} ·{' '}
+          {photo.added_late ? (
+            <span className="text-warn">added late, {formatDateShort(localDay(photo.uploaded_at, tz))} {formatClock(photo.uploaded_at, tz)}</span>
+          ) : (
+            `added ${formatClock(photo.uploaded_at, tz)}`
+          )}
         </p>
         <button type="button" onClick={onClose} className="h-11 shrink-0 rounded-[14px] border border-border px-4 text-[15px] font-semibold hover:bg-muted active:bg-muted">
           All photos

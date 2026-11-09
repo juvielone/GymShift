@@ -14,6 +14,8 @@ export interface Photo {
   /** ~150 KB after on-device compression. */
   size_bytes: number
   uploaded_at: Timestamp
+  /** Added after the upload window closed (until the end of the fortnight), so Carly sees it came late. */
+  added_late: boolean
   /** uploaded_at + photo_retention_months; auto-deleted after this. */
   expires_at: Timestamp
   /** Removed by mistake: the image is deleted, this row stays as the record. null = still shown. */

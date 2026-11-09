@@ -147,6 +147,13 @@ function chapters(s: SiteSettings): Chapter[] {
           ],
         },
         {
+          q: 'I missed the time for photos',
+          a: [
+            'Open My past shifts, tap the shift, then tap "Add late photos". You can do this until the end of the fortnight.',
+            'Your manager will see they were added late. Please add them on time when you can.',
+          ],
+        },
+        {
           q: 'I added the wrong photo',
           a: [`Tap the photo, then "Remove this photo". You can do this for ${formatDuration(s.photo_remove_window_min)} after adding it. After that, ask your manager to remove it.`],
         },
