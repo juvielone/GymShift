@@ -171,11 +171,14 @@ export function fortnightStartOf(date: string, settings: SiteSettings): string {
 }
 
 /**
- * The last moment late photos can be added: the end of the fortnight the shift's day belongs to (midnight
- * starting the next one, local time). Mirrors private.photo_late_until().
+ * The last moment late photos can be added: the end of the fortnight the shift's day belongs to, or the end of
+ * the late_photo_min_days-th day after the shift, whichever is later (midnight local time), so a shift on a
+ * fortnight's last day still gets a couple of days. Mirrors private.photo_late_until().
  */
 export function photoLateUntil(date: string, settings: SiteSettings): Timestamp {
-  return zonedTimestamp(addDays(fortnightStartOf(date, settings), 14), '00:00', settings.timezone)
+  const fortnightEnd = addDays(fortnightStartOf(date, settings), 14)
+  const minEnd = addDays(date, 1 + settings.late_photo_min_days)
+  return zonedTimestamp(fortnightEnd > minEnd ? fortnightEnd : minEnd, '00:00', settings.timezone)
 }
 
 /** Default shift end: start + the standard shift length, e.g. "19:00" → "22:00". */

@@ -1,5 +1,5 @@
 // Late photos, on your own past shift in "My past shifts": after the upload window has closed and until the end
-// of the fortnight. Plain and a little firm on purpose: it says when the photos were due and that Carly will see
+// of the fortnight (or a couple of days after the shift, if later: photoLateUntil()). Plain and a little firm on purpose: it says when the photos were due and that Carly will see
 // they came late, and the button is outline, never red, because this isn't the normal way to add photos.
 // Saved photos join the sheet's grid above (with a "Late" mark); this block only shows what's still saving.
 import { useEffect, useState } from 'react'

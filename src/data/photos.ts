@@ -3,7 +3,8 @@
 // photoFiles; the live app uses Supabase Storage (live.ts). The rows here are the record.
 // A removed photo keeps its row (who removed it, when); only the image goes.
 // Photos go on a rostered shift, or on the clock-in for time off the roster (PhotoTarget); same rules for both.
-// After the upload window, photos can still be added until the end of the fortnight, marked added_late.
+// After the upload window, photos can still be added until the end of the fortnight (at least a couple of days
+// after the shift: photoLateUntil()), marked added_late.
 import type { ClockEvent, Photo, Timestamp, Uuid } from '@/types'
 import { canRemoveOwnPhoto, compareTs, localDate, photoLateUntil, photoWindowClosesAt, photoWindowStart } from '@/lib/rules'
 import { effectiveTime, isVoided, pairedOut } from './attendance'
@@ -66,7 +67,7 @@ export interface PhotoWindow {
   state: 'open' | 'late' | 'closed'
   /** When photos were due: the upload window's close. null while still clocked in. */
   dueBy: Timestamp | null
-  /** The end of the fortnight: the last moment a late photo can be added. */
+  /** The last moment a late photo can be added: the end of the fortnight, or a couple of days after the shift. */
   lateUntil: Timestamp
 }
 

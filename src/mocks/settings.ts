@@ -19,6 +19,7 @@ export const settings: SiteSettings = {
   photo_upload_window_min: 180,
   photo_remove_window_min: 10,
   photo_retention_months: 6,
+  late_photo_min_days: 2,
   start_mismatch_min: 90,
   short_session_flag_min: 2,
   over_length_grace_min: 10,

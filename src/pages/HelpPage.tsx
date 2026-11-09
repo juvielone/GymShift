@@ -149,7 +149,7 @@ function chapters(s: SiteSettings): Chapter[] {
         {
           q: 'I missed the time for photos',
           a: [
-            'Open My past shifts, tap the shift, then tap "Add late photos". You can do this until the end of the fortnight.',
+            `Open My past shifts, tap the shift, then tap "Add late photos". You can do this until the end of the fortnight, and always for at least ${s.late_photo_min_days} days after the shift.`,
             'Your manager will see they were added late. Please add them on time when you can.',
           ],
         },

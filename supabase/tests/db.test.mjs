@@ -731,6 +731,16 @@ test('photos off the roster: saved on the clock-in by add_session_photo, with th
   }
 })
 
+test('late photos: until the end of the fortnight, and always at least 2 days after the shift', async () => {
+  const q = async (sql, params) => Object.values((await db.query(sql, params)).rows[0])[0]
+  const start = await q(`select private.fortnight_start_of(current_date)::text`)
+  const midnight = (dayExpr) => q(`select (${dayExpr})::timestamp at time zone 'Australia/Sydney' = private.photo_late_until($1::date) as ok`, [start])
+  // The fortnight's first day: its end is well past 2 days.
+  assert.equal(await midnight(`$1::date + 14`), true)
+  // Its last day (a Sunday): 2 days after it, not the fortnight's end a few hours later.
+  assert.equal(await q(`select (($1::date + 13) + 3)::timestamp at time zone 'Australia/Sydney' = private.photo_late_until($1::date + 13) as ok`, [start]), true)
+})
+
 // ---- Attendance fixes (12_attendance_fixes): voids, late clock-outs, forgotten clock-outs ----
 
 /** Insert a clock event as the database owner, `minutesAgo` before now. Returns its id. */

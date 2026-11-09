@@ -28,6 +28,8 @@ export interface SiteSettings {
   /** Minutes after adding a photo during which the cleaner can remove it themselves (default 10). */
   photo_remove_window_min: number
   photo_retention_months: number
+  /** Late photos are allowed until the end of the fortnight, and at least to the end of this many days after the shift (default 2). */
+  late_photo_min_days: number
   /** A clock-in further than this from the rostered start asks first, and is flagged (default 90). */
   start_mismatch_min: number
   /** A session shorter than this is flagged (default 2). */
