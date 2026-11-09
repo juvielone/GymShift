@@ -9,6 +9,7 @@ import {
   getNotes,
   getPhotos,
   getSettings,
+  getShift,
   getShiftAttendance,
   getShifts,
   getUpcomingShifts,
@@ -108,12 +109,16 @@ async function loadHome(): Promise<CleanerHome> {
     }
   }
 
+  // The shift a clock-in is linked to, whatever day it is rostered on: a night shift runs past midnight,
+  // so after 12:00 am it is no longer among today's shifts.
+  const linkedShift = async (e: EffectiveClockEvent) =>
+    e.shift_id ? (todayShifts.find((s) => s.id === e.shift_id) ?? (await getShift(e.shift_id))) : null
+
   // An open clock-in wins: the most recent event being an 'in' means they're on the clock now.
   const last = events.at(-1)
   let phase: HomePhase | null = null
   if (last?.kind === 'in') {
-    const shift = last.shift_id ? (todayShifts.find((s) => s.id === last.shift_id) ?? null) : null
-    phase = { kind: 'on', session: await buildSession(shift, last, null) }
+    phase = { kind: 'on', session: await buildSession(await linkedShift(last), last, null) }
   }
 
   let lastDone: Session | null = null
@@ -129,10 +134,12 @@ async function loadHome(): Promise<CleanerHome> {
     }
   }
   if (!phase) {
-    // A just-finished unscheduled session today still counts as "done" for the screen.
+    // A session that finished today still counts as "done" for the screen: an unscheduled one, or a night
+    // shift rostered yesterday that ran past midnight.
     const lastOut = last?.kind === 'out' && localDate(last.effective_time, settings) === today ? last : null
     const lastIn = lastOut ? events.findLast((e) => e.kind === 'in' && compareTs(e.effective_time, lastOut.effective_time) <= 0) : undefined
-    if (!lastDone && lastOut && lastIn && lastIn.shift_id === null && !setAside(lastIn)) lastDone = await buildSession(null, lastIn, lastOut)
+    const fromToday = lastIn?.shift_id != null && todayShifts.some((s) => s.id === lastIn.shift_id)
+    if (!lastDone && lastOut && lastIn && !fromToday && !setAside(lastIn)) lastDone = await buildSession(await linkedShift(lastIn), lastIn, lastOut)
     phase = lastDone ? { kind: 'done', session: lastDone } : { kind: 'no_shift', lastDone: null }
   }
 

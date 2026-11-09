@@ -8,9 +8,9 @@ export interface SiteSettings {
   gym_lng: number
   /** Geofence radius in metres (default 150). */
   radius_m: number
-  /** Minutes after shift start with no clock-in before a no-show flag (default 15). */
+  /** Minutes after shift start with no clock-in before a no-show flag (default 90: the roster start is a guide). */
   no_show_after_min: number
-  /** Minutes after shift end with no clock-out before a missing-clock-out flag (default 30). */
+  /** Minutes after the expected finish (clock-in plus approved length) with no clock-out before a missing-clock-out flag (default 30). */
   missing_out_after_min: number
   /** Standard shift length in minutes (180 = 3h). */
   standard_shift_min: number
@@ -28,11 +28,13 @@ export interface SiteSettings {
   /** Minutes after adding a photo during which the cleaner can remove it themselves (default 10). */
   photo_remove_window_min: number
   photo_retention_months: number
-  /** A clock-in further than this from the rostered start asks first, and is flagged (default 30). */
+  /** A clock-in further than this from the rostered start asks first, and is flagged (default 90). */
   start_mismatch_min: number
   /** A session shorter than this is flagged (default 2). */
+  /** Minutes over the approved length allowed before the over-length flag (default 10). Flag only: every minute is paid. */
+  over_length_grace_min: number
   short_session_flag_min: number
-  /** A session still open this long after its approved end is closed at that end (default 120). */
+  /** A session still open this long after its expected finish is closed at that finish (default 120). */
   auto_close_after_min: number
   /** Who last changed the gym location or radius, and when. null = never changed in the app. */
   updated_by: Uuid | null

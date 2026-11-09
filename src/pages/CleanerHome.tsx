@@ -4,7 +4,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { Check, CircleAlert, Clock, Hourglass, LoaderCircle, MessageSquare, Undo2, X } from 'lucide-react'
 import { AlreadyClockedInError, clockIn, clockOut } from '@/data'
 import type { ClockLocation, ClockResult } from '@/data'
-import type { FlagKind, Photo } from '@/types'
+import type { FlagKind, Photo, SiteSettings } from '@/types'
 import { useCleanerHome, type CleanerHome as HomeData, type Session, type VoidNotice } from '@/hooks/useCleanerHome'
 import { ShiftPass } from '@/components/home/ShiftPass'
 import { ExtensionRow, LocationRow, StatusRow } from '@/components/home/StatusRows'
@@ -31,7 +31,7 @@ import { RosterRow } from '@/components/roster/RosterRow'
 import { RecordsRow } from '@/components/records/RecordsRow'
 import { firstName, formatClock, formatDateLong, formatDateShort, formatDuration, formatTime, shiftLabel, siteShortName } from '@/lib/format'
 import { getClockLocation } from '@/lib/geolocation'
-import { compareTs, distanceMetres, isOffSite, localDate, minutesBetween, needsClockInConfirm, shiftStartAt } from '@/lib/rules'
+import { compareTs, distanceMetres, isOffSite, isOverApproved, localDate, minutesBetween, needsClockInConfirm, shiftStartAt } from '@/lib/rules'
 import { cn } from '@/lib/utils'
 
 type Step = 'idle' | 'locating' | 'saving' | 'saved'
@@ -193,8 +193,8 @@ function Home({
       // The button itself confirms with one drawn tick before settling into its next state.
       setStep('saved')
       window.setTimeout(() => setStep('idle'), 1400)
-      // Past the approved finish: ask once what happened (stayed, or forgot to clock out).
-      if (kind === 'out' && session && worked !== null && worked > session.approvedMin) {
+      // Past the approved finish by more than the leeway: ask once what happened (stayed, or forgot to clock out).
+      if (kind === 'out' && session && worked !== null && isOverApproved(worked, session.approvedMin, settings)) {
         const out = { ...result.event, effective_time: result.event.server_time, corrected: false, voided: null }
         setFinish({ mode: 'late', session: { ...session, clockOut: out, workedMin: worked } })
       }
@@ -313,7 +313,7 @@ function Home({
           />
         )}
         {session && <ExtensionRow session={session} settings={settings} tz={tz} onAsk={() => setExtOpen(true)} />}
-        {session && <FinishRow session={session} tz={tz} onAsk={() => setFinish({ mode: 'late', session })} />}
+        {session && <FinishRow session={session} settings={settings} onAsk={() => setFinish({ mode: 'late', session })} />}
         {recordShift && (
           <StatusRow
             icon={<MessageSquare />}
@@ -531,7 +531,8 @@ function VoidNoticeRow({ notice, tz }: { notice: VoidNotice; tz: string }) {
 }
 
 /** After clocking out past the approved finish: tell Carly what happened, then what she decided. */
-function FinishRow({ session, tz, onAsk }: { session: Session; tz: string; onAsk: () => void }) {
+function FinishRow({ session, settings, onAsk }: { session: Session; settings: SiteSettings; onAsk: () => void }) {
+  const tz = settings.timezone
   const out = session.clockOut
   if (!out) return null
   const request = session.endRequest
@@ -547,7 +548,7 @@ function FinishRow({ session, tz, onAsk }: { session: Session; tz: string; onAsk
   }
   // Asked for the extra time after clocking out: the extra-time row shows that.
   const askedAfter = session.extensions.some((e) => compareTs(e.created_at, out.server_time) >= 0)
-  if (out.source !== 'phone' || session.workedMin <= session.approvedMin || askedAfter) return null
+  if (out.source !== 'phone' || !isOverApproved(session.workedMin, session.approvedMin, settings) || askedAfter) return null
   return (
     <StatusRow
       icon={<Clock />}

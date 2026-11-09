@@ -669,13 +669,13 @@ test('void: an accidental clock-in is asked about, closed at once, and voided on
   const shared = db
   db = await freshDb()
   try {
-    const t = await startingAgo(-45)
+    const t = await startingAgo(-100)
     const shift = await addShift({ date: t.date, type: 'night', user: JOSH, start: t.start, end: t.end })
 
-    // 45 minutes early: saved and linked, with an off-start flag.
+    // 100 minutes early (past the 90-minute window): saved and linked, with an off-start flag.
     const first = await clock(JOSH, 'in', { lat: GYM.lat, lng: GYM.lng, accuracy: 10 })
     assert.equal(first.event.shift_id, shift)
-    assert.match(first.flags.find((f) => f.kind === 'off_start').detail, /^Clock-in 0h 4[45]m before the \d{1,2}:\d{2} [ap]m start$/)
+    assert.match(first.flags.find((f) => f.kind === 'off_start').detail, /^Clock-in 1h (39|40)m before the \d{1,2}:\d{2} [ap]m start$/)
 
     // Never two open clock-ins.
     await assert.rejects(clock(JOSH, 'in', { status: 'denied' }), (e) => {
@@ -803,17 +803,19 @@ test('late clock-out: "forgot" becomes a correction once Carly approves; "stayed
   }
 })
 
-test('forgotten clock-out: closed at the rostered end two hours after it, labelled, and confirmed or corrected', async () => {
+test('forgotten clock-out: closed at the expected finish (clock-in plus 3h) two hours after it, labelled, and confirmed or corrected', async () => {
   const shared = db
   db = await freshDb()
   try {
-    // Josh: ended 3 hours ago, never clocked out → closed. Kyle: ended 1 hour ago → not yet.
+    // Josh: clocked in 355 min ago, so his 3 hours ended 175 min ago; never clocked out → closed.
     const j = await startingAgo(360)
     const joshShift = await addShift({ date: j.date, type: 'night', user: JOSH, start: j.start, end: j.end })
     const joshIn = await clockAgo(JOSH, joshShift, 'in', 355)
-    const k = await startingAgo(240)
+    // Kyle: rostered 330 min ago (roster end 150 min ago) but clocked in 80 min late, 250 min ago. His 3 hours
+    // ended 70 min ago, so not yet: the roster time is a guide.
+    const k = await startingAgo(330)
     const kyleShift = await addShift({ date: k.date, type: 'morning', user: KYLE, start: k.start, end: k.end })
-    await clockAgo(KYLE, kyleShift, 'in', 240)
+    await clockAgo(KYLE, kyleShift, 'in', 250)
     // Gladys: unscheduled, 6 hours ago → closed at clock-in plus 3 hours.
     const gladysIn = await clockAgo(GLADYS, null, 'in', 360)
 
@@ -827,7 +829,7 @@ test('forgotten clock-out: closed at the rostered end two hours after it, labell
     assert.equal(joshOut.kind, 'out')
     assert.equal(joshOut.shift_id, joshShift)
     assert.equal(joshOut.location_status, 'unavailable')
-    assert.equal(await truthy(`select e.assumed_time = private.shift_end_at(sh, 'Australia/Sydney') from clock_events e, shifts sh where e.id = $1 and sh.id = $2`, [joshOut.id, joshShift]), true)
+    assert.equal(await truthy(`select private.session_min($1, $2) = 180`, [joshIn, joshOut.id]), true)
     assert.equal(await truthy(`select private.effective_time($1) = assumed_time from clock_events where id = $1`, [joshOut.id]), true)
     assert.equal((await auto(KYLE)).length, 0)
     const [gladysOut] = await auto(GLADYS)
@@ -851,6 +853,52 @@ test('forgotten clock-out: closed at the rostered end two hours after it, labell
     await one(CARLY, `select * from public.decide_correction_request($1, true)`, [corr.id])
     assert.equal(await truthy(`select private.session_min($1, $2) = 120`, [gladysIn, gladysOut.id]), true)
     assert.equal((await db.query(`select reason from corrections where clock_event_id = $1`, [gladysOut.id])).rows[0].reason, 'Gladys: Left early, felt sick')
+  } finally {
+    db = shared
+  }
+})
+
+test('the roster is a guide: finish from clock-in, a 10-minute leeway, and a no-show becomes a late start', async () => {
+  const shared = db
+  db = await freshDb()
+  try {
+    // Leeway: 3h 8m is paid and not flagged; 3h 12m is flagged. Nothing is cut either way.
+    const j = await startingAgo(188)
+    const joshShift = await addShift({ date: j.date, type: 'night', user: JOSH, start: j.start, end: j.end })
+    await clockAgo(JOSH, joshShift, 'in', 188)
+    const joshOut = await clock(JOSH, 'out', { lat: GYM.lat, lng: GYM.lng, accuracy: 10 })
+    assert.equal(joshOut.flags.length, 0)
+    const k = await startingAgo(192)
+    const kyleShift = await addShift({ date: k.date, type: 'morning', user: KYLE, start: k.start, end: k.end })
+    const kyleIn = await clockAgo(KYLE, kyleShift, 'in', 192)
+    const kyleOut = await clock(KYLE, 'out', { lat: GYM.lat, lng: GYM.lng, accuracy: 10 })
+    assert.equal(kyleOut.flags.find((f) => f.kind === 'over_without_extension').detail, 'Recorded 3h 12m; approved 3h 0m')
+    assert.equal(await truthy(`select private.session_min($1, $2) = 192`, [kyleIn, kyleOut.event.id]), true)
+
+    // One shift per slot (date and morning/night): a new database for each case below.
+    db = await freshDb()
+    // Missing clock-out counts from clock-in: Gladys was rostered 330 min ago (roster end 150 min ago) but clocked
+    // in 200 min ago. Her finish was 20 min ago, so the 30-minute check isn't due yet.
+    const g = await startingAgo(330)
+    const gladysShift = await addShift({ date: g.date, type: 'night', user: GLADYS, start: g.start, end: g.end })
+    const gladysIn = await clockAgo(GLADYS, gladysShift, 'in', 200)
+    const raise = async () => (await db.query(`select private.raise_due_flags() as n`)).rows[0].n
+    await raise()
+    assert.equal((await db.query(`select count(*)::int as n from flags where clock_event_id = $1`, [gladysIn])).rows[0].n, 0)
+
+    db = await freshDb()
+    // A no-show (the test site keeps a 15-minute window), then Carly clocks in 2 hours late: the no-show is
+    // resolved and the late start is flagged instead.
+    const c = await startingAgo(120)
+    const carlyShift = await addShift({ date: c.date, type: 'night', user: CARLY, start: c.start, end: c.end })
+    await raise()
+    const noShow = (await db.query(`select id, resolved_at from flags where shift_id = $1 and kind = 'no_show'`, [carlyShift])).rows
+    assert.equal(noShow.length, 1)
+    assert.equal(noShow[0].resolved_at, null)
+    const late = await clock(CARLY, 'in', { lat: GYM.lat, lng: GYM.lng, accuracy: 10 })
+    assert.equal(late.event.shift_id, carlyShift)
+    assert.match(late.flags.find((f) => f.kind === 'off_start').detail, /^Clock-in (1h 59m|2h 0m) after the \d{1,2}:\d{2} [ap]m start$/)
+    assert.equal((await db.query(`select resolved_by from flags where id = $1`, [noShow[0].id])).rows[0].resolved_by, CARLY)
   } finally {
     db = shared
   }

@@ -45,11 +45,17 @@ export function approvedShiftMinutes(extensions: Extension[], settings: SiteSett
 }
 
 /**
- * True when worked time exceeds what has been approved. This only FLAGS for review —
- * worked minutes are never reduced; hours actually worked are paid.
+ * True when worked time exceeds what has been approved by more than the leeway (over_length_grace_min).
+ * This only FLAGS for review: worked minutes are never reduced, and the leeway minutes are paid like any other.
+ * Mirrors private.is_over_length().
  */
 export function isOverWithoutExtension(workedMin: number, extensions: Extension[], settings: SiteSettings): boolean {
-  return workedMin > approvedShiftMinutes(extensions, settings)
+  return isOverApproved(workedMin, approvedShiftMinutes(extensions, settings), settings)
+}
+
+/** Worked time beyond the approved length plus the leeway. */
+export function isOverApproved(workedMin: number, approvedMin: number, settings: SiteSettings): boolean {
+  return workedMin > approvedMin + settings.over_length_grace_min
 }
 
 /** Whether approving `requestMin` more minutes keeps the shift within the maximum (3.5h). */
@@ -124,12 +130,19 @@ export function isShortSession(workedMin: number, settings: SiteSettings): boole
 }
 
 /**
- * Where a forgotten session is closed: the shift's approved end (its end plus approved extra time); unscheduled,
- * or clocked in after that end, clock-in plus the standard length. Nothing measured is cut: no end was measured.
- * Mirrors private.close_forgotten_sessions(); keep them in step.
+ * When a session is expected to finish: clock-in plus its approved length (the standard 3h plus approved extra
+ * time; the standard length when unscheduled). The rostered times are a guide: a cleaner who starts late or early
+ * works their full shift from when they clock in. A forgotten session is closed here, and the missing clock-out
+ * flag counts from here. Nothing measured is cut: no end was measured.
+ * Mirrors private.expected_end(); keep them in step.
  */
-export function assumedEnd(clockIn: Timestamp, approvedEnd: Timestamp | null, settings: SiteSettings): Timestamp {
-  return approvedEnd !== null && compareTs(approvedEnd, clockIn) > 0 ? approvedEnd : plusMinutes(clockIn, settings.standard_shift_min)
+export function assumedEnd(clockIn: Timestamp, approvedMin: number): Timestamp {
+  return plusMinutes(clockIn, approvedMin)
+}
+
+/** When a session still open raises the missing clock-out flag: missing_out_after_min after its expected end. */
+export function missingOutDueAt(end: Timestamp, settings: SiteSettings): Timestamp {
+  return plusMinutes(end, settings.missing_out_after_min)
 }
 
 /** When a session still open is closed automatically: auto_close_after_min after its assumed end. */

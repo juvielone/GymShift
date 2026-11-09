@@ -283,7 +283,7 @@ function ClockFact({ label, event, settings, missing }: { label: string; event: 
   const away = event.location_status === 'ok' && isOffSite(event.distance_m, event.accuracy_m, settings)
   const place =
     event.source === 'auto'
-      ? 'Closed automatically · rostered end used'
+      ? 'Closed automatically · expected finish used'
       : event.location_status !== 'ok'
         ? 'No location'
         : away

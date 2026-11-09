@@ -11,6 +11,13 @@ const TIMES: { label: string; ts: string }[] = [
   { label: 'Wed 28 Oct · 7:40 pm (during)', ts: '2026-10-28T19:40:00+11:00' },
   { label: 'Wed 28 Oct · 9:45 pm (finish)', ts: '2026-10-28T21:45:00+11:00' },
   { label: 'Wed 28 Oct · 10:15 pm (over 3h)', ts: '2026-10-28T22:15:00+11:00' },
+  // The roster is a guide (8 Nov rules): Josh arrives an hour late for the same 7:00–10:00 pm shift.
+  { label: 'Late · 7:45 pm (Josh not in yet)', ts: '2026-10-28T19:45:00+11:00' },
+  { label: 'Late · 8:00 pm (Josh arrives, clock in)', ts: '2026-10-28T20:00:00+11:00' },
+  { label: 'Late · 9:30 pm (on shift)', ts: '2026-10-28T21:30:00+11:00' },
+  { label: 'Late · 11:05 pm (3h 5m, in the leeway)', ts: '2026-10-28T23:05:00+11:00' },
+  { label: 'Late · 11:15 pm (3h 15m, past it)', ts: '2026-10-28T23:15:00+11:00' },
+  { label: 'Late · Thu 12:20 am (past midnight)', ts: '2026-10-29T00:20:00+11:00' },
   { label: 'Thu 29 Oct · 12:00 pm', ts: '2026-10-29T12:00:00+11:00' },
   { label: 'Sat 31 Oct · 6:50 am', ts: '2026-10-31T06:50:00+11:00' },
 ]

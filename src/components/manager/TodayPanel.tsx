@@ -47,7 +47,8 @@ export function TodayPanel({ rows, settings, now, onOpen }: { rows: TodayRow[]; 
               chip = { label: 'Running late', tone: 'quiet' }
               line = `Said about ${formatClock(arriveBy, tz)}`
             } else if (started) {
-              chip = { label: 'Not in yet', tone: 'warn' }
+              // The roster start is a guide: calm until the no-show window has passed, then a warning.
+              chip = { label: 'Not in yet', tone: compareTs(now, noShowDueAt(startTs, arriveBy, settings)) >= 0 ? 'warn' : 'quiet' }
               line = arriveBy ? `Was due ${formatTime(shift.start_time)} · said about ${formatClock(arriveBy, tz)}` : `Was due ${formatTime(shift.start_time)}`
             } else {
               chip = { label: `Starts ${formatTime(shift.start_time)}`, tone: 'quiet' }

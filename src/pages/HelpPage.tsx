@@ -73,6 +73,13 @@ function chapters(s: SiteSettings): Chapter[] {
           ],
         },
         {
+          q: 'I arrived early or late. When do I finish?',
+          a: [
+            `The roster time is a guide. Your ${formatDuration(s.standard_shift_min)} start when you clock in, so you finish ${formatDuration(s.standard_shift_min)} after that. Your shift card shows your finish time once you clock in.`,
+            `Clocking in up to ${formatDuration(s.start_mismatch_min)} before or after your rostered start is fine. Further off than that, the app asks you first and your manager is told. Your time still saves.`,
+          ],
+        },
+        {
           q: 'My phone asks for my location. Do I have to say yes?',
           a: ['Please tap Allow. Your location is only checked at that moment. If you say no, your clock-in still saves, and your manager will check it.'],
         },
@@ -92,16 +99,21 @@ function chapters(s: SiteSettings): Chapter[] {
           q: 'I forgot to clock out',
           a: [
             'Clock out as soon as you remember. The app asks when you really finished; tell it.',
-            `If you never clock out, the app closes your shift ${formatDuration(s.auto_close_after_min)} after your finish time. It records your finish time, plus any extra time your manager approved. If you were not rostered, it records ${formatDuration(s.standard_shift_min)} after you clocked in. Next time you open the app, it asks you to check that time.`,
+            `If you never clock out, the app closes your shift ${formatDuration(s.auto_close_after_min)} after your finish time. It records your finish time: ${formatDuration(s.standard_shift_min)} after you clocked in, plus any extra time your manager approved. Next time you open the app, it asks you to check that time.`,
           ],
         },
         {
           q: 'I stayed late to finish',
-          a: ['When you clock out after your finish time, the app asks what happened. Tap "I stayed to finish" to ask for the extra time. Your manager says yes or no.'],
+          a: [
+            `When you clock out more than ${formatDuration(s.over_length_grace_min)} after your finish time, the app asks what happened. Tap "I stayed to finish" to ask for the extra time. Your manager says yes or no.`,
+          ],
         },
         {
           q: "I'm running late",
-          a: ['Before your shift, tap the note row under your shift, then Running late, and pick about how late. Your manager will see when you expect to arrive.'],
+          a: [
+            `You don't need to tell anyone if you'll be there within ${formatDuration(s.start_mismatch_min)} of your start. You still work your full ${formatDuration(s.standard_shift_min)} from when you clock in.`,
+            'Later than that? Before your shift, tap the note row under your shift, then Running late, and pick about how late. Your manager will see when you expect to arrive.',
+          ],
         },
         {
           q: 'What if I have no internet?',
@@ -110,7 +122,7 @@ function chapters(s: SiteSettings): Chapter[] {
         {
           q: 'Will the app ever cut my hours?',
           a: [
-            `No. You are paid from clock-in to clock-out. If a shift goes over ${formatDuration(s.standard_shift_min)} without approved extra time, your manager is told, but nothing is taken off.`,
+            `No. You are paid from clock-in to clock-out, every minute. If a shift goes more than ${formatDuration(s.over_length_grace_min)} over ${formatDuration(s.standard_shift_min)} without approved extra time, your manager is told, but nothing is taken off.`,
           ],
         },
       ],

@@ -8,11 +8,11 @@ export type FlagKind =
   | 'no_location'
   /** clock event with no matching shift */
   | 'unscheduled'
-  /** no clock-in no_show_after_min after shift start */
+  /** no clock-in no_show_after_min after shift start; resolved when they clock in (their late start is flagged instead) */
   | 'no_show'
-  /** no clock-out missing_out_after_min after shift end */
+  /** no clock-out missing_out_after_min after the expected finish (clock-in plus approved length) */
   | 'missing_clock_out'
-  /** worked longer than the standard shift without an approved extension */
+  /** worked longer than the approved length plus over_length_grace_min */
   | 'over_without_extension'
   /** clocked out within short_session_flag_min of clocking in */
   | 'short_session'

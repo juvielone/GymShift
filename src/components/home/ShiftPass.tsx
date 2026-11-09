@@ -4,7 +4,7 @@ import { Check, Clock, Moon, Sunrise } from 'lucide-react'
 import type { SiteSettings, Timestamp } from '@/types'
 import type { HomePhase, Session } from '@/hooks/useCleanerHome'
 import { formatClock, formatDuration, formatTime, formatTimeRange, localTime } from '@/lib/format'
-import { minutesBetween } from '@/lib/rules'
+import { isOverApproved, minutesBetween } from '@/lib/rules'
 import { cn } from '@/lib/utils'
 
 const addMinutes = (ts: Timestamp, min: number) => new Date(Date.parse(ts) + min * 60_000).toISOString()
@@ -35,7 +35,8 @@ export function ShiftPass({ phase, settings, now, nextShiftLabel }: Props) {
   const shift = phase.kind === 'before' ? phase.shift : phase.session.shift
   const session = phase.kind === 'before' ? null : phase.session
   const TypeIcon = !shift ? Clock : shift.type === 'morning' ? Sunrise : Moon
-  const pastMark = phase.kind === 'on' && shift !== null && phase.session.workedMin > phase.session.approvedMin
+  // Past the approved length plus the leeway: only then does Carly get a flag to check.
+  const pastMark = phase.kind === 'on' && shift !== null && isOverApproved(phase.session.workedMin, phase.session.approvedMin, settings)
   const title = shift ? `${shift.type === 'morning' ? 'Morning' : 'Night'} shift` : 'Not on the roster'
 
   return (
@@ -49,7 +50,8 @@ export function ShiftPass({ phase, settings, now, nextShiftLabel }: Props) {
       </div>
 
       <p className="mt-3 text-[34px] leading-[1.1] font-semibold tracking-[-0.02em]">
-        {shift ? formatTimeRange(shift.start_time, shift.end_time) : `Since ${formatClock(session!.clockIn.effective_time, tz)}`}
+        {/* The roster is a guide: once clocked in, their own shift runs from clock-in to clock-in plus the approved length. */}
+        {!session ? formatTimeRange(shift!.start_time, shift!.end_time) : shift ? sessionRange(session, tz) : `Since ${formatClock(session.clockIn.effective_time, tz)}`}
       </p>
 
       <ProgressLine session={session} settings={settings} />
@@ -72,6 +74,12 @@ export function ShiftPass({ phase, settings, now, nextShiftLabel }: Props) {
       </div>
     </section>
   )
+}
+
+/** "9:57 pm – 12:57 am": clock-in to clock-out, or to the expected finish while still on shift. */
+function sessionRange(session: Session, tz: string): string {
+  const end = session.clockOut?.effective_time ?? addMinutes(session.clockIn.effective_time, session.approvedMin)
+  return formatTimeRange(localTime(session.clockIn.effective_time, tz), localTime(end, tz))
 }
 
 function StatusChip({ phase, now, tz }: { phase: HomePhase; now: Timestamp; tz: string }) {
@@ -147,7 +155,7 @@ function Legend({ phase, settings, tz }: { phase: HomePhase; settings: SiteSetti
   let right: string
   if (phase.kind === 'before') {
     left = `${formatDuration(settings.standard_shift_min)} shift`
-    right = `Finish ${formatTime(phase.shift.end_time)}`
+    right = 'Counts from when you clock in'
   } else if (phase.kind === 'on' || phase.kind === 'done') {
     const s = phase.session
     left = `In ${formatClock(s.clockIn.effective_time, tz)}`

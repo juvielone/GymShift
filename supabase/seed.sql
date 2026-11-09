@@ -75,7 +75,7 @@ begin
   insert into public.site_settings (site_name, gym_lat, gym_lng, radius_m, no_show_after_min, missing_out_after_min, standard_shift_min,
     max_shift_min, max_extension_request_min, roster_anchor_date, default_morning_start, default_night_start,
     max_photos_per_shift, photo_upload_window_min, photo_remove_window_min, photo_retention_months)
-  values ('World Gym Macquarie Park', gym_lat, gym_lng, 150, 15, 30, 180, 210, 30, '2026-10-26', '07:00', '19:00', 10, 180, 10, 6);
+  values ('World Gym Macquarie Park', gym_lat, gym_lng, 150, 90, 30, 180, 210, 30, '2026-10-26', '07:00', '19:00', 10, 180, 10, 6);
 
   -- ---- People: a Supabase login (hidden address, hashed PIN) and a staff row each ----
   for person in

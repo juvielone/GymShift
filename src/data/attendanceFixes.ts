@@ -3,7 +3,7 @@
 // 12_attendance_fixes.sql. Nothing is overwritten or deleted: a void is a clock_voids row, an end time a
 // corrections row, and each request is decided once.
 import type { ClockEvent, ClockVoid, CorrectionReason, CorrectionRequest, CorrectionRequestKind, RequestStatus, Timestamp, User, Uuid } from '@/types'
-import { approvedShiftMinutes, compareTs, minutesBetween } from '@/lib/rules'
+import { approvedShiftMinutes, compareTs, isOverApproved, minutesBetween } from '@/lib/rules'
 import { firstName } from '@/lib/format'
 import { effectiveTime, isVoided, openClockIn, pairedIn, pairedOut, voidedSessions, type VoidedSession } from './attendance'
 import { appendEvent, type ClockLocation, type ClockResult } from './clockEvents'
@@ -80,14 +80,14 @@ const resolveFlags = (match: (f: (typeof db.flags)[number]) => boolean, actor: U
 
 /**
  * Once a session's end is settled (a request or an extension approved): its missing clock-out flag is done,
- * and its over-length flag too when the approved length now covers the time worked. Internal to src/data.
+ * and its over-length flag too when the approved length (plus the leeway) now covers the time worked. Internal to src/data.
  */
 export function settleSessionFlags(clockOut: ClockEvent, actor: User): void {
   const clockIn = pairedIn(clockOut)
   if (!clockIn) return
   const now = serverNow()
   resolveFlags((f) => f.clock_event_id === clockIn.id && f.kind === 'missing_clock_out', actor, now)
-  if (minutesBetween(effectiveTime(clockIn), effectiveTime(clockOut)) <= approvedMinFor(clockOut.shift_id)) {
+  if (!isOverApproved(minutesBetween(effectiveTime(clockIn), effectiveTime(clockOut)), approvedMinFor(clockOut.shift_id), db.settings)) {
     resolveFlags((f) => f.clock_event_id === clockOut.id && f.kind === 'over_without_extension', actor, now)
   }
 }
