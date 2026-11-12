@@ -342,7 +342,7 @@ function Home({
         )}
       </div>
 
-      <ShiftHandoffs user={user} settings={settings} now={now} upcoming={upcoming} notes={seenNotes} onChanged={() => void refresh()} />
+      <ShiftHandoffs user={user} settings={settings} now={now} today={phase.kind === 'before' ? phase.shift : null} upcoming={upcoming} notes={seenNotes} onChanged={() => void refresh()} />
 
       {/* Team lead only: Gladys rosters for everyone on Carly's behalf. */}
       {/* A cleaner sees their own past shifts; Gladys sees her group's (src/data checks it). */}

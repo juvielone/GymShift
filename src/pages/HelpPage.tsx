@@ -182,7 +182,7 @@ function chapters(s: SiteSettings): Chapter[] {
         {
           q: "I can't make a shift",
           a: [
-            `Tap "Can't make it?" on the shift.`,
+            `Tap "Can't make it?" on the shift. For today's shift, tap "Can't make today's shift?" under it. You can ask until the shift starts.`,
             `Pick a colleague who is free, or "Anyone who's free", then tap Ask.`,
             'They say yes first, then your manager or team lead approves. Until then, the shift is still yours.',
           ],

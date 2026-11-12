@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from 'react'
 import { getAvailability, getShifts, getSwapCandidates, getSwaps, getUsers } from '@/data'
 import type { DateString, Shift, SiteSettings, Swap, Timestamp, User } from '@/types'
 import { addDays, compareTs, fortnightStartOf, localDate, shiftStartAt } from '@/lib/rules'
+import { shortName } from '@/lib/format'
 
 /** Where a hand-off of one of my shifts is up to. */
 export type MyHandoff =
@@ -25,6 +26,15 @@ export interface Handoffs {
   mine: Map<string, MyHandoff>
   asks: Ask[]
   daysOff: { from: DateString; to: DateString; dates: DateString[]; note: string | null }
+}
+
+/** What a shift's card says about its hand-off, for Next shifts and today's row. */
+export function footText(h: MyHandoff | undefined): { text: string; tone: 'muted' | 'ok'; icon: 'wait' | 'ok' | null } | null {
+  if (!h) return null
+  if (h.kind === 'waiting') return { text: h.asked ? `Asked ${shortName(h.asked.full_name)} · waiting for an answer` : 'Open to anyone free · waiting for someone', tone: 'muted', icon: 'wait' }
+  if (h.kind === 'agreed') return { text: `${shortName(h.taker.full_name)} said yes · waiting for approval`, tone: 'ok', icon: 'ok' }
+  if (h.kind === 'said_no') return { text: `${shortName(h.by.full_name)} can't take it. You're still on this shift.`, tone: 'muted', icon: null }
+  return { text: "Not approved. You're still on this shift.", tone: 'muted', icon: null }
 }
 
 export function useHandoffs(user: User, settings: SiteSettings, now: Timestamp, upcoming: Shift[]) {

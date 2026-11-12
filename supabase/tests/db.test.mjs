@@ -1185,6 +1185,37 @@ test('swaps: ask a colleague or anyone free, someone says yes, Carly or Gladys a
   }
 })
 
+test("swaps on today's shift: handed over until it starts, but not once its person has clocked in", async () => {
+  const shared = db
+  db = await freshDb()
+  try {
+    const ask = (who, shift, target = null) => call(who, `select * from public.request_swap($1, $2, $3)`, [shift, target, null]).then((r) => r[0])
+    const answer = (who, id, yes) => call(who, `select * from public.answer_swap($1, $2)`, [id, yes]).then((r) => r[0])
+    const decide = (who, id, approve) => call(who, `select * from public.decide_swap($1, $2, null)`, [id, approve]).then((r) => r[0])
+    const owner_ = async (id) => (await db.query(`select assigned_user_id from shifts where id = $1`, [id])).rows[0].assigned_user_id
+
+    // Today's shift can still be handed over until it starts ("Can't make today's shift?" on the home).
+    const soon = await startingAgo(-60)
+    const todays = await addShift({ date: soon.date, type: 'night', user: JOSH, start: soon.start, end: soon.end })
+    const sameDay = await ask(JOSH, todays, GLADYS)
+    await answer(GLADYS, sameDay.id, true)
+    await decide(CARLY, sameDay.id, true)
+    assert.equal(await owner_(todays), GLADYS)
+
+    // But once the person on it clocks in early, it stays theirs: the approval is refused, the request stays pending.
+    const kylesToday = await addShift({ date: soon.date, type: 'morning', user: KYLE, start: soon.start, end: soon.end })
+    const early = await ask(KYLE, kylesToday)
+    await answer(JOSH, early.id, true)
+    const kyleIn = await clock(KYLE, 'in', { lat: GYM.lat, lng: GYM.lng, accuracy: 10 })
+    assert.equal(kyleIn.event.shift_id, kylesToday)
+    await rejects(decide(CARLY, early.id, true), /clocked into this shift/)
+    assert.equal(await owner_(kylesToday), KYLE)
+    assert.equal((await db.query(`select status from swaps where id = $1`, [early.id])).rows[0].status, 'pending')
+  } finally {
+    db = shared
+  }
+})
+
 test('days off: set from tomorrow on, replaced as a whole, only your own', async () => {
   const shared = db
   db = await freshDb()

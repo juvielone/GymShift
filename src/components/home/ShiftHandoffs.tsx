@@ -1,21 +1,25 @@
 // Swaps, covers and days off on a cleaner's home (PRD F3): "Can you take these?" (asks from colleagues
 // and open shifts), Next shifts with each hand-off's progress, and "Days I can't work".
-import { useEffect, useState } from 'react'
-import { CalendarX, Check, ChevronRight, Users } from 'lucide-react'
+import { useEffect, useMemo, useState } from 'react'
+import { CalendarX, Check, ChevronRight, Hourglass, Repeat, Users } from 'lucide-react'
 import { answerSwap, getShifts, withdrawSwap } from '@/data'
 import type { Shift, SiteSettings, Timestamp, User } from '@/types'
-import { useHandoffs, type Ask, type MyHandoff } from '@/hooks/useHandoffs'
+import { footText, useHandoffs, type Ask, type MyHandoff } from '@/hooks/useHandoffs'
 import { Disc } from '@/components/common/ListParts'
 import { rowClass, smallButton } from '@/components/common/listStyles'
 import { UpcomingShifts } from '@/components/home/UpcomingShifts'
+import { StatusRow } from '@/components/home/StatusRows'
 import { HandoffSheet } from '@/components/home/HandoffSheet'
 import { DaysOffSheet } from '@/components/home/DaysOffSheet'
 import { formatDateShort, formatDayRange, formatTimeRange, shortName } from '@/lib/format'
+import { compareTs, shiftStartAt } from '@/lib/rules'
 
 interface Props {
   user: User
   settings: SiteSettings
   now: Timestamp
+  /** Today's shift on the pass, before clock-in: it can still be handed over until it starts. */
+  today?: Shift | null
   upcoming: Shift[]
   /** Seen notes from Carly or the team lead, by shift id, for the Next shifts cards. */
   notes?: Map<string, { id: string; from: string; body: string }[]>
@@ -25,8 +29,11 @@ interface Props {
 
 const shiftLine = (s: Shift) => `${formatDateShort(s.date)} · ${s.type === 'morning' ? 'Morning' : 'Night'} · ${formatTimeRange(s.start_time, s.end_time)}`
 
-export function ShiftHandoffs({ user, settings, now, upcoming, notes, onChanged }: Props) {
-  const { data, reload } = useHandoffs(user, settings, now, upcoming)
+export function ShiftHandoffs({ user, settings, now, today, upcoming, notes, onChanged }: Props) {
+  // Once today's shift has started it stays with them (src/data refuses it too).
+  const todayOpen = today && compareTs(shiftStartAt(today, settings), now) > 0 ? today : null
+  const handoffShifts = useMemo(() => (todayOpen ? [todayOpen, ...upcoming] : upcoming), [todayOpen, upcoming])
+  const { data, reload } = useHandoffs(user, settings, now, handoffShifts)
   const [asking, setAsking] = useState<Shift | null>(null)
   const [daysOpen, setDaysOpen] = useState(false)
   const [nextShifts, setNextShifts] = useState<Shift[]>([])
@@ -61,9 +68,47 @@ export function ShiftHandoffs({ user, settings, now, upcoming, notes, onChanged 
 
   const asks = data?.asks ?? []
   const days = data?.daysOff
+  const todayHandoff = todayOpen ? data?.mine.get(todayOpen.id) : undefined
+  const todayFoot = footText(todayHandoff)
+  const todayPending = todayHandoff?.kind === 'waiting' || todayHandoff?.kind === 'agreed'
 
   return (
     <>
+      {todayOpen && data && (
+        <div className="mt-2">
+          {todayPending && todayHandoff ? (
+            <div className="flex w-full items-center gap-3 border-b border-border px-1 py-3">
+              <Disc tone={todayHandoff.kind === 'agreed' ? 'ok' : 'neutral'}>{todayHandoff.kind === 'agreed' ? <Check strokeWidth={3} /> : <Hourglass />}</Disc>
+              <span className="min-w-0 flex-1">
+                <span className="block text-base leading-snug font-medium">{"Today's shift"}</span>
+                <span className={todayHandoff.kind === 'agreed' ? 'block text-sm leading-snug text-ok' : 'block text-sm leading-snug text-muted-foreground'}>{todayFoot?.text}</span>
+              </span>
+              <button
+                type="button"
+                onClick={() => withdraw(todayOpen, todayHandoff)}
+                disabled={busy === todayOpen.id}
+                className="h-11 shrink-0 rounded-[14px] px-2.5 text-[15px] font-semibold transition-colors hover:bg-muted active:bg-muted disabled:text-muted-foreground"
+              >
+                {busy === todayOpen.id ? 'Withdrawing…' : 'Withdraw'}
+              </button>
+            </div>
+          ) : (
+            <StatusRow
+              icon={<Repeat />}
+              tone="neutral"
+              title={todayHandoff?.kind === 'said_no' ? "Ask someone else for today's shift" : "Can't make today's shift?"}
+              detail={todayFoot?.text ?? "Ask a colleague, or anyone who's free."}
+              onClick={() => setAsking(todayOpen)}
+            />
+          )}
+          {errors[todayOpen.id] && (
+            <p role="alert" className="mt-2 px-1 text-sm text-warn">
+              {errors[todayOpen.id]}
+            </p>
+          )}
+        </div>
+      )}
+
       {asks.length > 0 && (
         <section aria-labelledby="asks-title" className="mt-5">
           <h2 id="asks-title" className="flex items-center gap-2 px-1 pb-1 text-base font-semibold">

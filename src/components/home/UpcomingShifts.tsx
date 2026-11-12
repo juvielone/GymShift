@@ -4,8 +4,8 @@
 import { useState } from 'react'
 import { Check, ChevronDown, ClipboardList, Hourglass, Moon, Sunrise } from 'lucide-react'
 import type { Shift } from '@/types'
-import type { MyHandoff } from '@/hooks/useHandoffs'
-import { formatDateShort, formatTimeRange, shortName } from '@/lib/format'
+import { footText, type MyHandoff } from '@/hooks/useHandoffs'
+import { formatDateShort, formatTimeRange } from '@/lib/format'
 import { cn } from '@/lib/utils'
 
 const SHOWN = 3
@@ -19,14 +19,6 @@ interface Props {
   onWithdraw?: (shift: Shift, handoff: MyHandoff) => void
   /** Seen notes for the shift, by shift id: who wrote it and what it says. */
   notes?: Map<string, { id: string; from: string; body: string }[]>
-}
-
-function footText(h: MyHandoff | undefined): { text: string; tone: 'muted' | 'ok'; icon: 'wait' | 'ok' | null } | null {
-  if (!h) return null
-  if (h.kind === 'waiting') return { text: h.asked ? `Asked ${shortName(h.asked.full_name)} · waiting for an answer` : 'Open to anyone free · waiting for someone', tone: 'muted', icon: 'wait' }
-  if (h.kind === 'agreed') return { text: `${shortName(h.taker.full_name)} said yes · waiting for approval`, tone: 'ok', icon: 'ok' }
-  if (h.kind === 'said_no') return { text: `${shortName(h.by.full_name)} can't take it. You're still on this shift.`, tone: 'muted', icon: null }
-  return { text: "Not approved. You're still on this shift.", tone: 'muted', icon: null }
 }
 
 export function UpcomingShifts({ shifts, handoffs, busy, onCantMake, onWithdraw, notes }: Props) {
