@@ -7,7 +7,7 @@ import type { FortnightHours } from '@/data'
 import type { DateString } from '@/types'
 import { smallButton } from '@/components/common/listStyles'
 import { downloadCsv, toCsv } from '@/lib/csv'
-import { formatDateShort, formatDuration } from '@/lib/format'
+import { formatDateShort, formatDayRange, formatDuration } from '@/lib/format'
 import { addDays } from '@/lib/rules'
 
 /** "H:MM", matching the totals shown on screen. */
@@ -33,10 +33,11 @@ export function HoursPanel({ fortnights, current, refreshedAt, inSheet = false }
   function exportCsv() {
     if (!rows) return
     const csv = toCsv(
-      // Exact minutes are the record; H:MM and decimal hours are derived from them. The fortnight is on every
-      // row (YYYY-MM-DD, so spreadsheets read it as a date) so the file still says which period it is once renamed.
-      ['Fortnight start', 'Fortnight end', 'Name', 'Rostered minutes', 'Unscheduled minutes', 'Total minutes', 'Total (H:MM)', 'Total hours (decimal, derived)', 'Still on shift (not counted)'],
-      rows.map((r) => [start, end, r.full_name, r.rostered_min, r.unscheduled_min, r.total_min, hm(r.total_min), decimal(r.total_min), r.open_sessions]),
+      // Exact minutes are the record; H:MM and decimal hours are derived from them.
+      ['Name', 'Rostered minutes', 'Unscheduled minutes', 'Total minutes', 'Total (H:MM)', 'Total hours (decimal, derived)', 'Still on shift (not counted)'],
+      rows.map((r) => [r.full_name, r.rostered_min, r.unscheduled_min, r.total_min, hm(r.total_min), decimal(r.total_min), r.open_sessions]),
+      // A title line, so the file says which fortnight it is even once renamed. Starts with text, so Excel keeps it as text.
+      `Fortnight: ${formatDayRange(start, end)} ${end.slice(0, 4)}`,
     )
     downloadCsv(`gymshift-hours-${start}-to-${end}.csv`, csv)
   }
