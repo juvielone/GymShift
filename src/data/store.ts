@@ -11,6 +11,7 @@
 import * as seed from '@/mocks'
 import type { Role, User, Uuid } from '@/types'
 import { setTeamNames } from '@/lib/format'
+import { fortnightStartOf } from '@/lib/rules'
 
 export type DataMode = 'demo' | 'trial' | 'live'
 
@@ -100,6 +101,12 @@ function load(): Db {
       u.username ??= u.full_name.split(' ')[0].toLowerCase().replace(/[^a-z0-9]/g, '')
       // Saves from before contact details moved out of users.
       delete (u as { email?: unknown }).email
+    }
+    // Saves from before fortnights followed the pay cycle (17 Nov 2026, mirrors …22_pay_fortnight.sql):
+    // 26 Oct anchor → 19 Oct, and every shift regrouped. Only fortnight_start changes.
+    if (loaded.settings.roster_anchor_date === '2026-10-26') {
+      loaded.settings.roster_anchor_date = '2026-10-19'
+      for (const s of loaded.shifts) s.fortnight_start = fortnightStartOf(s.date, loaded.settings)
     }
     return loaded
   } catch {

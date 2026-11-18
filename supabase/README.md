@@ -21,6 +21,7 @@ The database for GymShift. The app still runs on mock data (`src/data`); these m
 | `migrations/…13_staff.sql` | Staff (PRD F1): `user_contacts` (optional mobile, readable only by Carly and the person; `users.email` dropped); `update_staff`, `set_staff_active`; and `check_staff`, `check_pin_reset`, `add_staff`, which the staff Edge Function calls as Carly around its login changes. Nobody is ever deleted. |
 | `migrations/…14_swap_enums.sql` | The `withdrawn` request status (its own file, like 11). |
 | `migrations/…15_swaps.sql` | Swaps, covers and days off (PRD F3): `request_swap`, `answer_swap` (the colleague's yes or no), `withdraw_swap`, `decide_swap` (Carly or Gladys, never someone in the request; moves the shift and logs it), `set_days_off`. Open covers are readable by all staff. |
+| `migrations/…22_pay_fortnight.sql` | Fortnights follow the pay cycle (2–15 Nov, 16–29 Nov, ...): moves `roster_anchor_date` to 19 Oct 2026 and regroups every shift's `fortnight_start`; nothing else changes. |
 | `functions/staff/index.ts` | Edge Function: the only code that makes logins, sets PINs and renames logins. Holds the service-role key (a Supabase secret, never in the app); asks the database first. |
 | `seed.sql` | Local test data only (`npm run db:reset`): six sign-ins with known PINs, a fortnight around today, and one case for each attendance fix. Never run it against the real project. |
 | `tests/db.test.mjs` | Runs every migration in an in-memory Postgres (with small stand-ins for Supabase auth and Storage) and checks the rules. `npm run test:db` |

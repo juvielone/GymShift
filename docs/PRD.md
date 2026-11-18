@@ -181,7 +181,7 @@ Rules marked *confirmed* come from Carly. The rest are defaults to check during 
 | Maximum shift with approved extension | 3.5 hours | Confirmed |
 | Who approves extensions | Carly only | Confirmed |
 | Who approves swaps and covers | Carly or Gladys | Confirmed |
-| Roster and pay period | Fortnightly | Confirmed |
+| Roster and pay period | Fortnightly, matching pay: Mon 2 – Sun 15 Nov, 16 – 29 Nov 2026, ... (`roster_anchor_date` 19 Oct 2026) | Confirmed 17 Nov 2026 |
 | Off-site clock-in/out | Allowed, flagged for review | Confirmed |
 | Photo and report retention | 6 months, then auto-delete | Confirmed |
 | Shifts per day | 2 (morning \~7:00 am, night \~7:00 pm) | From staff experience |

@@ -5,7 +5,7 @@ import type { Note, SiteSettings, Timestamp, User } from '@/types'
 import type { FlagView } from '@/components/manager/FlagSheet'
 import type { TodayRow } from '@/components/manager/TodayPanel'
 import { loadRequests, type RequestItem } from '@/hooks/requests'
-import { compareTs, localDate } from '@/lib/rules'
+import { addDays, compareTs, fortnightStartOf, localDate, recordsOldestDate } from '@/lib/rules'
 import { zonedTimestamp } from '@/lib/format'
 
 export interface ManagerDashboard {
@@ -59,8 +59,13 @@ async function load(): Promise<ManagerDashboard> {
   }
   todayRows.sort((a, b) => compareTs(a.startsAt, b.startsAt))
 
-  const fortnights = [...new Set(shifts.map((s) => s.fortnight_start))].sort()
-  const currentFortnight = fortnights.filter((f) => f <= today).at(-1) ?? fortnights[0] ?? today
+  // Every fortnight from the roster anchor (or the retention limit, if later) up to today's, empty ones too,
+  // so earlier pay periods stay reachable; plus any later fortnight already on the roster.
+  const currentFortnight = fortnightStartOf(today, settings)
+  const oldest = fortnightStartOf(recordsOldestDate(today, settings), settings)
+  const fortnightSet = new Set(shifts.map((s) => s.fortnight_start).filter((f) => f >= oldest))
+  for (let f = currentFortnight; f >= oldest && f >= settings.roster_anchor_date; f = addDays(f, -14)) fortnightSet.add(f)
+  const fortnights = [...fortnightSet].sort()
 
   const fortnightMin = (await getFortnightHours(currentFortnight)).reduce((sum, r) => sum + r.total_min, 0)
 

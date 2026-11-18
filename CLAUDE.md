@@ -20,7 +20,7 @@ Mobile-first roster and attendance web app for the World Gym Macquarie Park clea
 ## Structure
 - `src/types/`: one file per future DB table. Field names are snake_case and must match the Postgres columns exactly.
 - `src/data/`: **the only data-access layer.** Async functions; reads return copies. `store.ts` is the in-memory "DB", the server clock and the mock sign-in, and is internal to `src/data`. Two modes until Supabase: **demo** (dev server: seed data, fixed mock time, reset on reload) and **trial** (production build: real time read from our web server's `Date` header, data saved on the phone in localStorage, photo images in IndexedDB via `photoFiles.ts`). Every write exported from `src/data/index.ts` is wrapped in `persisted()`; wrap any new write the same way.
-- `src/mocks/`: seed data for one fortnight (26 Oct – 8 Nov 2026, mock "now" = 28 Oct 6:50 pm). Imported **only** by `src/data`.
+- `src/mocks/`: seed data for one fortnight (2 – 15 Nov 2026, mock "now" = 4 Nov 6:50 pm). Imported **only** by `src/data`.
 - `src/lib/rules.ts`: pure business rules (off-site check, over-length check, extension cap, durations). No data access.
 - `src/components/ui/`: shadcn-generated. Add components via the CLI and don't hand-edit them. This folder is excluded from lint.
 - `@/` aliases `src/`.

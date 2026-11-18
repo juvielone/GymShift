@@ -55,7 +55,7 @@ export function HoursPanel({ fortnights, current, refreshedAt, inSheet = false }
             {formatDateShort(start)} – {formatDateShort(end)}
           </p>
         </div>
-        <div className={fortnights.length > 1 ? 'flex gap-1.5' : 'hidden'}>
+        <div className="flex gap-1.5">
           <button type="button" aria-label="Earlier fortnight" disabled={idx <= 0} onClick={() => setStart(fortnights[idx - 1])} className={nav}>
             <ChevronLeft aria-hidden className="size-5" />
           </button>

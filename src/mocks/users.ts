@@ -1,7 +1,7 @@
 import type { User } from '@/types'
 import { ANGEL, CARLY, GINO, GLADYS, JOSH, KYLE } from './ids'
 
-const created = '2026-10-12T09:00:00+11:00'
+const created = '2026-10-19T09:00:00+11:00'
 
 export const users: User[] = [
   { id: CARLY, full_name: 'Carly', username: 'carly', role: 'manager', team_lead_id: null, active: true, created_at: created },

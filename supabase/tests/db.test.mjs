@@ -1263,3 +1263,27 @@ test('no database function updates or deletes without a WHERE (Supabase refuses 
   }
   assert.deepEqual(missing, [])
 })
+
+// Runs last: it moves the roster anchor. The pay-fortnight migration (…22) ran on an empty database above, so it
+// is run again here on the tests' shifts (published, cancelled and clocked into) to check it realigns them all.
+test('pay fortnight: the anchor moves to 19 Oct 2026 and every shift is regrouped, nothing else changes', async () => {
+  const sql = readFileSync(join(MIGRATIONS, '20261101000022_pay_fortnight.sql'), 'utf8')
+  const snapshot = `select id, date::text, type, start_time::text, end_time::text, assigned_user_id, status::text from shifts order by id`
+  const before = (await db.query(snapshot)).rows
+  const changes = (await db.query(`select count(*)::int as n from shift_changes`)).rows[0].n
+  assert.ok((await db.query(`select 1 from shifts where status = 'cancelled'`)).rows.length > 0)
+
+  await db.exec(sql)
+
+  assert.equal((await db.query(`select roster_anchor_date::text as d from site_settings`)).rows[0].d, '2026-10-19')
+  assert.equal((await db.query(`select private.fortnight_start_of('2026-11-15')::text as f`)).rows[0].f, '2026-11-02')
+  assert.equal((await db.query(`select private.fortnight_start_of('2026-11-16')::text as f`)).rows[0].f, '2026-11-16')
+  assert.equal((await db.query(`select private.fortnight_start_of('2026-11-29')::text as f`)).rows[0].f, '2026-11-16')
+  const off = await db.query(`select id from shifts where fortnight_start <> private.fortnight_start_of(date)`)
+  assert.deepEqual(off.rows, [])
+  assert.deepEqual((await db.query(snapshot)).rows, before)
+  assert.equal((await db.query(`select count(*)::int as n from shift_changes`)).rows[0].n, changes)
+  // The change trigger is back on.
+  const cancelled = (await db.query(`select id from shifts where status = 'cancelled' limit 1`)).rows[0].id
+  await rejects(owner(CARLY, (tx) => tx.query(`update shifts set start_time = '06:00' where id = $1`, [cancelled])), /was cancelled/)
+})
