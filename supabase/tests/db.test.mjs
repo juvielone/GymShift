@@ -92,15 +92,27 @@ async function rejects(promise, pattern) {
   })
 }
 
-/** A draft shift, published at once unless asked not to. */
-async function addShift({ date, type, user, start = '19:00', end = '22:00', publish = true }) {
+/**
+ * A draft shift, published unless asked not to. Published as a real roster is, ahead of time: a day before it
+ * starts (or now, if that's sooner), so a shift starting in the past still counts as rostered in time.
+ * `publishedMinAgo` publishes it that long ago instead (a shift rostered late).
+ */
+async function addShift({ date, type, user, start = '19:00', end = '22:00', publish = true, publishedMinAgo = null }) {
   return owner(CARLY, async (tx) => {
     const { rows } = await tx.query(
-      `insert into shifts (date, type, start_time, end_time, assigned_user_id, fortnight_start, created_by)
-       values ($1, $2, $3, $4, $5, $1, $6) returning id`,
+      `insert into shifts (date, type, start_time, end_time, assigned_user_id, fortnight_start, created_by, created_at)
+       values ($1, $2, $3, $4, $5, $1, $6, least(now(), ($1::date + $3::time) at time zone 'Australia/Sydney' - interval '2 days')) returning id`,
       [date, type, start, end, user, CARLY],
     )
-    if (publish) await tx.query(`update shifts set status = 'published', published_at = now() where id = $1`, [rows[0].id])
+    if (publish) {
+      await tx.query(
+        `update shifts sh set status = 'published', published_at = case when $2::integer is null
+           then least(now(), (sh.date + sh.start_time) at time zone 'Australia/Sydney' - interval '1 day')
+           else now() - make_interval(mins => $2::integer) end
+         where sh.id = $1`,
+        [rows[0].id, publishedMinAgo],
+      )
+    }
     return rows[0].id
   })
 }
@@ -258,9 +270,12 @@ test('a request is decided once, and only the decision changes', async () => {
 test('a flag is resolved once and never deleted', async () => {
   const { rows } = await db.query(`select id from flags where resolved_at is null limit 1`)
   const id = rows[0].id
-  await rejects(db.query(`update flags set detail = 'edited' where id = $1`, [id]), /only resolved_at and resolved_by can change/)
+  await rejects(db.query(`update flags set detail = 'edited' where id = $1`, [id]), /only resolved_at and resolved_by and resolved_note can change/)
+  // A note says why it was resolved, so it only comes with resolving it.
+  await rejects(db.query(`update flags set resolved_note = 'early' where id = $1`, [id]), /flags_note_when_resolved/)
   await db.query(`update flags set resolved_at = now(), resolved_by = $1 where id = $2`, [CARLY, id])
   await rejects(db.query(`update flags set resolved_by = $1 where id = $2`, [GLADYS, id]), /already set/)
+  await rejects(db.query(`update flags set resolved_note = 'afterwards' where id = $1`, [id]), /can't be changed/)
   await rejects(db.query(`delete from flags where id = $1`, [id]), /never deleted/)
 })
 
@@ -998,6 +1013,103 @@ test('the roster is a guide: finish from clock-in, a 10-minute leeway, and a no-
     assert.equal(late.event.shift_id, carlyShift)
     assert.match(late.flags.find((f) => f.kind === 'off_start').detail, /^Clock-in (1h 59m|2h 0m|2h 1m) after the \d{1,2}:\d{2} [ap]m start$/)
     assert.equal((await db.query(`select resolved_by from flags where id = $1`, [noShow[0].id])).rows[0].resolved_by, CARLY)
+  } finally {
+    db = shared
+  }
+})
+
+test('no-shows: a shift rostered late is never one, a moved shift is checked again, resolved flags stay as they were', async () => {
+  const shared = db
+  const raise = async () => (await db.query(`select private.raise_due_flags() as n`)).rows[0].n
+  const noShowsOn = async (shift) =>
+    (await db.query(`select id, user_id, created_at, resolved_at, resolved_by, resolved_note from flags where shift_id = $1 and kind = 'no_show' order by created_at`, [shift])).rows
+  const AT_GYM = { lat: GYM.lat, lng: GYM.lng, accuracy: 10 }
+  try {
+    // The test site keeps a 15-minute no-show window. Shifts here start about 4 hours ago, near 9:00 am Sydney
+    // (10 pm the day before in UTC), so a start read in the wrong timezone would land hours away and fail these.
+    db = await freshDb()
+    const s = await startingAgo(240)
+    // Published 5 min after the start, before its no-show time (15 min after): they could have come. Flagged.
+    const missed = await addShift({ date: s.date, type: 'morning', user: JOSH, start: s.start, end: s.end, publishedMinAgo: 235 })
+    // Published 40 min after the start, past its no-show time (the 18 Nov case): rostered late. Never flagged.
+    const late = await addShift({ date: s.date, type: 'night', user: KYLE, start: s.start, end: s.end, publishedMinAgo: 200 })
+    assert.equal(await raise(), 1)
+    assert.deepEqual((await noShowsOn(missed)).map((f) => f.user_id), [JOSH])
+    assert.deepEqual(await noShowsOn(late), [])
+    assert.equal(await raise(), 0)
+
+    // A no-show Carly already resolved stays as she left it, through later runs and a move.
+    const [missedFlag] = await noShowsOn(missed)
+    await call(CARLY, `select * from public.resolve_flag($1)`, [missedFlag.id])
+    const resolvedBefore = (await noShowsOn(missed))[0]
+    await raise()
+    const soon = await startingAgo(-30)
+    await call(CARLY, `select * from public.update_shift($1, p_start_time => $2)`, [missed, soon.start])
+    assert.deepEqual(await noShowsOn(missed), [resolvedBefore])
+    assert.equal(resolvedBefore.resolved_by, CARLY)
+    assert.equal(resolvedBefore.resolved_note, null)
+
+    // Zaira's case: an open no-show, then Carly moves the shift to later today. The no-show is resolved by Carly, at
+    // the moment of the change, saying why; the change is logged; the new time isn't due yet.
+    db = await freshDb()
+    const z = await startingAgo(120)
+    const moved = await addShift({ date: z.date, type: 'night', user: KYLE, start: z.start, end: z.end })
+    assert.equal(await raise(), 1)
+    const later = await startingAgo(-10)
+    await call(CARLY, `select * from public.update_shift($1, p_start_time => $2)`, [moved, later.start])
+    const [stale] = await noShowsOn(moved)
+    assert.equal(stale.user_id, KYLE)
+    assert.equal(stale.resolved_by, CARLY)
+    assert.match(stale.resolved_note, /^Shift moved to \w{3} \d{1,2} \w{3}, \d{1,2}:\d{2} [ap]m$/)
+    const log = (await db.query(`select field, old_value, new_value, changed_by, changed_at from shift_changes where shift_id = $1`, [moved])).rows
+    assert.deepEqual(log.map((c) => [c.field, c.old_value, c.new_value, c.changed_by]), [['start_time', z.start, later.start, CARLY]])
+    assert.equal(log[0].changed_at.getTime(), stale.resolved_at.getTime())
+    assert.equal(await raise(), 0)
+    // Kyle arrives 10 minutes early: a normal clock-in on his shift, no late-start flag from the old no-show.
+    const early = await clock(KYLE, 'in', AT_GYM)
+    assert.equal(early.event.shift_id, moved)
+    assert.deepEqual(early.flags.map((f) => f.kind), [])
+    assert.deepEqual(await noShowsOn(moved), [stale])
+
+    // Moved and given to someone else, then genuinely missed at the new time: checked again and flagged for the
+    // new person. The old flag stays resolved, on record under Josh.
+    db = await freshDb()
+    const m = await startingAgo(120)
+    const handed = await addShift({ date: m.date, type: 'morning', user: JOSH, start: m.start, end: m.end })
+    await raise()
+    const next = await startingAgo(30)
+    await call(CARLY, `select * from public.update_shift($1, p_start_time => $2, p_assigned_user_id => $3)`, [handed, next.start, KYLE])
+    assert.match((await noShowsOn(handed))[0].resolved_note, /^Shift reassigned and moved to /)
+    // Time can't pass in a test, so (test-only, as the database owner) Carly's change and the flag it resolved move
+    // an hour back together: she moved it to the new start 30 min before that start, so Kyle could have come.
+    await db.exec(`
+      alter table shift_changes disable trigger user; alter table flags disable trigger user;
+      update shift_changes set changed_at = changed_at - interval '60 minutes' where shift_id = '${handed}';
+      update flags set created_at = created_at - interval '70 minutes', resolved_at = resolved_at - interval '60 minutes' where shift_id = '${handed}';
+      alter table shift_changes enable trigger user; alter table flags enable trigger user;`)
+    const [joshOld] = await noShowsOn(handed)
+    assert.equal(await raise(), 1)
+    const [, kyleNew] = await noShowsOn(handed)
+    assert.equal(kyleNew.user_id, KYLE)
+    assert.equal(kyleNew.resolved_at, null)
+    assert.equal(await raise(), 0)
+    // Kyle comes in late: his own no-show becomes his late start; Josh's old one is untouched.
+    const arrived = await clock(KYLE, 'in', AT_GYM)
+    assert.deepEqual(arrived.flags.map((f) => f.kind), ['off_start'])
+    const after = await noShowsOn(handed)
+    assert.deepEqual(after[0], joshOld)
+    assert.equal(after[1].resolved_by, KYLE)
+    assert.equal(after[1].resolved_note, 'Clocked in')
+
+    // Clocking in only turns your own no-show into a late start: someone else's stays open for Carly.
+    db = await freshDb()
+    const o = await startingAgo(-10)
+    const own = await addShift({ date: o.date, type: 'night', user: KYLE, start: o.start, end: o.end })
+    await owner(null, (tx) => tx.query(`select private.raise_flag('no_show', $1, $2, null, 'No clock-in by 9:00 am')`, [JOSH, own]))
+    const onTime = await clock(KYLE, 'in', AT_GYM)
+    assert.equal(onTime.event.shift_id, own)
+    assert.deepEqual(onTime.flags.map((f) => f.kind), [])
+    assert.equal((await noShowsOn(own))[0].resolved_at, null)
   } finally {
     db = shared
   }

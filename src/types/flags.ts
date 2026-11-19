@@ -8,7 +8,10 @@ export type FlagKind =
   | 'no_location'
   /** clock event with no matching shift */
   | 'unscheduled'
-  /** no clock-in no_show_after_min after shift start; resolved when they clock in (their late start is flagged instead) */
+  /**
+   * no clock-in no_show_after_min after shift start, on a shift rostered before then; resolved when they clock in
+   * (their late start is flagged instead) or when the shift is moved or reassigned (checked again at its new time)
+   */
   | 'no_show'
   /** no clock-out missing_out_after_min after the expected finish (clock-in plus approved length) */
   | 'missing_clock_out'
@@ -31,4 +34,6 @@ export interface Flag {
   created_at: Timestamp
   resolved_at: Timestamp | null
   resolved_by: Uuid | null
+  /** Why the app resolved it, e.g. "Shift moved to Wed 18 Nov, 8:00 pm" or "Clocked in". Null when Carly resolves it. Set with resolved_at, once. */
+  resolved_note: string | null
 }

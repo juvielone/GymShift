@@ -23,7 +23,8 @@
 create function pg_temp.at(d date, t time) returns timestamptz
 language sql immutable as $$ select (d + t) at time zone 'Australia/Sydney' $$;
 
--- A published shift made by Carly. A slot already taken is skipped (returns null).
+-- A published shift made by Carly, published ahead as a real roster is (3 days before it starts, or now if
+-- sooner), so the no-show job treats past shifts as rostered in time. A slot already taken is skipped (returns null).
 create function pg_temp.shift(d date, kind public.shift_type, start_at time, end_at time, who uuid) returns uuid
 language plpgsql as $$
 declare
@@ -33,7 +34,7 @@ begin
   values (d, kind, start_at, end_at, who, '00000000-0000-4000-8000-000000000001')
   on conflict do nothing
   returning id into made;
-  update public.shifts s set status = 'published', published_at = now() where s.id = made;
+  update public.shifts s set status = 'published', published_at = least(now(), pg_temp.at(d, start_at) - interval '3 days') where s.id = made;
   return made;
 end $$;
 

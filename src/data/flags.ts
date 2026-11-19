@@ -30,8 +30,8 @@ export async function resolveFlag(input: { flagId: Uuid; resolvedBy: Uuid }): Pr
 }
 
 /** Internal: raise a flag. Flags never block an action or change hours. */
-export function raiseFlag(input: Omit<Flag, 'id' | 'created_at' | 'resolved_at' | 'resolved_by'>): Flag {
-  const flag: Flag = { ...input, id: newId('flag'), created_at: serverNow(), resolved_at: null, resolved_by: null }
+export function raiseFlag(input: Omit<Flag, 'id' | 'created_at' | 'resolved_at' | 'resolved_by' | 'resolved_note'>): Flag {
+  const flag: Flag = { ...input, id: newId('flag'), created_at: serverNow(), resolved_at: null, resolved_by: null, resolved_note: null }
   db.flags.push(flag)
   return flag
 }

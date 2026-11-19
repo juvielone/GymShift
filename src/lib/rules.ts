@@ -95,6 +95,15 @@ export function noShowDueAt(shiftStart: Timestamp, arriveBy: Timestamp | null, s
   return plusMinutes(from, settings.no_show_after_min)
 }
 
+/**
+ * Whether the person could have known about a shift before its no-show time: it was published, moved or given to
+ * them (whichever is latest: `noticedAt`) no later than `noShowDue`. A shift rostered after that is late paperwork,
+ * never a no-show (private.raise_due_flags() in …23_no_show_fixes.sql).
+ */
+export function rosteredInTime(noticedAt: Timestamp, noShowDue: Timestamp): boolean {
+  return compareTs(noticedAt, noShowDue) <= 0
+}
+
 /** When a shift starts, as a timestamp in the site timezone. */
 export function shiftStartAt(shift: Pick<Shift, 'date' | 'start_time'>, settings: SiteSettings): Timestamp {
   return zonedTimestamp(shift.date, shift.start_time, settings.timezone)

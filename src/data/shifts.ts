@@ -1,5 +1,6 @@
 import type { DateString, Shift, ShiftChange, ShiftChangeField, ShiftStatus, ShiftType, TimeString, User, Uuid } from '@/types'
-import { addDays, compareTs, defaultEndTime, fortnightStartOf, localDate } from '@/lib/rules'
+import { addDays, compareTs, defaultEndTime, fortnightStartOf, localDate, shiftStartAt } from '@/lib/rules'
+import { formatClock, formatDateShort } from '@/lib/format'
 import { isVoided } from './attendance'
 import { canActOn, copy, db, newId, requireUser, roleOf, serverNow } from './store'
 
@@ -84,13 +85,41 @@ export async function updateShift(input: { shiftId: Uuid; changedBy: Uuid; patch
     throw new Error("Someone has clocked into this shift, so it can't be reassigned. Correct the attendance instead.")
   }
   const changed_at = serverNow()
+  const before = { date: shift.date, start_time: shift.start_time, assigned_user_id: shift.assigned_user_id }
   for (const field of Object.keys(input.patch) as (keyof ShiftPatch)[]) {
     const next = input.patch[field]
     if (next === undefined || next === shift[field]) continue
     if (shift.status === 'published') logChange(shift, field, String(next), actor.id, changed_at, input.swapId ?? null)
     Object.assign(shift, { [field]: next })
   }
+  if (shift.status === 'published') resetNoShowOnMove(shift, before, actor.id, changed_at)
   return copy(shift)
+}
+
+/**
+ * A published shift moved (date or start time) or given to someone else starts its no-show check again: its open
+ * no-show is resolved by whoever changed it, at the moment of the change, saying why. Only flags change; clock
+ * events are untouched. Mirrors private.reset_no_show_on_move() in …23_no_show_fixes.sql.
+ */
+function resetNoShowOnMove(shift: Shift, before: Pick<Shift, 'date' | 'start_time' | 'assigned_user_id'>, actorId: Uuid, at: string) {
+  const moved = shift.date !== before.date || shift.start_time !== before.start_time
+  const reassigned = shift.assigned_user_id !== before.assigned_user_id
+  if (!moved && !reassigned) return
+  const note = noShowResetNote(shift, moved, reassigned)
+  for (const f of db.flags) {
+    if (f.shift_id === shift.id && f.kind === 'no_show' && f.resolved_at === null) {
+      f.resolved_at = at
+      f.resolved_by = actorId
+      f.resolved_note = note
+    }
+  }
+}
+
+/** "Shift moved to Wed 18 Nov, 8:00 pm" / "Shift reassigned" / both (private.shift_moved_note()). */
+function noShowResetNote(shift: Shift, moved: boolean, reassigned: boolean): string {
+  const where = `${formatDateShort(shift.date)}, ${formatClock(shiftStartAt(shift, db.settings), db.settings.timezone)}`
+  if (moved && reassigned) return `Shift reassigned and moved to ${where}`
+  return moved ? `Shift moved to ${where}` : 'Shift reassigned'
 }
 
 /** The shift holding a roster slot (date + type): a draft or published one, never a cancelled one. */

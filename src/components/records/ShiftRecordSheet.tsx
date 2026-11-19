@@ -246,7 +246,7 @@ export function ShiftRecordSheet({ record, settings, now, onOpenChange, fixer, o
                         <p className="text-[15px] leading-snug first-letter:uppercase">{FLAG_LABEL[f.kind]}</p>
                         <p className="text-[13px] text-muted-foreground">
                           {formatClock(f.created_at, tz)} · {f.detail}
-                          {f.resolved_at ? ' · resolved' : ' · to check'}
+                          {f.resolved_at ? (f.resolved_note ? ` · resolved: ${f.resolved_note}` : ' · resolved') : ' · to check'}
                         </p>
                       </div>
                     </li>

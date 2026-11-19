@@ -109,12 +109,13 @@ export async function clockIn(userId: Uuid, location: ClockLocation): Promise<Cl
   if (!shift) {
     flags.push(raiseFlag({ user_id: userId, shift_id: null, clock_event_id: event.id, kind: 'unscheduled', detail: 'Clock-in with no rostered shift' }))
   } else {
-    // A no-show already raised on this shift becomes their late start: the no-show is resolved (by them, by
-    // arriving) and the late start is flagged instead, so Carly sees one flag for one late arrival.
-    const noShows = db.flags.filter((f) => f.shift_id === shift.id && f.kind === 'no_show' && f.resolved_at === null)
+    // Their own no-show on this shift becomes their late start: the no-show is resolved (by them, by arriving)
+    // and the late start is flagged instead, so Carly sees one flag for one late arrival. Someone else's stays open.
+    const noShows = db.flags.filter((f) => f.shift_id === shift.id && f.kind === 'no_show' && f.user_id === userId && f.resolved_at === null)
     for (const f of noShows) {
       f.resolved_at = event.server_time
       f.resolved_by = userId
+      f.resolved_note = 'Clocked in'
     }
     // Far from the rostered start, early or late: flag only.
     const start = shiftStartAt(shift, db.settings)

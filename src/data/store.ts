@@ -102,6 +102,8 @@ function load(): Db {
       // Saves from before contact details moved out of users.
       delete (u as { email?: unknown }).email
     }
+    // Saves from before flags kept why they were resolved.
+    for (const f of loaded.flags) f.resolved_note ??= null
     // Saves from before fortnights followed the pay cycle (17 Nov 2026, mirrors …22_pay_fortnight.sql):
     // 26 Oct anchor → 19 Oct, and every shift regrouped. Only fortnight_start changes.
     if (loaded.settings.roster_anchor_date === '2026-10-26') {

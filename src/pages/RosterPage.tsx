@@ -10,7 +10,7 @@ import { initialFortnight, useRoster, type Roster } from '@/hooks/useRoster'
 import { ShiftSheet, type Slot } from '@/components/roster/ShiftSheet'
 import { smallButton } from '@/components/common/listStyles'
 import { shortName, formatDateShort, formatTimeRange } from '@/lib/format'
-import { addDays, fortnightStartOf, localDate } from '@/lib/rules'
+import { addDays, fortnightStartOf, localDate, noShowDueAt, rosteredInTime, shiftStartAt } from '@/lib/rules'
 import { cn } from '@/lib/utils'
 
 const TYPES: ShiftType[] = ['morning', 'night']
@@ -70,6 +70,8 @@ function RosterView({ roster, onMove, refresh }: { roster: Roster; onMove: (star
   const current = fortnightStartOf(today, settings)
   const days = Array.from({ length: 14 }, (_, i) => addDays(start, i))
   const drafts = shifts.filter((s) => s.status === 'draft')
+  // Drafts already past their no-show time: published now, nobody could have come, so nobody is flagged.
+  const pastDrafts = drafts.filter((s) => !rosteredInTime(now, noShowDueAt(shiftStartAt(s, settings), null, settings))).length
   const publishedCount = shifts.length - drafts.length
   const emptySlots = days.length * TYPES.length - shifts.length
   const at = (date: DateString, type: ShiftType) => shifts.find((s) => s.date === date && s.type === type) ?? null
@@ -190,6 +192,12 @@ function RosterView({ roster, onMove, refresh }: { roster: Roster; onMove: (star
               </p>
             )}
             {confirmPublish && <p className="mb-2 text-center text-[15px]">Staff will see these shifts on their phones straight away.</p>}
+            {confirmPublish && pastDrafts > 0 && (
+              <p className="mb-2 rounded-xl bg-warn-soft px-3 py-2.5 text-center text-[15px] font-medium text-warn">
+                {pastDrafts} of these {pastDrafts === 1 ? 'shift is' : 'shifts are'} already past. Nobody will be flagged as a no-show for{' '}
+                {pastDrafts === 1 ? 'it' : 'them'}.
+              </p>
+            )}
             <div className="flex gap-2">
               {confirmPublish && (
                 <button type="button" onClick={() => setConfirmPublish(false)} className="h-[58px] flex-1 rounded-[14px] border border-border text-lg font-semibold active:bg-muted">
