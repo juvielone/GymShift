@@ -136,7 +136,7 @@ function chapters(s: SiteSettings): Chapter[] {
           a: [
             'While you are on shift, tap "Ask for extra time".',
             `Pick how much (up to ${formatDuration(s.max_extension_request_min)}) and why, then send.`,
-            `Your manager says yes or no in the app. Extra time can't be approved past ${formatDuration(s.max_shift_min)} in total. All the time you work is still recorded.`,
+            `Your manager says yes or no in the app. If you stay longer than you asked, tell them when you clock out: they see the full time you worked. All the time you work is still recorded, whatever the answer.`,
           ],
         },
         {

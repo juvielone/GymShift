@@ -1,21 +1,38 @@
 // Pending requests a viewer can decide, shaped for display. Shared by Carly's dashboard and the
 // Team section on a team lead's home. Reads only through '@/data'; decisions are made elsewhere.
-import { getCorrectionRequests, getEffectiveClockEvents, getExtensions, getPermissions, getShifts, getSwapCandidates, getSwaps, getUsers, serverNow } from '@/data'
+import { getCorrectionRequests, getEffectiveClockEvents, getExtensions, getFlags, getPermissions, getShiftAttendance, getShifts, getSwapCandidates, getSwaps, getUsers, serverNow } from '@/data'
 import type { EffectiveClockEvent } from '@/data'
-import type { CorrectionRequest, Extension, Shift, SiteSettings, Swap, Timestamp, User } from '@/types'
-import { approvedExtensionMinutes, canApproveExtension, compareTs, shiftStartAt } from '@/lib/rules'
+import type { CorrectionRequest, Extension, Flag, Shift, SiteSettings, Swap, Timestamp, User } from '@/types'
+import { approvedShiftMinutes, compareTs, extraToApprove, isPastShiftMax, shiftStartAt } from '@/lib/rules'
+
+/** Flags an extra-time card answers, so they show inside it instead of as separate rows. */
+const EXTRA_TIME_FLAGS: Flag['kind'][] = ['over_without_extension', 'missing_clock_out']
 
 export type RequestItem =
   | {
+      /** One card per shift: every extra-time request still waiting on it, with the time actually worked. */
       kind: 'extension'
+      /** The oldest waiting request's id. */
       id: string
-      ext: Extension
+      /** Waiting requests on the shift, oldest first. */
+      exts: Extension[]
       shift: Shift
       requester: User
-      /** null when it can be approved; otherwise why not (shown instead of Approve). */
-      blocked: string | null
-      /** Asked after clocking out ("Stayed to finish"): that clock-out, with where the phone was. */
-      clockedOut: EffectiveClockEvent | null
+      /** Already approved on the shift before this decision: standard length plus earlier approvals. */
+      approvedMin: number
+      clockIn: EffectiveClockEvent | null
+      /** null while still on shift. */
+      clockOut: EffectiveClockEvent | null
+      /** Recorded (corrected) time, null while still on shift. */
+      workedMin: number | null
+      /** What Approve adds: the time worked beyond approvedMin (clocked out), or what was asked (on shift). */
+      extraMin: number
+      /** Past max_shift_min once approved: Carly is warned, never blocked. */
+      pastMax: boolean
+      /** Site settings: the standard and maximum lengths and the leeway, for the card's wording and Correct time. */
+      settings: SiteSettings
+      /** Open over-length / missing clock-out flags on this session, answered by the card. */
+      flags: Flag[]
     }
   | {
       kind: 'swap'
@@ -41,7 +58,7 @@ export type RequestItem =
     }
 
 export const requestCreated = (i: RequestItem): Timestamp =>
-  i.kind === 'extension' ? i.ext.created_at : i.kind === 'swap' ? i.swap.created_at : i.request.created_at
+  i.kind === 'extension' ? i.exts[0].created_at : i.kind === 'swap' ? i.swap.created_at : i.request.created_at
 
 export async function loadRequests(viewer: User, settings: SiteSettings): Promise<RequestItem[]> {
   const role = await getPermissions(viewer.id)
@@ -57,19 +74,23 @@ export async function loadRequests(viewer: User, settings: SiteSettings): Promis
   }
 
   if (role.can_approve_extensions) {
-    for (const ext of await getExtensions({ status: 'pending' })) {
-      const shift = shiftById.get(ext.shift_id)
-      const requester = userById.get(ext.requested_by)
+    const waiting = await getExtensions({ status: 'pending' })
+    for (const shiftId of new Set(waiting.map((e) => e.shift_id))) {
+      const shift = shiftById.get(shiftId)
+      const exts = waiting.filter((e) => e.shift_id === shiftId).sort((a, b) => compareTs(a.created_at, b.created_at))
+      const requester = userById.get(exts[0].requested_by)
       if (!shift || !requester) continue
-      const others = (await getExtensions({ shiftId: shift.id })).filter((e) => e.id !== ext.id)
-      const room = settings.max_shift_min - settings.standard_shift_min - approvedExtensionMinutes(others)
-      const blocked = canApproveExtension(ext.minutes, others, settings)
-        ? null
-        : room > 0
-          ? `Only ${room} more minutes can be approved on this shift.`
-          : 'This shift already has the most extra time allowed.'
-      const clockedOut = (await events(ext.requested_by)).findLast((e) => e.shift_id === shift.id && e.kind === 'out' && compareTs(e.server_time, ext.created_at) <= 0) ?? null
-      items.push({ kind: 'extension', id: ext.id, ext, shift, requester, blocked, clockedOut })
+      const all = await getExtensions({ shiftId })
+      const approvedMin = approvedShiftMinutes(all.filter((e) => e.status === 'approved'), settings)
+      const att = await getShiftAttendance(shiftId)
+      const clockOut = att?.clock_out ?? null
+      const workedMin = att?.worked_min ?? null
+      const extraMin = workedMin === null ? exts.reduce((sum, e) => sum + e.minutes, 0) : extraToApprove(workedMin, approvedMin, settings)
+      const flags = (await getFlags({ open: true, shiftId })).filter((f) => EXTRA_TIME_FLAGS.includes(f.kind) && f.user_id === requester.id)
+      items.push({
+        kind: 'extension', id: exts[0].id, exts, shift, requester, approvedMin, clockIn: att?.clock_in ?? null, clockOut, workedMin, extraMin,
+        pastMax: isPastShiftMax(approvedMin + extraMin, settings), settings, flags,
+      })
     }
   }
 

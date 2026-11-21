@@ -547,8 +547,8 @@ function FinishRow({ session, settings, onAsk }: { session: Session; settings: S
   if (request?.status === 'declined') {
     return <StatusRow icon={<Clock />} tone="neutral" title="Carly kept your clock-out time" detail={`Your shift ends at ${formatClock(out.effective_time, tz)}.`} />
   }
-  // Asked for the extra time after clocking out: the extra-time row shows that.
-  const askedAfter = session.extensions.some((e) => compareTs(e.created_at, out.server_time) >= 0)
+  // Asked for the extra time after clocking out, or a request is still waiting: the extra-time row shows that.
+  const askedAfter = session.extensions.some((e) => compareTs(e.created_at, out.server_time) >= 0 || e.status === 'pending')
   if (out.source !== 'phone' || !isOverApproved(session.workedMin, session.approvedMin, settings) || askedAfter) return null
   return (
     <StatusRow

@@ -83,12 +83,14 @@ export function ExtensionRow({ session, settings, tz, onAsk }: { session: Sessio
     return <StatusRow icon={<Hourglass />} tone="warn" title={`Extra ${formatDuration(latest.minutes)} asked`} detail="Waiting for Carly" />
   }
   if (latest?.status === 'approved') {
+    // The shift's approved extra time in total (one answer can approve more or less than was asked).
+    const extra = session.approvedMin - settings.standard_shift_min
     const until = formatClock(new Date(Date.parse(session.clockIn.effective_time) + session.approvedMin * 60_000).toISOString(), tz)
     return (
       <StatusRow
         icon={<Check strokeWidth={3} />}
         tone="ok"
-        title={`Extra ${formatDuration(latest.minutes)} approved`}
+        title={`Extra ${formatDuration(extra)} approved`}
         detail={`You can stay until ${until}.`}
         onClick={ask}
       />
@@ -96,7 +98,7 @@ export function ExtensionRow({ session, settings, tz, onAsk }: { session: Sessio
   }
   if (session.clockOut) return null
   if (room <= 0) {
-    return <StatusRow icon={<Plus />} tone="neutral" title="No more extra time" detail={`${formatDuration(settings.max_shift_min)} is the most a shift can be approved for.`} />
+    return <StatusRow icon={<Plus />} tone="neutral" title="No more extra time to ask" detail="If you have to stay longer, clock out when you finish and tell Carly why." />
   }
   if (latest?.status === 'declined') {
     return <StatusRow icon={<Plus />} tone="neutral" title="Extra time not approved" detail="You can ask again if you need to." onClick={ask} />

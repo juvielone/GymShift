@@ -1,16 +1,21 @@
 // Pending extra-time, swap/cover and attendance-correction requests with inline Approve / Decline.
+// Extra time is one card per shift: what was asked, what was worked, and Approve (the time worked),
+// Correct time (a fair finish, approved in the same step) or Not approved (hours stay as recorded).
 // A request is decided once, so each tap waits 5 seconds with Undo before it is saved; once saved,
 // the row folds away and never offers Approve / Decline again, even before the list reloads.
 // Corrections and after-the-fact extensions show where the phone was at the clock-out, so Carly can judge.
 import { useEffect, useRef, useState } from 'react'
 import { ArrowLeftRight, Check, Clock, Plus, Undo2, UserRound, X } from 'lucide-react'
-import { decideCorrectionRequest, decideExtension, decideSwap } from '@/data'
+import { decideCorrectionRequest, decideExtraTime, decideSwap } from '@/data'
 import type { EffectiveClockEvent } from '@/data'
 import type { CorrectionReason, Timestamp, User } from '@/types'
 import type { RequestItem } from '@/hooks/requests'
 import { Disc } from '@/components/common/ListParts'
 import { rowClass, smallButton } from '@/components/common/listStyles'
-import { shortName, formatClock, formatDateShort, formatDistance, formatTimeRange, localDay } from '@/lib/format'
+import { cn } from '@/lib/utils'
+import { ExtraTimeFix } from '@/components/requests/ExtraTimeFix'
+import { FLAG_LABEL } from '@/components/manager/flagText'
+import { shortName, formatClock, formatDateShort, formatDistance, formatDuration, formatTimeRange, localDay } from '@/lib/format'
 
 const UNDO_MS = 5000
 
@@ -46,6 +51,8 @@ export function RequestList({ items, viewer, tz, now, onChanged }: Props) {
   const [settled, setSettled] = useState<Record<string, { item: RequestItem; p: Pending; at: number }>>({})
   const [errors, setErrors] = useState<Record<string, string>>({})
   const [cover, setCover] = useState<Record<string, string>>({})
+  // The extra-time card showing its "Correct time" form.
+  const [fixing, setFixing] = useState<string | null>(null)
   const timers = useRef(new Map<string, number>())
   const queued = useRef(new Map<string, () => Promise<void>>())
   // Asked today → show the time; earlier → show the date.
@@ -56,7 +63,7 @@ export function RequestList({ items, viewer, tz, now, onChanged }: Props) {
     timers.current.delete(item.id)
     queued.current.delete(item.id)
     try {
-      if (item.kind === 'extension') await decideExtension({ extensionId: item.id, decidedBy: viewer.id, approve: p.approve })
+      if (item.kind === 'extension') await decideExtraTime({ shiftId: item.shift.id, decidedBy: viewer.id, approve: p.approve })
       else if (item.kind === 'correction') await decideCorrectionRequest({ requestId: item.id, decidedBy: viewer.id, approve: p.approve })
       else await decideSwap({ swapId: item.id, decidedBy: viewer.id, approve: p.approve, coveredBy: p.coveredBy })
       const at = items.findIndex((i) => i.id === item.id)
@@ -116,12 +123,16 @@ export function RequestList({ items, viewer, tz, now, onChanged }: Props) {
         let asked: string
         let approveLabel = 'Approve'
         let declineLabel = 'Decline'
+        let doneLabel = 'Approved'
         if (item.kind === 'extension') {
-          title = `${who} · extra ${item.ext.minutes} min`
-          reason = item.ext.reason
-          asked = askedAt(item.ext.created_at)
-          approveLabel = `Approve ${item.ext.minutes} min`
-          if (item.clockedOut) shiftText += ` · asked after clocking out at ${formatClock(item.clockedOut.server_time, tz)}, ${whereText(item.clockedOut)}`
+          const askedMin = item.exts.reduce((sum, e) => sum + e.minutes, 0)
+          title = item.workedMin === null ? `${who} · extra ${formatDuration(askedMin)}` : `${who} · worked ${formatDuration(item.workedMin)}`
+          reason = [...new Set(item.exts.map((e) => e.reason))].join(' · ')
+          asked = askedAt(item.exts[0].created_at)
+          shiftText += item.clockOut ? ` · clocked out ${formatClock(item.clockOut.effective_time, tz)}, ${whereText(item.clockOut)}` : ' · still on shift'
+          declineLabel = 'Not approved'
+          approveLabel = item.workedMin === null ? `Approve ${formatDuration(item.extraMin)} more` : item.extraMin > 0 ? `Approve ${formatDuration(item.workedMin)}` : 'Close'
+          if (item.workedMin !== null && item.extraMin === 0) doneLabel = 'Closed'
         } else if (item.kind === 'correction') {
           const r = item.request
           const inAt = item.clockIn ? formatClock(item.clockIn.effective_time, tz) : null
@@ -161,7 +172,7 @@ export function RequestList({ items, viewer, tz, now, onChanged }: Props) {
                 <div className="flex items-center gap-3 px-1 py-3" role="status">
                   <Disc tone={done ? (decision.approve ? 'ok' : 'neutral') : 'neutral'}>{decision.approve ? <Check strokeWidth={3} /> : <X />}</Disc>
                   <p className="min-w-0 flex-1 text-base font-medium">
-                    {decision.approve ? 'Approved' : 'Declined'} <span className="font-normal text-muted-foreground">· {title}</span>
+                    {decision.approve ? doneLabel : declineLabel === 'Not approved' ? 'Not approved' : 'Declined'} <span className="font-normal text-muted-foreground">· {title}</span>
                   </p>
                   {p && (
                     <button type="button" onClick={() => undo(item.id)} className={smallButton.outline}>
@@ -177,7 +188,28 @@ export function RequestList({ items, viewer, tz, now, onChanged }: Props) {
 
         const needsPerson = item.kind === 'swap' && item.swap.kind === 'cover' && !item.other
         const chosen = needsPerson ? cover[item.id] : undefined
-        const blocked = item.kind === 'extension' ? item.blocked : needsPerson && item.candidates.length === 0 ? 'No one else is free that day.' : null
+        const blocked = needsPerson && item.candidates.length === 0 ? 'No one else is free that day.' : null
+        // Extra time: Approve on its own row on a phone, then Correct time and Not approved. The form replaces them.
+        const covered = item.kind === 'extension' && item.workedMin !== null && item.extraMin === 0
+        const canCorrect = item.kind === 'extension' && item.workedMin !== null && item.extraMin > 0 && item.clockIn !== null && item.clockOut !== null
+        const extraButtons =
+          item.kind !== 'extension' || fixing === item.id ? null : (
+            <div className={cn('mt-2.5 grid grid-cols-2 gap-2 lg:mt-0 lg:shrink-0', covered ? 'lg:w-auto' : 'lg:w-72')}>
+              <button type="button" onClick={() => decide(item, true)} className={cn(smallButton.ink, 'col-span-2')}>
+                {approveLabel}
+              </button>
+              {canCorrect && (
+                <button type="button" onClick={() => setFixing(item.id)} className={smallButton.outline}>
+                  Correct time
+                </button>
+              )}
+              {!covered && (
+                <button type="button" onClick={() => decide(item, false)} className={cn(smallButton.outline, !canCorrect && 'col-span-2')}>
+                  {declineLabel}
+                </button>
+              )}
+            </div>
+          )
 
         return (
           <li key={item.id} className={rowClass}>
@@ -192,7 +224,35 @@ export function RequestList({ items, viewer, tz, now, onChanged }: Props) {
                   {shiftText}
                   <span className="hidden lg:inline"> · asked {asked}</span>
                 </p>
+                {item.kind === 'extension' && <ExtraTimeFacts item={item} />}
                 {reason && <p className="mt-1 text-[15px] leading-snug">“{reason}”</p>}
+                {item.kind === 'extension' && item.flags.length > 0 && (
+                  <p className="mt-1 text-sm leading-snug text-muted-foreground">
+                    Flagged: {[...new Set(item.flags.map((f) => FLAG_LABEL[f.kind]))].join(', ')}. Your answer closes {item.flags.length === 1 ? 'it' : 'these'}.
+                  </p>
+                )}
+                {item.kind === 'extension' && item.pastMax && item.extraMin > 0 && (
+                  <p className="mt-1.5 text-sm leading-snug text-warn">
+                    Approving makes this a {formatDuration(item.approvedMin + item.extraMin)} shift, past the usual {formatDuration(item.settings.max_shift_min)}.
+                  </p>
+                )}
+                {item.kind === 'extension' && fixing === item.id && item.clockIn && item.clockOut && (
+                  <ExtraTimeFix
+                    shiftId={item.shift.id}
+                    clockIn={item.clockIn}
+                    clockOut={item.clockOut}
+                    approvedMin={item.approvedMin}
+                    settings={item.settings}
+                    name={who}
+                    viewer={viewer}
+                    tz={tz}
+                    onCancel={() => setFixing(null)}
+                    onDone={() => {
+                      setFixing(null)
+                      onChanged()
+                    }}
+                  />
+                )}
                 {blocked && <p className="mt-1.5 text-sm leading-snug text-warn">{blocked}</p>}
                 {needsPerson && item.candidates.length > 0 && (
                   <label className="mt-2 block">
@@ -219,6 +279,9 @@ export function RequestList({ items, viewer, tz, now, onChanged }: Props) {
                   </p>
                 )}
               </div>
+              {item.kind === 'extension' ? (
+                extraButtons
+              ) : (
               <div className="mt-2.5 flex gap-2 lg:mt-0 lg:shrink-0">
                 <button type="button" onClick={() => decide(item, false)} className={smallButton.outline}>
                   {declineLabel}
@@ -229,10 +292,29 @@ export function RequestList({ items, viewer, tz, now, onChanged }: Props) {
                   </button>
                 )}
               </div>
+              )}
             </div>
           </li>
         )
       })}
     </ul>
+  )
+}
+
+/** "Asked for 30 min more · 30 min approved earlier · stayed 1h 30m past 3h", or why there's nothing to add. */
+function ExtraTimeFacts({ item }: { item: Extract<RequestItem, { kind: 'extension' }> }) {
+  const askedMin = item.exts.reduce((sum, e) => sum + e.minutes, 0)
+  const standardMin = item.settings.standard_shift_min
+  const earlier = item.approvedMin - standardMin
+  const parts = [`Asked for ${formatDuration(askedMin)} more`]
+  if (earlier > 0) parts.push(`${formatDuration(earlier)} approved earlier`)
+  if (item.workedMin !== null && item.workedMin > standardMin) parts.push(`stayed ${formatDuration(item.workedMin - standardMin)} past ${formatDuration(standardMin)}`)
+  return (
+    <>
+      <p className="mt-1 text-[15px] leading-snug font-medium">{parts.join(' · ')}</p>
+      {item.workedMin !== null && item.extraMin === 0 && (
+        <p className="mt-1 text-sm leading-snug text-muted-foreground">Already covered by the time approved earlier. Nothing more to approve.</p>
+      )}
+    </>
   )
 }

@@ -11,7 +11,7 @@ import { Textarea } from '@/components/ui/textarea'
 import { formatDuration } from '@/lib/format'
 import { cn } from '@/lib/utils'
 
-const QUICK_REASONS = ['Extra cleaning needed', 'Spill or mess', 'Late class or event', 'Delivery to unpack']
+const QUICK_REASONS = ['Extra cleaning needed', 'Carly asked me to stay', 'Spill or mess', 'Late class or event', 'Delivery to unpack']
 
 interface Props {
   open: boolean

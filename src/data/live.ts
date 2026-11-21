@@ -528,6 +528,17 @@ export async function requestExtension(input: { shiftId: Uuid; requestedBy: Uuid
   return write<Extension>('request_extension', { p_shift_id: input.shiftId, p_minutes: input.minutes, p_reason: input.reason })
 }
 
+/** One answer for a shift's waiting extra time (24_extra_time.sql). */
+export async function decideExtraTime(input: { shiftId: Uuid; decidedBy: Uuid; approve: boolean; finishAt?: Timestamp; reason?: string }): Promise<Extension[]> {
+  if (input.decidedBy !== auth.userId) throw new Error('Only the manager can approve extra time')
+  return write<Extension[]>('decide_extra_time', {
+    p_shift_id: input.shiftId,
+    p_approve: input.approve,
+    p_finish_at: input.finishAt ?? null,
+    p_reason: input.reason ?? null,
+  })
+}
+
 export async function decideExtension(input: { extensionId: Uuid; decidedBy: Uuid; approve: boolean }): Promise<Extension> {
   if (input.decidedBy !== auth.userId) throw new Error('Only the manager can approve extensions')
   return write<Extension>('decide_extension', { p_extension_id: input.extensionId, p_approve: input.approve })

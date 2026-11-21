@@ -60,7 +60,12 @@ const draft = (date: string, type: ShiftType, userId: string): Shift => ({
   published_at: null,
 })
 
+// Two night shifts at the end of the fortnight before, for the extra-time cards (see extensions.ts).
+const earlier = (date: string, userId: string): Shift => ({ ...makeShift(date, 'night', userId), fortnight_start: '2026-10-19', published_at: '2026-10-16T17:30:00+11:00', created_at: '2026-10-15T15:00:00+11:00' })
+
 export const shifts: Shift[] = [
+  earlier('2026-10-31', KYLE),
+  earlier('2026-11-01', JOSH),
   ...roster.flatMap(([date, morning, night]) => [makeShift(date, 'morning', morning), makeShift(date, 'night', night)]),
   draft('2026-11-16', 'morning', JOSH),
   draft('2026-11-16', 'night', GINO),

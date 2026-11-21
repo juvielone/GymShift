@@ -39,6 +39,8 @@ async function load(): Promise<ManagerDashboard> {
   ])
   const userById = new Map(users.map((u) => [u.id, u]))
   const shiftById = new Map(shifts.map((s) => [s.id, s]))
+  // Flags an extra-time card already shows (over approved time, no clock-out) aren't listed twice.
+  const inCards = new Set(requests.flatMap((r) => (r.kind === 'extension' ? r.flags.map((f) => f.id) : [])))
 
   const todayShifts = shifts.filter((s) => s.date === today)
   const todayNotes = await getShiftNotes({ viewerId: me.id, shiftIds: todayShifts.map((s) => s.id) })
@@ -76,6 +78,7 @@ async function load(): Promise<ManagerDashboard> {
     requests,
     // Oldest first, matching requests: the longest-waiting item is handled first.
     flags: flags
+      .filter((f) => !inCards.has(f.id))
       .sort((a, b) => compareTs(a.created_at, b.created_at))
       .flatMap((flag) => {
         const user = userById.get(flag.user_id)

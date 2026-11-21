@@ -40,7 +40,7 @@ Mobile-first roster and attendance web app for the World Gym Macquarie Park clea
 3. **Never auto-cut hours.**
    - Paid time is clock-out minus clock-in, using corrected times. Nothing truncates, rounds down or caps worked minutes.
    - Time over 3h without an approved extension is *flagged* for Carly. It is never reduced.
-   - An extension can't be *approved* beyond 3.5h in total. That cap applies to approvals, not to recorded time.
+   - Approving past 3.5h in total warns, never blocks (21 Nov 2026). Extra time is decided per shift on the time worked (`decideExtraTime()` in `src/data/extensions.ts`, `decide_extra_time()` in `…24_extra_time.sql`; `extensions.approved_min`). "Not approved" never changes recorded time.
 4. **Flag, don't block.**
    - Off-site, no-location (denied/timeout/unavailable) and unscheduled clock-ins and clock-outs always save, then raise a flag.
    - Off-site means `distance − accuracy > radius`. Poor GPS accuracy alone never flags or blocks.

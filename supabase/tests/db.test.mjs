@@ -1376,6 +1376,118 @@ test('no database function updates or deletes without a WHERE (Supabase refuses 
   assert.deepEqual(missing, [])
 })
 
+// ---- Extra time decided per shift (24_extra_time.sql) ----
+
+/**
+ * A finished night shift `daysAgo` back for Josh: clocked in 6:58 pm, out `workedMin` later, with its over-length
+ * and missing clock-out flags. `approved` minutes were approved earlier; `pending` lists the requests still waiting.
+ */
+async function pastNight({ daysAgo, workedMin, approved = 0, pending = [30] }) {
+  const { rows } = await db.query(`select ((now() at time zone 'Australia/Sydney')::date - $1::integer)::text as d`, [daysAgo])
+  const shift = await addShift({ date: rows[0].d, type: 'night', user: JOSH })
+  return owner(CARLY, async (tx) => {
+    const at = `(($1::date + time '18:58') at time zone 'Australia/Sydney')`
+    const ins = (await tx.query(`insert into clock_events (user_id, shift_id, kind, server_time, location_status) values ($2, $3, 'in', ${at}, 'denied') returning id`, [rows[0].d, JOSH, shift])).rows[0].id
+    const out = (
+      await tx.query(
+        `insert into clock_events (user_id, shift_id, kind, server_time, location_status) values ($2, $3, 'out', ${at} + make_interval(mins => $4), 'denied') returning id`,
+        [rows[0].d, JOSH, shift, workedMin],
+      )
+    ).rows[0].id
+    if (approved > 0) {
+      const id = (await tx.query(`insert into extensions (shift_id, requested_by, minutes, reason) values ($1, $2, $3, 'Extra cleaning needed') returning id`, [shift, JOSH, approved])).rows[0].id
+      await tx.query(`update extensions set status = 'approved', decided_by = $1, decided_at = now() where id = $2`, [CARLY, id])
+    }
+    for (const [i, minutes] of pending.entries()) {
+      await tx.query(`insert into extensions (shift_id, requested_by, minutes, reason, created_at) values ($1, $2, $3, 'Carly asked me to stay', now() + make_interval(secs => $4))`, [shift, JOSH, minutes, i])
+    }
+    await tx.query(`insert into flags (kind, user_id, shift_id, clock_event_id, detail) values ('over_without_extension', $1, $2, $3, 'over'), ('missing_clock_out', $1, $2, $4, 'no out')`, [JOSH, shift, out, ins])
+    return { shift, ins, out }
+  })
+}
+
+const decideExtra = (who, shift, approve, finishAt = null, reason = null) =>
+  as(who, async (tx) => (await tx.query(`select * from public.decide_extra_time($1, $2, $3, $4)`, [shift, approve, finishAt, reason])).rows)
+const shiftState = async ({ shift, ins, out }) =>
+  (
+    await db.query(
+      `select private.approved_shift_min($1) as approved, private.session_min($2, $3) as worked,
+              (select count(*)::int from flags f where f.shift_id = $1 and f.resolved_at is null) as open_flags,
+              (select array_agg(f.resolved_note) from flags f where f.shift_id = $1) as notes,
+              (select server_time from clock_events where id = $3) as out_recorded`,
+      [shift, ins, out],
+    )
+  ).rows[0]
+
+test('extra time after clock-out: approving takes the time worked, past 3.5h without blocking, and closes its flags', async () => {
+  // Josh's Fri 20 Nov case: 30 min approved, asked for 30 more, worked 4h 30m.
+  const s = await pastNight({ daysAgo: 20, workedMin: 270, approved: 30, pending: [30] })
+  const before = await shiftState(s)
+  const decided = await decideExtra(CARLY, s.shift, true)
+  assert.equal(decided.length, 1)
+  assert.equal(decided[0].status, 'approved')
+  assert.equal(decided[0].minutes, 30) // what was asked stays on record
+  assert.equal(decided[0].approved_min, 60)
+  const after = await shiftState(s)
+  assert.equal(after.approved, 270)
+  assert.equal(after.worked, 270)
+  assert.equal(after.open_flags, 0)
+  assert.deepEqual(after.out_recorded, before.out_recorded)
+  // Decided once.
+  await rejects(decideExtra(CARLY, s.shift, false), /already decided/)
+})
+
+test('Not approved keeps every recorded minute and closes the extra-time flags with a note', async () => {
+  const s = await pastNight({ daysAgo: 21, workedMin: 270, approved: 30, pending: [30] })
+  const decided = await decideExtra(CARLY, s.shift, false)
+  assert.equal(decided[0].status, 'declined')
+  assert.equal(decided[0].approved_min, null)
+  const after = await shiftState(s)
+  assert.equal(after.worked, 270)
+  assert.equal(after.approved, 210)
+  assert.equal(after.open_flags, 0)
+  assert.deepEqual(after.notes, ['Extra time not approved. Hours stay as recorded.', 'Extra time not approved. Hours stay as recorded.'])
+})
+
+test('Correct time saves a fair finish as a correction and approves up to it; the clock-out is kept', async () => {
+  const s = await pastNight({ daysAgo: 22, workedMin: 270, approved: 30, pending: [30] })
+  const before = await shiftState(s)
+  await rejects(decideExtra(CARLY, s.shift, true, new Date().toISOString(), ' '), /needs a reason/)
+  const { rows } = await db.query(`select private.effective_time($1) + interval '242 minutes' as t`, [s.ins])
+  const decided = await decideExtra(CARLY, s.shift, true, rows[0].t.toISOString(), 'Agreed with Josh')
+  assert.equal(decided[0].approved_min, 32)
+  const after = await shiftState(s)
+  assert.equal(after.worked, 242)
+  assert.equal(after.approved, 242)
+  assert.equal(after.open_flags, 0)
+  assert.deepEqual(after.out_recorded, before.out_recorded)
+  const c = (await db.query(`select old_time, reason, corrected_by from corrections where clock_event_id = $1`, [s.out])).rows
+  assert.equal(c.length, 1)
+  assert.deepEqual(c[0].old_time, before.out_recorded)
+  assert.equal(c[0].reason, 'Agreed with Josh')
+  assert.equal(c[0].corrected_by, CARLY)
+})
+
+test('two waiting requests are answered together; time already covered approves nothing more', async () => {
+  const both = await pastNight({ daysAgo: 23, workedMin: 260, pending: [30, 30] })
+  const decided = await decideExtra(CARLY, both.shift, true)
+  assert.deepEqual(decided.map((e) => [e.status, e.approved_min]), [['approved', 80], ['approved', 0]])
+  assert.equal((await shiftState(both)).approved, 260)
+  // Zaira's case: 3h 32m with 30 min approved is within the leeway.
+  const covered = await pastNight({ daysAgo: 24, workedMin: 212, approved: 30, pending: [30] })
+  assert.equal((await decideExtra(CARLY, covered.shift, true))[0].approved_min, 0)
+  assert.equal((await shiftState(covered)).approved, 210)
+})
+
+test('only the manager decides extra time; a request after clock-out is still accepted', async () => {
+  const s = await pastNight({ daysAgo: 25, workedMin: 270, approved: 30, pending: [] })
+  // Asked after clocking out, on a shift already at 3h 30m approved: it saves (the cap is for Carly, as a warning).
+  await as(JOSH, (tx) => tx.query(`select public.request_extension($1, 30, 'Carly asked me to stay')`, [s.shift]))
+  await rejects(decideExtra(GLADYS, s.shift, true), /Only the manager/)
+  await rejects(decideExtra(JOSH, s.shift, true), /Only the manager/)
+  assert.equal((await decideExtra(CARLY, s.shift, true))[0].approved_min, 60)
+})
+
 // Runs last: it moves the roster anchor. The pay-fortnight migration (…22) ran on an empty database above, so it
 // is run again here on the tests' shifts (published, cancelled and clocked into) to check it realigns them all.
 test('pay fortnight: the anchor moves to 19 Oct 2026 and every shift is regrouped, nothing else changes', async () => {

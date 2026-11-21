@@ -1,6 +1,7 @@
 // When did they really finish? Two cases, both decided by Carly:
-// - 'late': clocked out past the approved finish. "I stayed to finish" asks for the extra time (an extension,
-//   up to the request limit); "I forgot to clock out" sends the time they left.
+// - 'late': clocked out past the approved finish. "I stayed to finish" (or "Carly asked me to stay") asks for
+//   the extra time: Carly's card shows the full time worked, so a request already waiting isn't asked twice.
+//   "I forgot to clock out" sends the time they left.
 // - 'auto': they never clocked out and the job closed the shift at its end. "That's right" confirms it;
 //   "I finished at a different time" sends that time.
 // The recorded time stays as it is until Carly approves; nothing here changes hours by itself.
@@ -27,6 +28,7 @@ interface Props {
 }
 
 const STAYED = 'Stayed to finish'
+const ASKED_TO_STAY = 'Carly asked me to stay'
 
 export function FinishTimeSheet({ open, onOpenChange, mode, session, userId, settings, onSent }: Props) {
   const tz = settings.timezone
@@ -34,9 +36,9 @@ export function FinishTimeSheet({ open, onOpenChange, mode, session, userId, set
   const finish = new Date(Date.parse(session.clockIn.effective_time) + session.approvedMin * 60_000).toISOString()
   const suggested = mode === 'auto' ? clockOut.effective_time : finish
   const overMin = minutesBetween(finish, clockOut.effective_time)
-  // "Stayed": the extra minutes, as far as one request and the shift's maximum allow.
-  const room = Math.min(settings.max_extension_request_min, settings.max_shift_min - session.approvedMin)
-  const canStay = mode === 'late' && session.shift !== null && room > 0
+  // "Stayed": one request for the shift (its minutes up to the request limit); Carly sees the full time worked.
+  const canStay = mode === 'late' && session.shift !== null
+  const waiting = session.extensions.some((e) => e.status === 'pending')
 
   const [picking, setPicking] = useState(false)
   const [time, setTime] = useState(localTime(suggested, tz))
@@ -83,11 +85,16 @@ export function FinishTimeSheet({ open, onOpenChange, mode, session, userId, set
     })
   }
 
-  const stayed = () => {
-    const minutes = Math.min(overMin, room)
-    void run(() => requestExtension({ shiftId: session.shift!.id, requestedBy: userId, minutes, reason: STAYED }), {
-      title: `Asked for ${formatDuration(minutes)} more.`,
-      detail: 'Carly will reply here. Your time is saved as you clocked it.',
+  const stayed = (reason: string) => {
+    if (waiting) {
+      // Already asked on this shift: no second request. Carly's card shows the time actually worked.
+      void run(async () => {}, { title: 'Carly already has your request.', detail: `She'll see you worked until ${formatClock(clockOut.effective_time, tz)}. Your time is saved as you clocked it.` })
+      return
+    }
+    const minutes = Math.max(1, Math.min(overMin, settings.max_extension_request_min))
+    void run(() => requestExtension({ shiftId: session.shift!.id, requestedBy: userId, minutes, reason }), {
+      title: `Told Carly you stayed ${formatDuration(overMin)}.`,
+      detail: 'She will reply here. Your time is saved as you clocked it.',
     })
   }
 
@@ -158,9 +165,14 @@ export function FinishTimeSheet({ open, onOpenChange, mode, session, userId, set
           ) : (
             <>
               {canStay && (
-                <button type="button" onClick={stayed} disabled={sending} className={primary}>
-                  {sending && <LoaderCircle aria-hidden className="size-5 animate-spin" />}I stayed to finish
-                </button>
+                <>
+                  <button type="button" onClick={() => stayed(STAYED)} disabled={sending} className={primary}>
+                    {sending && <LoaderCircle aria-hidden className="size-5 animate-spin" />}I stayed to finish
+                  </button>
+                  <button type="button" onClick={() => stayed(ASKED_TO_STAY)} disabled={sending} className={secondary}>
+                    Carly asked me to stay
+                  </button>
+                </>
               )}
               <button type="button" onClick={() => setPicking(true)} disabled={sending} className={canStay ? secondary : primary}>
                 I forgot to clock out

@@ -103,6 +103,7 @@ export const resolveFlag = persisted(flags.resolveFlag, (l) => l.resolveFlag)
 export { getExtensions } from './extensions'
 export const requestExtension = persisted(extensions.requestExtension, (l) => l.requestExtension)
 export const decideExtension = persisted(extensions.decideExtension, (l) => l.decideExtension)
+export const decideExtraTime = persisted(extensions.decideExtraTime, (l) => l.decideExtraTime)
 
 export { getSwaps, getSwapCandidates } from './swaps'
 export const requestSwap = persisted(swaps.requestSwap, (l) => l.requestSwap)

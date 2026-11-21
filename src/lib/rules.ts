@@ -34,14 +34,30 @@ export function isOffSite(distanceM: number | null, accuracyM: number | null, se
   return distanceM - (accuracyM ?? 0) > settings.radius_m
 }
 
-/** Sum of approved extension minutes for one shift. */
+/** Sum of approved extension minutes for one shift (what was approved, else what was asked). */
 export function approvedExtensionMinutes(extensions: Extension[]): number {
-  return extensions.filter((e) => e.status === 'approved').reduce((sum, e) => sum + e.minutes, 0)
+  return extensions.filter((e) => e.status === 'approved').reduce((sum, e) => sum + (e.approved_min ?? e.minutes), 0)
 }
 
-/** Longest shift that is covered by approvals: standard + approved extensions, capped at the maximum. */
+/**
+ * Longest shift that is covered by approvals: standard + approved extensions. Not capped: the manager may
+ * approve past max_shift_min after a warning (isPastShiftMax), e.g. when she asked someone to stay.
+ */
 export function approvedShiftMinutes(extensions: Extension[], settings: SiteSettings): number {
-  return Math.min(settings.standard_shift_min + approvedExtensionMinutes(extensions), settings.max_shift_min)
+  return settings.standard_shift_min + approvedExtensionMinutes(extensions)
+}
+
+/**
+ * Extra minutes an approval adds so the approved length covers the time worked. 0 when the approved length
+ * plus the leeway already covers it (nothing is flagged then, and the leeway minutes are paid anyway).
+ */
+export function extraToApprove(workedMin: number, approvedMin: number, settings: SiteSettings): number {
+  return isOverApproved(workedMin, approvedMin, settings) ? workedMin - approvedMin : 0
+}
+
+/** A shift approved for longer than max_shift_min (3.5h): the manager is warned before approving. Never blocked. */
+export function isPastShiftMax(totalMin: number, settings: SiteSettings): boolean {
+  return totalMin > settings.max_shift_min
 }
 
 /**
@@ -58,7 +74,7 @@ export function isOverApproved(workedMin: number, approvedMin: number, settings:
   return workedMin > approvedMin + settings.over_length_grace_min
 }
 
-/** Whether approving `requestMin` more minutes keeps the shift within the maximum (3.5h). */
+/** Whether approving `requestMin` more minutes keeps the shift within the maximum (3.5h). Used by the live decide_extension path only. */
 export function canApproveExtension(requestMin: number, extensions: Extension[], settings: SiteSettings): boolean {
   if (requestMin < 1 || requestMin > settings.max_extension_request_min) return false
   return settings.standard_shift_min + approvedExtensionMinutes(extensions) + requestMin <= settings.max_shift_min

@@ -5,8 +5,13 @@ export interface Extension {
   id: Uuid
   shift_id: Uuid
   requested_by: Uuid
-  /** 1–30. A shift can never be approved beyond max_shift_min (3.5h) in total. */
+  /** What was asked: 1–30. */
   minutes: number
+  /**
+   * What the manager approved, set when approved: the time actually worked can differ from what was asked
+   * (0 when earlier approvals already cover it). null = as asked (approvals before this column existed).
+   */
+  approved_min: number | null
   reason: string
   status: RequestStatus
   created_at: Timestamp

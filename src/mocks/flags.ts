@@ -30,6 +30,17 @@ export const flags: Flag[] = [
     detail: 'Recorded 3h 20m with no approved extension (standard 3h)', created_at: '2026-11-02T22:42:00+11:00',
     resolved_at: null, resolved_by: null, resolved_note: null,
   },
+  // Josh 1 Nov night: stayed past the approved 3h 30m. Both show inside his extra-time card, not as rows.
+  {
+    id: 'flag-11', kind: 'missing_clock_out', user_id: JOSH, shift_id: shiftId('2026-11-01', 'night'), clock_event_id: 'ce-19',
+    detail: 'No clock-out by 10:58 pm', created_at: '2026-11-01T22:58:00+11:00',
+    resolved_at: null, resolved_by: null, resolved_note: null,
+  },
+  {
+    id: 'flag-12', kind: 'over_without_extension', user_id: JOSH, shift_id: shiftId('2026-11-01', 'night'), clock_event_id: 'ce-20',
+    detail: 'Recorded 4h 30m; approved 3h 30m', created_at: '2026-11-01T23:28:00+11:00',
+    resolved_at: null, resolved_by: null, resolved_note: null,
+  },
   // Open flags for the dashboard
   {
     id: 'flag-06', kind: 'off_site', user_id: KYLE, shift_id: shiftId('2026-11-03', 'morning'), clock_event_id: 'ce-05',

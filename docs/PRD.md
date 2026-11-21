@@ -105,7 +105,8 @@ Nine features, ordered by build priority. Each acceptance criterion is a test th
 - A cleaner can request up to 30 extra minutes on an active shift, with a reason.
 - Carly approves or declines. The cleaner sees the result in the app.
 - A shift longer than 3 hours without an approved extension is flagged.
-- No shift can be approved beyond 3.5 hours.
+- **Extra time is decided per shift, on the time actually worked** *(21 Nov 2026, after a night Carly asked a cleaner to stay back an hour)*. Carly sees one card per shift: what was asked, the time worked, the reason, and the shift's over-time and missing clock-out flags. She answers once: **Approve** (the time worked, the default), **Correct time** (the finish she thinks is fair, saved as a correction with a reason, then approved up to it) or **Not approved** (hours stay as recorded; only the approval is refused). Her answer closes those flags. Requests a cleaner sends after clocking out ("I stayed to finish", "Carly asked me to stay") join the same card; a second request isn't made while one is waiting.
+- Approving past 3.5 hours in total shows a warning; it is not blocked (21 Nov 2026). A single request is still 1–30 minutes.
 
 ### F6. Flags and attendance corrections
 
@@ -178,7 +179,7 @@ Rules marked *confirmed* come from Carly. The rest are defaults to check during 
 | Rule | Value | Status |
 | --- | --- | --- |
 | Standard shift length | 3 hours | Confirmed |
-| Maximum shift with approved extension | 3.5 hours | Confirmed |
+| Maximum shift with approved extension | 3.5 hours: a warning above it, not a block | Changed 21 Nov 2026 |
 | Who approves extensions | Carly only | Confirmed |
 | Who approves swaps and covers | Carly or Gladys | Confirmed |
 | Roster and pay period | Fortnightly, matching pay: Mon 2 – Sun 15 Nov, 16 – 29 Nov 2026, ... (`roster_anchor_date` 19 Oct 2026) | Confirmed 17 Nov 2026 |

@@ -12,6 +12,10 @@ import { GLADYS, ANGEL, JOSH, KYLE, GINO, shiftId } from './ids'
 //  4 Nov morning  Gladys    location permission denied → still saved, no-location flag (open)
 //  4 Nov 1:20 pm  Kyle  tapped Clock in at home; "This was a mistake" at 1:31 clocked him out → void request pending
 //  4 Nov night    Josh  starts at 7:00 pm, not clocked in yet (clock in and out live to test)
+// Extra-time cards (Requests), from the fortnight before:
+// 31 Oct night    Kyle  3h 32m, 30 min approved + "Stayed to finish" waiting → already covered (Close)
+//  1 Nov night    Josh  4h 30m, 30 min approved + "Carly asked me to stay" waiting → over approved time and
+//                        no clock-out flags, shown inside the card
 const e = (
   id: string,
   user_id: string,
@@ -46,4 +50,8 @@ export const clockEvents: ClockEvent[] = [
   e('ce-14', ANGEL, null, 'out', '2026-11-02T15:12:00+11:00', [-33.81370, 151.10056, 8, 4172]),
   e('ce-15', KYLE, null, 'in', '2026-11-04T13:20:00+11:00', [-33.79600, 151.14286, 10, 2638]),
   e('ce-16', KYLE, null, 'out', '2026-11-04T13:31:00+11:00', [-33.79600, 151.14286, 10, 2638]),
+  e('ce-17', KYLE, shiftId('2026-10-31', 'night'), 'in', '2026-10-31T18:59:00+11:00', [-33.78070, 151.12150, 12, 40]),
+  e('ce-18', KYLE, shiftId('2026-10-31', 'night'), 'out', '2026-10-31T22:31:00+11:00', [-33.78072, 151.12152, 10, 42]),
+  e('ce-19', JOSH, shiftId('2026-11-01', 'night'), 'in', '2026-11-01T18:58:00+11:00', [-33.78065, 151.12151, 10, 35]),
+  e('ce-20', JOSH, shiftId('2026-11-01', 'night'), 'out', '2026-11-01T23:28:00+11:00', [-33.78050, 151.12140, 9, 12]),
 ]
